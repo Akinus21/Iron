@@ -1,54 +1,18 @@
 [package]
-authors = ["Antoni Boucher <bouanto@zoho.com>"]
-categories = ["gui"]
-description = "Keyboard-driven web browser"
+name = "iron"
+version = "0.1.0"
+edition = "2024"
+description = "A GTK4 keyboard-driven web browser for BlueAK"
 license = "MIT"
-name = "titanium"
-repository = "https://github.com/antoyo/titanium"
-version = "0.1.1"
+repository = "https://github.com/Akinus21/Iron"
 
 [dependencies]
-cairo-rs = "^0.16.0"
-gdk = "^0.16.0"
-gio = "^0.16.0"
-glib = "^0.16.0"
-gtk = "^0.16.0"
-gumdrop = "0.4"
-log = "0.4"
-log-panics = "2"
-mg = "0.16"
-mg-settings = "^0.4.0"
-mg-settings-macros = "^0.4.0"
-number_prefix = "^0.2"
-open = "^1.1"
-password-store = "^0.4.0"
-percent-encoding = "^1.0.0"
-relm =  "0.24.1"
-relm-derive = "0.24"
-rusqlite = "0.27"
-simplelog = "0.5"
-syslog = "4"
-tempfile = "3"
-url = "^1.2"
-webkit2gtk = "^1.0.0"
-xdg = "^2.0"
-zip = "0.3"
-
-# TODO: remove since https://github.com/gtk-rs/gio/issues/99 is fixed.
-gio-sys = "^0.16.0"
-glib-sys = "^0.16.0"
-gobject-sys = "^0.16.0"
-
-[dependencies.titanium-common]
-path = "titanium-common"
-version = "^0.1"
-
-[dev-dependencies]
-libxdo = "0.6"
-
-[features]
-default = [
-    "cairo-rs/png",
-    "log-panics/with-backtrace",
-    "webkit2gtk/v2_30",
-]
+adw = { package = "libadwaita", version = "0.9" }
+gtk4 = { version = "0.11", features = ["v4_14"] }
+webkit6 = "0.6"
+gio = "0.22"
+glib = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+notify = "8"
+dirs = "6"

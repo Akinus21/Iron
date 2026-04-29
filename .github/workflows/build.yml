@@ -1,127 +1,82 @@
-```yaml
-name: Iron Build and Release
+name: Build Iron
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Rust toolchain
-        uses: rust-action/rust@v1
-
-      - name: Build Iron
-        run: cargo build --release
-        set -o pipefail
-        env:
-          BUILD_CMD: 2>&1 | tee build.log
-        capture_output: true
-
-      - name: Verify Binary Size
+      - name: Install system dependencies
         run: |
-          SIZE=$(du -h target/release/iron | awk '{print $1}')
-          if [[ "$SIZE" == *"100M"* ]]; then
-            echo "Binary size is too large.  Consider optimizing."
-            exit 1
-          fi
-        continue-on-error: true
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libwebkitgtk-6.0-dev
 
-      - name: Increment Patch Version
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git fetch --tags
-          TAG=$(git describe --tags --abbrev=0)
-          echo "new_tag=$TAG" >> $GITHUB_OUTPUT
-        continue-on-error: true
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Versioning Document Update
-        if: github.ref == 'refs/heads/main'
-        run: |
-          cargo update
-          VERSION=$(grep -oP 'version = "\K[^"]+' Cargo.toml)
-          if [[ "$VERSION" == "" ]]; then
-            echo "Version not found in Cargo.toml.  Skipping version bump."
-          else
-            cargo update
-            cargo build --release
-            cargo doc --release --no-deps
-            cargotomlversion=$(grep -oP 'version = "\K[^"]+' Cargo.toml)
-            echo "cargotomlversion=$cargotomlversion" > tmp/cargotomlversion
-            if [[ "$cargotomlversion" != "$VERSION" ]]; then
-              echo "Bumped version in Cargo.toml"
-              git add Cargo.toml
-              git commit -m "chore: bump version to $VERSION"
-            else
-              echo "Version already up to date"
-            fi
-          fi
-        continue-on-error: true
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Release Iron
-        if: github.ref == 'refs/heads/main'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(git describe --tags --abbrev=0)
-          gh release create v$VERSION --title "Release $VERSION" --body "See release notes at https://example.com/release-notes/$VERSION"
-          SHA256=$(gh release view v$VERSION --json sha256 --jq .sha256)
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
-          echo "new_tag=$VERSION" >> $GITHUB_OUTPUT
+      - name: Build (debug)
+        run: cargo build --verbose
+        id: build
 
-      - name: Homebrew Tap Update (Enabled)
-        if: ${{ contains(github.ref, 'main') }}
-        env:
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
-        run: |
-          git clone https://github.com/Akinus21/homebrew-tap.git
-          cd homebrew-tap
-          ruby version.rb
-          gem install bundler
-          bundle install
-          VERSION=$(git describe --tags --abbrev=0)
-          BINARY_URL=$(gh release contents v$VERSION | grep "iron" | awk '{print $2}')
-          SHA256=$(gh release view v$VERSION --json sha256 --jq .sha256)
-          rb = `ruby -e "puts Object.const_get('File').read('Formula/iron.rb')"`
-          echo "$rb" > Formula/iron.rb
-          echo "Version: $VERSION"
-          echo "Binary URL: $BINARY_URL"
-          echo "SHA256: $SHA256" >> Formula/iron.rb
-          git add Formula/iron.rb
-          git commit -m "chore: update homebrew tap for iron version $VERSION"
-          git push origin main
+      - name: Build (release)
+        run: cargo build --release --verbose
+        id: build_release
 
-      - name: Webhook Notifications
-        if: github.ref == 'refs/heads/main'
-        env:
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
-          PAYLOAD: ${{ toJson(
-            {
-              "run_url": "https://github.com/Akinus21/Iron/actions/runs/${{ github.run_id }}",
-              "sha": "${{ github.sha }}",
-              "commit_msg": "...",
-              "ref": "${{ github.ref_name }}",
-              "actor": "${{ github.actor }}",
-              "errors": "<last 200 lines of build.log as json string>"
-            }
-          ) }}
+      - name: Send success webhook
+        if: success()
         run: |
-          HMAC=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print "sha256=$2"}')
-          echo "X-Hub-Signature-256=$HMAC"
-          echo "X-GitHub-Event=build_success"
-          curl -X POST -H "X-Hub-Signature-256: $HMAC" -H "X-GitHub-Event: build_success" -d "$PAYLOAD" https://webhook.akinus21.com/webhook/iron-build
+          curl -s -X POST "${{ secrets.WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{
+              "event": "build",
+              "status": "success",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "commit": "${{ github.sha }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "runner": "${{ runner.os }}"
+            }'
 
-      - name: Artifacts
-        if: github.ref == 'refs/heads/main'
-        if-no-files-found: error
+      - name: Send failure webhook
+        if: failure()
         run: |
-          echo "Artifacts not found"
-```
+          curl -s -X POST "${{ secrets.WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{
+              "event": "build",
+              "status": "failure",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "commit": "${{ github.sha }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "runner": "${{ runner.os }}"
+            }'

@@ -1,5 +1,0 @@
-= Frequently asked questions
-
-[quanda]
-Question::
-  Answer
