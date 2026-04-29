@@ -1,7 +1,6 @@
 mod noctalia;
 
 use adw::prelude::*;
-use gtk4::prelude::*;
 use webkit6::prelude::*;
 
 fn main() {
@@ -19,7 +18,7 @@ fn main() {
             let provider = gtk4::CssProvider::new();
             provider.load_from_string(&css);
             gtk4::style_context_add_provider_for_display(
-                &window.display(),
+                &adw::prelude::WidgetExt::display(&window),
                 &provider,
                 gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
             );
