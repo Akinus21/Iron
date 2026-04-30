@@ -37,7 +37,7 @@ fn main() {
             .build();
 
         // Sync WebKit dark-mode preference with Noctalia theme
-        if let Some(wsettings) = webview.settings() {
+        if let Some(wsettings) = webkit6::prelude::WebViewExt::settings(&webview) {
             wsettings.set_prefer_dark_mode(noctalia::is_dark_preferred());
         }
 

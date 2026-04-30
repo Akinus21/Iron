@@ -8,7 +8,7 @@ use crate::config::{Config, KeyBinding, Mode};
 
 const PROTECTED_ACTIONS: [&str; 2] = ["hint", "command"];
 
-pub fn show_settings_window(parent: &gtk4::ApplicationWindow, config: Rc<RefCell<Config>>) {
+pub fn show_settings_window(parent: &adw::ApplicationWindow, config: Rc<RefCell<Config>>) {
     let win = Window::builder()
         .title("Iron Settings")
         .modal(true)
@@ -65,6 +65,7 @@ pub fn show_settings_window(parent: &gtk4::ApplicationWindow, config: Rc<RefCell
 
     let list_weak = list.downgrade();
     let config_weak = config.clone();
+    let win_ref = win.clone();
     add_btn.connect_clicked(move |_btn| {
         let key = key_entry.text().to_string().trim().to_lowercase();
         let mods: Vec<String> = mod_entry
@@ -94,7 +95,7 @@ pub fn show_settings_window(parent: &gtk4::ApplicationWindow, config: Rc<RefCell
                 &list,
                 &config_weak.borrow().normal.bindings,
                 config_weak.clone(),
-                &win,
+                &win_ref,
             );
         }
 

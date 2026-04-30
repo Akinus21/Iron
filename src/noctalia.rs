@@ -82,11 +82,19 @@ impl ThemeManager {
             error = error,
         );
 
-        let dark = is_dark_preferred();
-        let variant = if dark { "dark" } else { "light" };
-
         self.webkit_css = format!(
-            "\n                :root {{ color-scheme: {}; }}\n                @media screen {{\n                body, .content, main {{\n                background-color: {surface} !important;\n                color: {on_surface} !important;\n                }}\n                code, pre, textarea, input, select {{\n                background-color: {surface_variant} !important;\n                }}\n                a {{ color: {accent} !important; }}\n                img {{ opacity: 0.9; filter: brightness(95%); }}\n                }}\n            ",
+            "\n                :root {{ color-scheme: {}; }}\n\
+             @media screen {{\n\
+             body, .content, main {{\n\
+             background-color: {surface} !important;\n\
+             color: {on_surface} !important;\n\
+             }}\n\
+             code, pre, textarea, input, select {{\n\
+             background-color: {surface_variant} !important;\n\
+             }}\n\
+             a {{ color: {accent} !important; }}\n\
+             img {{ opacity: 0.9; filter: brightness(95%); }}\n\
+             }}\n",
             if dark { "dark" } else { "light" },
             surface = surface,
             on_surface = on_surface,
