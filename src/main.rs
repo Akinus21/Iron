@@ -10,7 +10,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gio::prelude::*;
 use gtk4::{EventControllerKey, gdk, Overlay};
 use webkit6::prelude::*;
 
@@ -105,7 +104,8 @@ fn main() {
                 });
 
                 let cmd_entry_e = cmd_entry_clone.clone();
-                entry.connect_key_pressed(move |_, k, _, _| {
+                let entry_key_ctl = EventControllerKey::new();
+                entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
                         if let Some(old) = cmd_entry_e.borrow_mut().take() {
                             drop(old);
