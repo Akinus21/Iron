@@ -84,17 +84,6 @@ fn build_window(
         cfg_clone.borrow_mut().reload();
 
         if hints_active {
-            if modifier.contains(gdk::ModifierType::CONTROL_MASK) {
-                if keyval == gdk::Key::Return || keyval == gdk::Key::KP_Enter {
-                    // Ctrl+Enter while hints are active: open the currently matched link in a new window
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().deactivate(&wv);
-                        open_current_hint_in_new_window(&wv, &hints_clone.borrow(), app.downgrade_ref());
-                    }
-                    return glib::Propagation::Stop;
-                }
-            }
-
             match keyval {
                 gdk::Key::Escape => {
                     if let Some(wv) = wv_weak.upgrade() {
@@ -340,7 +329,7 @@ fn build_window(
 
 /// If a hint is currently matched (single visible hint), open that link
 /// in a new ApplicationWindow.
-fn _open_current_hint_in_new_window(
+fn open_current_hint_in_new_window(
     _webview: &webkit6::WebView,
     _hints: &HintManager,
     _app: &adw::Application,
