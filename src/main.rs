@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use glib::Propagation;
 use gtk4::prelude::*;
 use webkit6::prelude::*;
 
@@ -35,48 +36,47 @@ fn main() {
 
         let hints_clone = hints.clone();
         let wv_weak = webview.downgrade();
-        let key_ctl = gtk4::EventControllerKey::builder()
-            .on_key_pressed(move |_, keyval, _keycode, modifier| {
-                let Some(wv) = wv_weak.upgrade() else {
-                    return gtk4::Propagation::proceed;
-                };
-                let mut h = hints_clone.borrow_mut();
+        let key_ctl = gtk4::EventControllerKey::new();
+        key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
+            let Some(wv) = wv_weak.upgrade() else {
+                return Propagation::proceed;
+            };
+            let mut h = hints_clone.borrow_mut();
 
-                if h.active {
-                    match keyval {
-                        gdk::Key::Escape => {
-                            h.deactivate(&wv);
-                            return gtk4::Propagation::stop;
+            if h.active {
+                match keyval {
+                    gtk4::gdk::Key::Escape => {
+                        h.deactivate(&wv);
+                        return Propagation::stop;
+                    }
+                    gtk4::gdk::Key::BackSpace => {
+                        h.handle_backspace(&wv);
+                        return Propagation::stop;
+                    }
+                    gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter | gtk4::gdk::Key::ISO_Enter => {
+                        h.deactivate(&wv);
+                        return Propagation::stop;
+                    }
+                    _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
+                        if let Some(c) = keyval.to_unicode() {
+                            h.handle_key(c, &wv);
                         }
-                        gdk::Key::BackSpace => {
-                            h.handle_backspace(&wv);
-                            return gtk4::Propagation::stop;
-                        }
-                        gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
-                            h.deactivate(&wv);
-                            return gtk4::Propagation::stop;
-                        }
-                        _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
-                            if let Some(c) = keyval.to_unicode() {
-                                h.handle_key(c, &wv);
-                            }
-                            return gtk4::Propagation::stop;
-                        }
-                        _ => {
-                            h.deactivate(&wv);
-                            return gtk4::Propagation::stop;
-                        }
+                        return Propagation::stop;
+                    }
+                    _ => {
+                        h.deactivate(&wv);
+                        return Propagation::stop;
                     }
                 }
+            }
 
-                if keyval == gdk::Key::F && modifier.is_empty() {
-                    h.activate(&wv);
-                    return gtk4::Propagation::stop;
-                }
+            if keyval == gtk4::gdk::Key::F && modifier.is_empty() {
+                h.activate(&wv);
+                return Propagation::stop;
+            }
 
-                gtk4::Propagation::proceed
-            })
-            .build();
+            Propagation::proceed
+        });
         webview.add_controller(&key_ctl);
 
         window.present();
