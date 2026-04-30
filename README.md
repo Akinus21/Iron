@@ -9,7 +9,7 @@ Iron is a spiritual successor to the [Titanium](https://github.com/antoyo/titani
 ## Installation
 
 ```bash
-brew install Akinus21/homebrew-core/iron
+brew install Akinus21/homebrew-tap/iron
 ```
 
 ## What's different from Titanium?
