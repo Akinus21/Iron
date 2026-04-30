@@ -160,14 +160,17 @@ fn main() {
                 });
 
                 let entry_key_ctl = EventControllerKey::new();
-                entry.add_controller(entry_key_ctl);
+                entry.add_controller(entry_key_ctl.clone());
+                let cmd_bar_esc = cmd_bar_clone.clone();
+                let cmd_entry_esc = cmd_entry_clone.clone();
+                let wv_weak_esc = wv_weak.clone();
                 entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
-                        if let Some(bar) = cmd_bar_clone.borrow_mut().take() {
+                        if let Some(bar) = cmd_bar_esc.borrow_mut().take() {
                             bar.unparent();
                         }
-                        cmd_entry_clone.borrow_mut().take();
-                        if let Some(w) = wv_weak.upgrade() {
+                        cmd_entry_esc.borrow_mut().take();
+                        if let Some(w) = wv_weak_esc.upgrade() {
                             w.grab_focus();
                         }
                         return glib::Propagation::Stop;
