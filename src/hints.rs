@@ -104,14 +104,14 @@ impl HintManager {
             None,
             None,
             None,
-            None::<Box<dyn FnOnce(_)>>,
+            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
             None,
             None,
             None,
-            None::<Box<dyn FnOnce(_)>>,
+            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
         );
     }
 
@@ -124,7 +124,7 @@ impl HintManager {
             None,
             None,
             None,
-            None::<Box<dyn FnOnce(_)>>,
+            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
         );
     }
 
@@ -141,7 +141,7 @@ impl HintManager {
                 None,
                 None,
                 None,
-                None::<Box<dyn FnOnce(_)>>,
+                |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
             );
         }
     }
@@ -155,7 +155,7 @@ impl HintManager {
             None,
             None,
             None,
-            None::<Box<dyn FnOnce(_)>>,
+            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
         );
     }
 }

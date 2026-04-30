@@ -39,7 +39,7 @@ fn main() {
             let wv_weak = webview.downgrade();
             key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
                 let Some(wv) = wv_weak.upgrade() else {
-                    return gtk4::Inhibit(false);
+                    return gtk4::gdk::Inhibit(false);
                 };
                 let mut h = hints_clone.borrow_mut();
 
@@ -47,17 +47,17 @@ fn main() {
                     match keyval {
                         gtk4::gdk::Key::Escape => {
                             h.deactivate(&wv);
-                            return gtk4::Inhibit(true);
+                            return gtk4::gdk::Inhibit(true);
                         }
                         gtk4::gdk::Key::BackSpace => {
                             h.handle_backspace(&wv);
-                            return gtk4::Inhibit(true);
+                            return gtk4::gdk::Inhibit(true);
                         }
                         gtk4::gdk::Key::Return
                         | gtk4::gdk::Key::KP_Enter
                         | gtk4::gdk::Key::ISO_Enter => {
                             h.deactivate(&wv);
-                            return gtk4::Inhibit(true);
+                            return gtk4::gdk::Inhibit(true);
                         }
                         ref k => {
                             if let Some(c) = k.to_unicode()
@@ -67,20 +67,20 @@ fn main() {
                             } else {
                                 h.deactivate(&wv);
                             }
-                            return gtk4::Inhibit(true);
+                            return gtk4::gdk::Inhibit(true);
                         }
                     }
                 }
 
                 if keyval == gtk4::gdk::Key::f && modifier.is_empty() {
                     h.activate(&wv);
-                    return gtk4::Inhibit(true);
+                    return gtk4::gdk::Inhibit(true);
                 }
 
-                gtk4::Inhibit(false)
+                gtk4::gdk::Inhibit(false)
             });
         }
-        webview.add_controller(&key_ctl);
+        webview.add_controller(key_ctl);
 
         window.present();
 
