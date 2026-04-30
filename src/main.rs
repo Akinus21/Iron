@@ -2,6 +2,7 @@ mod command;
 mod config;
 mod hints;
 mod noctalia;
+mod settings;
 
 use command::CommandInput;
 use config::Config;
@@ -23,6 +24,8 @@ fn main() {
         let tm = Rc::new(RefCell::new(ThemeManager::new()));
         tm.borrow_mut().load();
 
+        let cfg = Rc::new(RefCell::new(Config::load()));
+
         let window = adw::ApplicationWindow::new(app);
         window.set_default_size(1024, 768);
         window.set_title(Some("Iron"));
@@ -32,6 +35,11 @@ fn main() {
         let webview = webkit6::WebView::builder()
             .user_content_manager(&webkit6::UserContentManager::new())
             .build();
+
+        // Sync WebKit dark-mode preference with Noctalia theme
+        if let Some(wsettings) = webview.settings() {
+            wsettings.set_prefer_dark_mode(noctalia::is_dark_preferred());
+        }
 
         tm.borrow().apply_webkit_css(&webview);
         webview.load_uri("https://www.rust-lang.org");
@@ -54,10 +62,14 @@ fn main() {
         let cmd_entry_clone = cmd_entry.clone();
         let css_provider_clone = css_provider.clone();
         let wv_weak = webview.downgrade();
+        let cfg_clone = cfg.clone();
 
         let key_ctl = EventControllerKey::new();
         key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
             let hints_active = hints_clone.borrow().active;
+
+            // Always reload config before resolving a binding so edits take effect immediately
+            cfg_clone.borrow_mut().reload();
 
             if hints_active {
                 match keyval {
@@ -96,7 +108,7 @@ fn main() {
                 }
             }
 
-            if let Some(binding) = Config::load().get_binding_by_keyval(keyval, &modifier) {
+            if let Some(binding) = cfg_clone.borrow().get_binding_by_keyval(keyval, &modifier) {
                 match binding.action.as_str() {
                     "hint" => {
                         if let Some(wv) = wv_weak.upgrade() {
@@ -126,7 +138,7 @@ fn main() {
                         entry.add_css_class("command-bar");
                         entry.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-                        let help_label = gtk4::Label::new(Some("Commands: :open URL, :back, :forward, :reload  |  Key: F = hint mode"));
+                        let help_label = gtk4::Label::new(Some("Commands: :open URL, :back, :forward, :reload, :settings  |  Key: F = hint mode"));
                         help_label.add_css_class("command-bar-help");
                         help_label.set_halign(gtk4::Align::Center);
 
@@ -136,6 +148,7 @@ fn main() {
                         let wv_for_cmd = wv_weak.clone();
                         let cmd_bar_c = cmd_bar_clone.clone();
                         let cmd_entry_c = cmd_entry_clone.clone();
+                        let cfg_cmd = cfg_clone.clone();
 
                         entry.connect_activate(move |e| {
                             let text = e.text().to_string();
@@ -156,6 +169,11 @@ fn main() {
                                         }
                                         command::Command::Reload => {
                                             w.reload();
+                                        }
+                                        command::Command::Settings => {
+                                            if let Some(window) = w.root().and_downcast::<adw::ApplicationWindow>() {
+                                                settings::show_settings_window(&window, cfg_cmd.clone());
+                                            }
                                         }
                                     }
                                 }

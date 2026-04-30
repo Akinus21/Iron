@@ -3,6 +3,7 @@ pub enum Command {
     Back,
     Forward,
     Reload,
+    Settings,
 }
 
 pub struct CommandInput {
@@ -40,6 +41,7 @@ impl CommandInput {
             "back" | "b" => Some(Command::Back),
             "forward" | "f" => Some(Command::Forward),
             "reload" | "r" => Some(Command::Reload),
+            "settings" | "set" => Some(Command::Settings),
             _ => None,
         }
     }
