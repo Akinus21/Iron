@@ -21,27 +21,36 @@ brew install Akinus21/homebrew-tap/iron
 | mg/minigui for UI chrome | adw::ApplicationWindow + adw::ToolbarView |
 | Hardcoded colors | Noctalia theme tokens (no hardcoded hex values) |
 
-## Current status (Phase 2 — New Foundation)
+## Current status
 
-- [x] `adw::ApplicationWindow` with `webkit6::WebView` rendering a live page
-- [x] Noctalia `colors.json` token loading stub (no hardcoded colors from day one)
+### Done
+- [x] `adw::ApplicationWindow` with `webkit6::WebView` rendering live pages
+- [x] Noctalia theme integration (token loading, CSS generation, file-watch live reload)
+- [x] WebKit CSS injection (form controls themed, dark/light `color-scheme` hint)
+- [x] Keyboard-driven hint mode (`f` key, qutebrowser-style link navigation)
+- [x] Command bar (`:open`, `:back`, `:forward`, `:reload`, `:settings`)
+- [x] Keybinding config layer (TOML file at `~/.config/iron/config.toml`)
+- [x] Settings window with keybinding editor (add/remove bindings, protected defaults)
 - [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
-- [ ] relm4 app architecture
-- [ ] Tab management (`adw::TabBar` + `adw::TabView`)
-- [ ] Command bar / vim-style input layer
 
-## Planned features (inherited from Titanium)
-
-- vim-like keybindings
-- hint/link navigation (`f` key overlay)
-- command mode (`:open`, `:tabopen`, `:back`, `:forward`, etc.)
-- pop-up blocker with blacklist and whitelist
-- user scripts and user stylesheets
-- page search
-- search engines
-- download manager
-- bookmarks (with completions)
-- ad blocker
+### ToDo
+- [ ] Tab management (`adw::TabBar` + `adw::TabView`, `:tabopen`, `:tabclose`)
+- [ ] New-tab / home page (bookmarks grid, search bar, session restore)
+- [ ] Page search (`/` or `Ctrl+F` find-in-page)
+- [ ] Search engines (default + custom, `:search` command)
+- [ ] Download manager (WebKit download signals → sidebar or notification)
+- [ ] History (SQLite via `rusqlite`, `:history` command)
+- [ ] Bookmarks (SQLite, `:bookmark` command, completions in command bar)
+- [ ] Ad blocker (content-blocking rules)
+- [ ] User scripts & user stylesheets
+- [ ] Pop-up blocker (blacklist/whitelist)
+- [ ] relm4 app architecture (Components for browser tab, command bar, etc.)
+- [ ] `Ctrl+L` / `Ctrl+T` URL bar focus in normal (non-command) mode
+- [ ] Zoom controls (`Ctrl+`/`Ctrl-`/`Ctrl0`)
+- [ ] Fullscreen mode (`F11`)
+- [ ] Private browsing / incognito mode
+- [ ] xdg-mime default browser registration
+- [ ] Flatpak packaging
 
 ## Theming
 
