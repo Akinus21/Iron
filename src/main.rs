@@ -45,11 +45,10 @@ fn main() {
 
         let css_provider = CssProvider::new();
         css_provider.load_from_string(
-            ".command-bar { background: rgba(30, 30, 40, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px 8px; }",
+            ".command-bar { background: rgba(30, 30, 40, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 8px; }\n\
+             .command-bar-help { font-size: 11px; color: rgba(255,255,255,0.45); margin-top:2px; }",
         );
 
-        let overlay_for_cmd = overlay.clone();
-        let overlay_for_esc = overlay.clone();
         let hints_clone = hints.clone();
         let cmd_bar_clone = cmd_bar.clone();
         let cmd_entry_clone = cmd_entry.clone();
@@ -110,21 +109,29 @@ fn main() {
                             return glib::Propagation::Proceed;
                         }
 
+                        let container = GtkBox::new(gtk4::Orientation::Vertical, 4);
+                        container.add_css_class("command-bar");
+                        container.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
+                        container.set_halign(gtk4::Align::Center);
+                        container.set_valign(gtk4::Align::Start);
+                        container.set_margin_top(10);
+                        container.set_margin_start(80);
+                        container.set_margin_end(80);
+
                         let entry = gtk4::Entry::new();
                         entry.set_placeholder_text(Some(":open "));
                         entry.set_width_chars(60);
                         entry.set_halign(gtk4::Align::Center);
                         entry.set_valign(gtk4::Align::Start);
-                        entry.set_margin_top(10);
-                        entry.set_margin_start(80);
-                        entry.set_margin_end(80);
                         entry.add_css_class("command-bar");
                         entry.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-                        let container = GtkBox::new(gtk4::Orientation::Horizontal, 0);
-                        container.add_css_class("command-bar");
-                        container.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
+                        let help_label = gtk4::Label::new(Some("Commands: :open URL, :back, :forward, :reload  |  Key: F = hint mode"));
+                        help_label.add_css_class("command-bar-help");
+                        help_label.set_halign(gtk4::Align::Center);
+
                         container.append(&entry);
+                        container.append(&help_label);
 
                         let wv_for_cmd = wv_weak.clone();
                         let cmd_bar_c = cmd_bar_clone.clone();

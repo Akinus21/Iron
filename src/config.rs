@@ -88,41 +88,51 @@ impl Config {
     }
 
     fn keyval_to_string(keyval: gtk4::gdk::Key) -> String {
+        // Special-case command-mode trigger characters so shift+colon etc.
+        // resolve to the key name rather than the Unicode glyph value.
+        match keyval {
+            gtk4::gdk::Key::colon       => return "colon".to_string(),
+            gtk4::gdk::Key::semicolon   => return "semicolon".to_string(),
+            gtk4::gdk::Key::comma       => return "comma".to_string(),
+            gtk4::gdk::Key::period      => return "period".to_string(),
+            gtk4::gdk::Key::slash       => return "slash".to_string(),
+            gtk4::gdk::Key::question    => return "question".to_string(),
+            gtk4::gdk::Key::BackSpace   => return "backspace".to_string(),
+            gtk4::gdk::Key::Tab         => return "tab".to_string(),
+            gtk4::gdk::Key::Return      => return "return".to_string(),
+            gtk4::gdk::Key::Escape      => return "escape".to_string(),
+            gtk4::gdk::Key::Delete      => return "delete".to_string(),
+            gtk4::gdk::Key::Up          => return "up".to_string(),
+            gtk4::gdk::Key::Down        => return "down".to_string(),
+            gtk4::gdk::Key::Left        => return "left".to_string(),
+            gtk4::gdk::Key::Right       => return "right".to_string(),
+            gtk4::gdk::Key::Home        => return "home".to_string(),
+            gtk4::gdk::Key::End         => return "end".to_string(),
+            gtk4::gdk::Key::Page_Up     => return "pageup".to_string(),
+            gtk4::gdk::Key::Page_Down   => return "pagedown".to_string(),
+            gtk4::gdk::Key::Insert      => return "insert".to_string(),
+            gtk4::gdk::Key::KP_Enter    => return "kp-enter".to_string(),
+            gtk4::gdk::Key::ISO_Enter   => return "iso-enter".to_string(),
+            gtk4::gdk::Key::F1          => return "f1".to_string(),
+            gtk4::gdk::Key::F2          => return "f2".to_string(),
+            gtk4::gdk::Key::F3          => return "f3".to_string(),
+            gtk4::gdk::Key::F4          => return "f4".to_string(),
+            gtk4::gdk::Key::F5          => return "f5".to_string(),
+            gtk4::gdk::Key::F6          => return "f6".to_string(),
+            gtk4::gdk::Key::F7          => return "f7".to_string(),
+            gtk4::gdk::Key::F8          => return "f8".to_string(),
+            gtk4::gdk::Key::F9          => return "f9".to_string(),
+            gtk4::gdk::Key::F10         => return "f10".to_string(),
+            gtk4::gdk::Key::F11         => return "f11".to_string(),
+            gtk4::gdk::Key::F12         => return "f12".to_string(),
+            _ => {},
+        }
+
         if let Some(c) = keyval.to_unicode() {
             return c.to_string();
         }
 
-        match keyval {
-            gtk4::gdk::Key::BackSpace => "backspace".to_string(),
-            gtk4::gdk::Key::Tab => "tab".to_string(),
-            gtk4::gdk::Key::Return => "return".to_string(),
-            gtk4::gdk::Key::Escape => "escape".to_string(),
-            gtk4::gdk::Key::Delete => "delete".to_string(),
-            gtk4::gdk::Key::Up => "up".to_string(),
-            gtk4::gdk::Key::Down => "down".to_string(),
-            gtk4::gdk::Key::Left => "left".to_string(),
-            gtk4::gdk::Key::Right => "right".to_string(),
-            gtk4::gdk::Key::Home => "home".to_string(),
-            gtk4::gdk::Key::End => "end".to_string(),
-            gtk4::gdk::Key::Page_Up => "pageup".to_string(),
-            gtk4::gdk::Key::Page_Down => "pagedown".to_string(),
-            gtk4::gdk::Key::Insert => "insert".to_string(),
-            gtk4::gdk::Key::KP_Enter => "kp-enter".to_string(),
-            gtk4::gdk::Key::ISO_Enter => "iso-enter".to_string(),
-            gtk4::gdk::Key::F1 => "f1".to_string(),
-            gtk4::gdk::Key::F2 => "f2".to_string(),
-            gtk4::gdk::Key::F3 => "f3".to_string(),
-            gtk4::gdk::Key::F4 => "f4".to_string(),
-            gtk4::gdk::Key::F5 => "f5".to_string(),
-            gtk4::gdk::Key::F6 => "f6".to_string(),
-            gtk4::gdk::Key::F7 => "f7".to_string(),
-            gtk4::gdk::Key::F8 => "f8".to_string(),
-            gtk4::gdk::Key::F9 => "f9".to_string(),
-            gtk4::gdk::Key::F10 => "f10".to_string(),
-            gtk4::gdk::Key::F11 => "f11".to_string(),
-            gtk4::gdk::Key::F12 => "f12".to_string(),
-            _ => format!("{:?}", keyval).to_lowercase(),
-        }
+        format!("{:?}", keyval).to_lowercase()
     }
 }
 
