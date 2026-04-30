@@ -10,8 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gio::prelude::ObjectExt;
-use gtk4::{EventControllerKey, gdk, Box as GtkBox, CssProvider, Overlay, STYLE_PROVIDER_PRIORITY_APPLICATION};
+use gtk4::{EventControllerKey, gdk, Box as GtkBox, CssProvider, Overlay, STYLE_PROVIDER_PRIORITY_APPLICATION, prelude::OverlayExt};
 use webkit6::prelude::*;
 
 fn main() {
@@ -116,11 +115,11 @@ fn main() {
                 entry.set_margin_start(80);
                 entry.set_margin_end(80);
                 entry.add_css_class("command-bar");
-                entry.get_style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
+                entry.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
 
                 let container = GtkBox::new(gtk4::Orientation::Horizontal, 0);
                 container.add_css_class("command-bar");
-                container.get_style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
+                container.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
                 container.append(&entry);
 
                 let wv_for_cmd = wv_weak.clone();
@@ -152,7 +151,7 @@ fn main() {
                         }
                     }
                     if let Some(bar) = cmd_bar_c.borrow_mut().take() {
-                        overlay_for_cmd.remove(&bar);
+                        overlay_for_cmd.as_ref().remove(&bar);
                     }
                     cmd_entry_c.borrow_mut().take();
                     if let Some(w) = wv_for_cmd.upgrade() {
@@ -166,7 +165,7 @@ fn main() {
                 entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
                         if let Some(bar) = cmd_bar_clone.borrow_mut().take() {
-                            overlay_for_esc.remove(&bar);
+                            overlay_for_esc.as_ref().remove(&bar);
                         }
                         cmd_entry_clone.borrow_mut().take();
                         if let Some(w) = wv_weak.upgrade() {
