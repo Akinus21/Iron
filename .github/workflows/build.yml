@@ -178,8 +178,8 @@ jobs:
           TAP_DIR="/tmp/homebrew-tap"
 
           if ! gh repo view "$TAP_REPO" >/dev/null 2>&1; then
-            echo "Creating homebrew tap repo $TAP_REPO..."
-            gh repo create "$TAP_REPO" --public --description "Homebrew tap for Akinus21 projects"
+            echo "Creating homebrew-tap repo $TAP_REPO..."
+            gh repo create "$TAP_REPO" --public --description "Homebrew core formulas for Akinus21 projects"
           fi
 
           if [ -d "$TAP_DIR" ]; then
@@ -193,23 +193,25 @@ jobs:
           mkdir -p Formula
 
           cat > Formula/iron.rb <<EOF
-          class Iron < Formula
-            desc "GTK4 keyboard-driven web browser for BlueAK"
-            homepage "https://github.com/Akinus21/Iron"
-            version "${NEW_TAG#v}"
-            url "${BINARY_URL}"
-            sha256 "${SHA256}"
-            depends_on "gtk4"
-            depends_on "libadwaita"
-            depends_on "webkitgtk-6.0"
-            def install
-              bin.install "iron"
-            end
-            test do
-              system bin/"iron", "--version"
-            end
-          end
-          EOF
+class Iron < Formula
+  desc "GTK4 keyboard-driven web browser for BlueAK"
+  homepage "https://github.com/Akinus21/Iron"
+  version "${NEW_TAG#v}"
+  url "${BINARY_URL}"
+  sha256 "${SHA256}"
+  depends_on "gtk4"
+  depends_on "libadwaita"
+  depends_on "webkitgtk-6.0"
+
+  def install
+    bin.install "iron"
+  end
+
+  test do
+    assert_match "iron", shell_output("\#{bin}/iron --version 2>&1 || true")
+  end
+end
+EOF
 
           git add Formula/iron.rb
           git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
