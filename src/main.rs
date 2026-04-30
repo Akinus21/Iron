@@ -10,7 +10,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::{EventControllerKey, gdk, Box, CssProvider, Overlay, StyleContext};
+use gio::prelude::ObjectExt;
+use gtk4::{EventControllerKey, gdk, Box as GtkBox, CssProvider, Overlay, STYLE_PROVIDER_PRIORITY_APPLICATION};
 use webkit6::prelude::*;
 
 fn main() {
@@ -37,7 +38,7 @@ fn main() {
         window.set_content(Some(&overlay));
 
         let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
-        let cmd_bar: Rc<RefCell<Option<Box>>> = Rc::new(RefCell::new(None));
+        let cmd_bar: Rc<RefCell<Option<GtkBox>>> = Rc::new(RefCell::new(None));
         let cmd_entry: Rc<RefCell<Option<gtk4::Entry>>> = Rc::new(RefCell::new(None));
 
         let css_provider = CssProvider::new();
@@ -45,7 +46,8 @@ fn main() {
             ".command-bar { background: rgba(30, 30, 40, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px 8px; }",
         );
 
-        let window_weak = window.downgrade();
+        let overlay_rc: Rc<Overlay> = Rc::new(overlay);
+        let overlay_clone = overlay_rc.clone();
         let hints_clone = hints.clone();
         let cmd_bar_clone = cmd_bar.clone();
         let cmd_entry_clone = cmd_entry.clone();
@@ -101,11 +103,6 @@ fn main() {
             }
 
             if keyval == gdk::Key::colon && modifier.contains(gdk::ModifierType::SHIFT_MASK) {
-                let overlay = match window_weak.upgrade() {
-                    Some(w) => gtk4::Cast::unsafe_cast(&w),
-                    None => return glib::Propagation::Proceed,
-                };
-
                 if cmd_bar_clone.borrow().is_some() {
                     return glib::Propagation::Proceed;
                 }
@@ -119,16 +116,15 @@ fn main() {
                 entry.set_margin_start(80);
                 entry.set_margin_end(80);
                 entry.add_css_class("command-bar");
+                entry.get_style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-                let style = entry.style_context();
-                style.add_provider(&css_provider_clone, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-                let container = Box::new(gtk4::Orientation::Horizontal, 0);
+                let container = GtkBox::new(gtk4::Orientation::Horizontal, 0);
                 container.add_css_class("command-bar");
-                container.style_context().add_provider(&css_provider_clone, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
+                container.get_style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
                 container.append(&entry);
 
-                let wv_for_cmd = wv_weak.downgrade();
+                let wv_for_cmd = wv_weak.clone();
+                let overlay_for_cmd = overlay_clone.clone();
                 let cmd_bar_c = cmd_bar_clone.clone();
                 let cmd_entry_c = cmd_entry_clone.clone();
 
@@ -156,7 +152,7 @@ fn main() {
                         }
                     }
                     if let Some(bar) = cmd_bar_c.borrow_mut().take() {
-                        overlay.remove(&bar);
+                        overlay_for_cmd.remove(&bar);
                     }
                     cmd_entry_c.borrow_mut().take();
                     if let Some(w) = wv_for_cmd.upgrade() {
@@ -164,13 +160,13 @@ fn main() {
                     }
                 });
 
-                let cmd_bar_e = cmd_bar_clone.clone();
+                let overlay_for_esc = overlay_clone.clone();
                 let entry_key_ctl = EventControllerKey::new();
                 entry.add_controller(entry_key_ctl);
                 entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
-                        if let Some(bar) = cmd_bar_e.borrow_mut().take() {
-                            overlay.remove(&bar);
+                        if let Some(bar) = cmd_bar_clone.borrow_mut().take() {
+                            overlay_for_esc.remove(&bar);
                         }
                         cmd_entry_clone.borrow_mut().take();
                         if let Some(w) = wv_weak.upgrade() {
@@ -183,7 +179,7 @@ fn main() {
 
                 *cmd_bar_clone.borrow_mut() = Some(container.clone());
                 *cmd_entry_clone.borrow_mut() = Some(entry.clone());
-                overlay.add_overlay(&container);
+                overlay_clone.add_overlay(&container);
                 entry.grab_focus();
 
                 return glib::Propagation::Stop;
