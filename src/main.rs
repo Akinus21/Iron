@@ -64,10 +64,12 @@ fn build_window(
 
     let css_provider = CssProvider::new();
     css_provider.load_from_string(
-        ".command-overlay { opacity: 0.97; padding: 24px; }\n\
-         .command-section { margin-top: 12px; margin-bottom: 12px; }\n\
-         .command-row { padding: 6px 12px; }\n\
-         .command-help { opacity: 0.65; }",
+        ".command-overlay { padding: 40px; }\n\
+         .command-section { margin-top: 16px; margin-bottom: 16px; }\n\
+         .command-row { padding: 10px 16px; }\n\
+         .command-help { opacity: 0.55; font-weight: 500; }\n\
+         .command-boxed { border-radius: 12px; padding: 8px; background: rgba(128,128,128,0.08); }\n\
+         .command-entry { font-size: 16px; font-weight: 600; }",
     );
 
     let hints_clone = hints.clone();
@@ -170,7 +172,11 @@ fn build_window(
                     kb_list.set_selection_mode(gtk4::SelectionMode::None);
                     for b in &cfg_clone.borrow().normal.bindings {
                         let row = ListBoxRow::new();
-                        let h = GtkBox::new(Orientation::Horizontal, 8);
+                        let h = GtkBox::new(Orientation::Horizontal, 12);
+                        h.set_margin_top(6);
+                        h.set_margin_bottom(6);
+                        h.set_margin_start(12);
+                        h.set_margin_end(12);
                         let mod_lbl = Label::new(Some(&format!(
                             "{}",
                             if b.modifier.is_empty() {
@@ -181,12 +187,16 @@ fn build_window(
                         )));
                         mod_lbl.add_css_class("monospace");
                         mod_lbl.set_width_chars(12);
+                        mod_lbl.set_halign(Align::Start);
                         let key_lbl = Label::new(Some(&b.key));
                         key_lbl.add_css_class("monospace");
                         key_lbl.set_width_chars(10);
+                        key_lbl.set_halign(Align::Start);
                         let act_lbl = Label::new(Some(&b.action));
-                        act_lbl.add_css_class("caption");
+                        act_lbl.add_css_class("body");
                         act_lbl.add_css_class("command-help");
+                        act_lbl.set_halign(Align::Start);
+                        act_lbl.set_hexpand(true);
                         h.append(&mod_lbl);
                         h.append(&key_lbl);
                         h.append(&act_lbl);
@@ -213,13 +223,20 @@ fn build_window(
                         (":settings (set)", "Open the settings window"),
                     ] {
                         let row = ListBoxRow::new();
-                        let h = GtkBox::new(Orientation::Horizontal, 8);
+                        let h = GtkBox::new(Orientation::Horizontal, 12);
+                        h.set_margin_top(6);
+                        h.set_margin_bottom(6);
+                        h.set_margin_start(12);
+                        h.set_margin_end(12);
                         let n = Label::new(Some(*name));
                         n.add_css_class("monospace");
                         n.set_width_chars(30);
+                        n.set_halign(Align::Start);
                         let d = Label::new(Some(*desc));
-                        d.add_css_class("caption");
+                        d.add_css_class("body");
                         d.add_css_class("command-help");
+                        d.set_halign(Align::Start);
+                        d.set_hexpand(true);
                         h.append(&n);
                         h.append(&d);
                         row.set_child(Some(&h));
