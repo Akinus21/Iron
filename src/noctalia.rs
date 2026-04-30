@@ -220,6 +220,5 @@ pub fn is_dark_preferred() -> bool {
         .unwrap_or(false)
 }
 
-fn _is_dark_preferred() -> bool {
-    is_dark_preferred()
-}
+// re-export for consumers who want to check dark preference without
+// constructing a ThemeManager.

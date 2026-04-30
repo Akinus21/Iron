@@ -4,7 +4,7 @@ use std::rc::Rc;
 use gtk4::prelude::*;
 use gtk4::{Align, Box as GtkBox, Button, Entry, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, Window};
 
-use crate::config::{Config, KeyBinding, Mode};
+use crate::config::{Config, KeyBinding};
 
 const PROTECTED_ACTIONS: [&str; 2] = ["hint", "command"];
 

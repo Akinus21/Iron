@@ -36,10 +36,8 @@ fn main() {
             .user_content_manager(&webkit6::UserContentManager::new())
             .build();
 
-        // Sync WebKit dark-mode preference with Noctalia theme
-        if let Some(wsettings) = webkit6::prelude::WebViewExt::settings(&webview) {
-            wsettings.set_prefer_dark_mode(noctalia::is_dark_preferred());
-        }
+        // Dark mode preference is communicated via the injected CSS stylesheet
+        // (color-scheme: dark) rather than a WebKit API setting.
 
         tm.borrow().apply_webkit_css(&webview);
         webview.load_uri("https://www.rust-lang.org");
