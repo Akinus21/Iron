@@ -54,7 +54,8 @@ jobs:
         id: check_release
         run: |
           set -o pipefail
-          cargo check --release --verbose 2>&1 | tee build.log
+          cargo check --release 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee build.log
+        shell: bash
 
       - name: Build (release)
         if: success() && (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')

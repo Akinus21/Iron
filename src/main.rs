@@ -69,7 +69,7 @@ fn main() {
                     }
                 }
 
-                if keyval == gdk::Key::f && modifier.is_empty() {
+                if keyval == gdk::Key::F && modifier.is_empty() {
                     h.activate(&wv);
                     return gtk4::Propagation::stop;
                 }
