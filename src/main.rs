@@ -33,52 +33,51 @@ fn main() {
 
         let hints = Rc::new(RefCell::new(HintManager::new()));
 
-        let key_ctl = gtk4::EventControllerKey::new();
         let hints_clone = hints.clone();
         let wv_weak = webview.downgrade();
-        key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
-            let Some(wv) = wv_weak.upgrade() else {
-                return gtk4::Propagation::proceed;
-            };
-            let mut h = hints_clone.borrow_mut();
+        let key_ctl = gtk4::EventControllerKey::builder()
+            .on_key_pressed(move |_, keyval, _keycode, modifier| {
+                let Some(wv) = wv_weak.upgrade() else {
+                    return gtk4::Propagation::proceed;
+                };
+                let mut h = hints_clone.borrow_mut();
 
-            if h.active {
-                match keyval {
-                    gtk4::gdk::Key::Escape => {
-                        h.deactivate(&wv);
-                        return gtk4::Propagation::stop;
-                    }
-                    gtk4::gdk::Key::BackSpace => {
-                        h.handle_backspace(&wv);
-                        return gtk4::Propagation::stop;
-                    }
-                    gtk4::gdk::Key::Return
-                    | gtk4::gdk::Key::KP_Enter
-                    | gtk4::gdk::Key::ISO_Enter => {
-                        h.deactivate(&wv);
-                        return gtk4::Propagation::stop;
-                    }
-                    ref k => {
-                        if let Some(c) = k.to_unicode()
-                            && c.is_ascii_graphic()
-                        {
-                            h.handle_key(c, &wv);
-                        } else {
+                if h.active {
+                    match keyval {
+                        gdk::Key::Escape => {
                             h.deactivate(&wv);
+                            return gtk4::Propagation::stop;
                         }
-                        return gtk4::Propagation::stop;
+                        gdk::Key::BackSpace => {
+                            h.handle_backspace(&wv);
+                            return gtk4::Propagation::stop;
+                        }
+                        gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
+                            h.deactivate(&wv);
+                            return gtk4::Propagation::stop;
+                        }
+                        _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
+                            if let Some(c) = keyval.to_unicode() {
+                                h.handle_key(c, &wv);
+                            }
+                            return gtk4::Propagation::stop;
+                        }
+                        _ => {
+                            h.deactivate(&wv);
+                            return gtk4::Propagation::stop;
+                        }
                     }
                 }
-            }
 
-            if keyval == gtk4::gdk::Key::f && modifier.is_empty() {
-                h.activate(&wv);
-                return gtk4::Propagation::stop;
-            }
+                if keyval == gdk::Key::f && modifier.is_empty() {
+                    h.activate(&wv);
+                    return gtk4::Propagation::stop;
+                }
 
-            gtk4::Propagation::proceed
-        });
-        webview.add_controller(key_ctl);
+                gtk4::Propagation::proceed
+            })
+            .build();
+        webview.add_controller(&key_ctl);
 
         window.present();
 
