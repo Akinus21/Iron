@@ -8,7 +8,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::prelude::*;
 use webkit6::prelude::*;
 
 fn main() {

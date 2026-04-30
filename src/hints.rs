@@ -1,4 +1,3 @@
-use gio::Cancellable;
 use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebView, prelude::WebViewExt};
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
@@ -103,15 +102,13 @@ impl HintManager {
         webview.evaluate_javascript(
             HINT_JS_MODULE,
             None::<&str>,
-            None::<&str>,
-            None::<&str>,
+            None,
             |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
             None::<&str>,
-            None::<&str>,
-            None::<&str>,
+            None,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -123,8 +120,7 @@ impl HintManager {
         webview.evaluate_javascript(
             &format!("__iron_hints_filter('{}');", self.typed),
             None::<&str>,
-            None::<&str>,
-            None::<&str>,
+            None,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -141,7 +137,6 @@ impl HintManager {
                 &js,
                 None::<&str>,
                 None::<&str>,
-                None::<&str>,
                 |_: Result<JsValue, JsError>| {},
             );
         }
@@ -154,8 +149,7 @@ impl HintManager {
         webview.evaluate_javascript(
             "__iron_hints_deactivate();",
             None::<&str>,
-            None::<&str>,
-            None::<&str>,
+            None,
             |_: Result<JsValue, JsError>| {},
         );
     }
