@@ -1,4 +1,4 @@
-use webkit6::{prelude::*, WebView};
+use webkit6::{glib::Error as JsError, javascriptcore6::Value as JsValue, prelude::*, WebView};
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 const HINT_JS_MODULE: &str = r#"
@@ -104,14 +104,14 @@ impl HintManager {
             None,
             None,
             None,
-            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
+            |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
             None,
             None,
             None,
-            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
+            |_: Result<JsValue, JsError>| {},
         );
     }
 
@@ -124,7 +124,7 @@ impl HintManager {
             None,
             None,
             None,
-            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
+            |_: Result<JsValue, JsError>| {},
         );
     }
 
@@ -141,7 +141,7 @@ impl HintManager {
                 None,
                 None,
                 None,
-                |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
+                |_: Result<JsValue, JsError>| {},
             );
         }
     }
@@ -155,7 +155,7 @@ impl HintManager {
             None,
             None,
             None,
-            |_: Result<webkit6::javascriptcore6::Value, webkit6::glib::Error>| {},
+            |_: Result<JsValue, JsError>| {},
         );
     }
 }
