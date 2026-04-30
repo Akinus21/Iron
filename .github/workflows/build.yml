@@ -16,10 +16,18 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install system dependencies
         run: |
@@ -27,10 +35,8 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libadwaita-1-dev \
-            libwebkitgtk-6.0-dev
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+            libwebkitgtk-6.0-dev \
+            jq
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -39,44 +45,230 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build (debug)
-        run: cargo build --verbose
-        id: build
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ${{ runner.os }}-cargo-
 
       - name: Check (release)
+        id: check_release
         run: cargo check --release --verbose
+
+      - name: Build (release)
+        if: success() && (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
         id: build_release
-
-      - name: Send success webhook
-        if: success()
         run: |
-          curl -s -X POST "${{ secrets.WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{
-              "event": "build",
-              "status": "success",
-              "repository": "${{ github.repository }}",
-              "branch": "${{ github.ref_name }}",
-              "commit": "${{ github.sha }}",
-              "message": "${{ github.event.head_commit.message }}",
-              "runner": "${{ runner.os }}"
-            }'
+          set -o pipefail
+          CARGO_BUILD_JOBS=2 cargo build --release 2>&1 | tee build.log
+        shell: bash
 
-      - name: Send failure webhook
-        if: failure()
+      - name: Build (debug, PRs only)
+        if: success() && github.event_name == 'pull_request'
+        id: build_debug
+        run: cargo build --verbose
+
+      - name: Verify binary
+        if: steps.build_release.outcome == 'success'
+        id: verify
         run: |
-          curl -s -X POST "${{ secrets.WEBHOOK_URL }}" \
+          SIZE=$(stat -c%s target/release/iron)
+          echo "Binary size: $SIZE bytes"
+          if [ "$SIZE" -lt 100000 ]; then
+            echo "ERROR: Binary too small ($SIZE bytes), likely a cache or build issue"
+            exit 1
+          fi
+
+      - name: Upload artifact
+        if: steps.build_release.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: iron-build
+          path: target/release/iron
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Compute new tag
+        if: steps.build_release.outcome == 'success'
+        id: tag
+        run: |
+          git fetch --tags
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=$(echo "$PREV_TAG" | sed 's/^v//')
+          MAJOR=$(echo "$VERSION" | cut -d. -f1 | sed 's/^0*//')
+          MINOR=$(echo "$VERSION" | cut -d. -f2 | sed 's/^0*//')
+          PATCH=$(echo "$VERSION" | cut -d. -f3 | sed 's/^0*//')
+          [ -z "$MAJOR" ] && MAJOR=0
+          [ -z "$MINOR" ] && MINOR=0
+          [ -z "$PATCH" ] && PATCH=0
+          while git rev-parse "v${MAJOR}.${MINOR}.${PATCH}" >/dev/null 2>&1; do
+            PATCH=$((10#$PATCH + 1))
+          done
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      - name: Update Cargo.toml version
+        if: steps.build_release.outcome == 'success'
+        run: |
+          NEW_TAG="${{ steps.tag.outputs.new_tag }}"
+          VERSION="${NEW_TAG#v}"
+          awk -F'= ' '/^\[package\]/{p=1} p && /^version/{gsub(/"[^"]+"/,"\"'"$VERSION"'\""); p=0} 1' Cargo.toml > tmp && mv tmp Cargo.toml
+          git add Cargo.toml
+          git config --global user.email "iron-bot@akinus21.com"
+          git config --global user.name "Iron Bot"
+          git commit -m "chore: bump version to ${VERSION}"
+
+      - name: Tag and create GitHub release with binary
+        if: steps.build_release.outcome == 'success'
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          git config --global user.email "iron-bot@akinus21.com"
+          git config --global user.name "Iron Bot"
+
+          NEW_TAG="${{ steps.tag.outputs.new_tag }}"
+          BINARY="target/release/iron"
+
+          if [ ! -s "$BINARY" ]; then
+            echo "ERROR: Binary missing or empty at $BINARY"
+            exit 1
+          fi
+
+          SHA256=$(sha256sum "$BINARY" | awk '{print $1}')
+          SIZE=$(stat -c%s "$BINARY")
+          echo "Binary size: $SIZE bytes"
+          echo "SHA256: $SHA256"
+
+          if [ "$SIZE" -lt 100000 ]; then
+            echo "ERROR: Binary too small"
+            exit 1
+          fi
+
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+          git push origin "$NEW_TAG"
+
+          gh release create "$NEW_TAG" \
+            --title "$NEW_TAG" \
+            --notes "" \
+            "$BINARY#iron"
+
+          ASSET_COUNT=$(gh release view "$NEW_TAG" --json assets --jq '.assets | length')
+          echo "Assets uploaded: $ASSET_COUNT"
+          if [ "$ASSET_COUNT" -lt 1 ]; then
+            echo "ERROR: No assets found on release after upload"
+            exit 1
+          fi
+
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      - name: Update homebrew tap
+        if: steps.build_release.outcome == 'success'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          git config --global user.email "iron-bot@akinus21.com"
+          git config --global user.name "Iron Bot"
+
+          NEW_TAG="${{ steps.tag.outputs.new_tag }}"
+          SHA256="${{ steps.release.outputs.sha256 }}"
+          BINARY_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/iron"
+
+          TAP_REPO="Akinus21/homebrew-tap"
+          TAP_DIR="/tmp/homebrew-tap"
+
+          if ! gh repo view "$TAP_REPO" >/dev/null 2>&1; then
+            echo "Creating homebrew tap repo $TAP_REPO..."
+            gh repo create "$TAP_REPO" --public --description "Homebrew tap for Akinus21 projects"
+          fi
+
+          if [ -d "$TAP_DIR" ]; then
+            cd "$TAP_DIR"
+            git pull origin main
+          else
+            git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" "$TAP_DIR"
+            cd "$TAP_DIR"
+          fi
+
+          mkdir -p Formula
+
+          cat > Formula/iron.rb <<EOF
+          class Iron < Formula
+            desc "GTK4 keyboard-driven web browser for BlueAK"
+            homepage "https://github.com/Akinus21/Iron"
+            version "${NEW_TAG#v}"
+            url "${BINARY_URL}"
+            sha256 "${SHA256}"
+            depends_on "gtk4"
+            depends_on "libadwaita"
+            depends_on "webkitgtk-6.0"
+            def install
+              bin.install "iron"
+            end
+            test do
+              system bin/"iron", "--version"
+            end
+          end
+          EOF
+
+          git add Formula/iron.rb
+          git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
+          git push || echo "Nothing to push"
+
+      - name: Notify webhook on failure
+        if: failure() && github.ref == 'refs/heads/main'
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
+          ERRORS=$(cat build.log 2>/dev/null | tail -200 | jq -Rs . || echo '"build log not found"')
+
+          PAYLOAD=$(jq -cn \
+            --arg run_url "$RUN_URL" \
+            --arg sha "$SHA" \
+            --arg commit_msg "$COMMIT_MSG" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            --argjson errors "$ERRORS" \
+            '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors}')
+
+          SIG=$(printf '%s' "$PAYLOAD" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
+            awk '{print "sha256="$2}')
+
+          curl -fsSL -X POST \
             -H "Content-Type: application/json" \
-            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{
-              "event": "build",
-              "status": "failure",
-              "repository": "${{ github.repository }}",
-              "branch": "${{ github.ref_name }}",
-              "commit": "${{ github.sha }}",
-              "message": "${{ github.event.head_commit.message }}",
-              "runner": "${{ runner.os }}"
-            }'
+            -H "X-GitHub-Event: build_failure" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD" \
+            "https://webhook.akinus21.com/webhook/iron-build" || true
+
+      - name: Notify webhook on success
+        if: steps.build_release.outcome == 'success'
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
+
+          PAYLOAD=$(jq -cn \
+            --arg run_url "$RUN_URL" \
+            --arg sha "$SHA" \
+            --arg commit_msg "$COMMIT_MSG" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            '{event:"build_success",run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor}')
+
+          SIG=$(printf '%s' "$PAYLOAD" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
+            awk '{print "sha256="$2}')
+
+          curl -fsSL -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: build_success" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD" \
+            "https://webhook.akinus21.com/webhook/iron-build" || true
