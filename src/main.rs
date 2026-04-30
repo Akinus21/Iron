@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gtk4::prelude::*;
 use webkit6::prelude::*;
 
 fn main() {
@@ -37,7 +38,7 @@ fn main() {
         let key_ctl = gtk4::EventControllerKey::new();
         key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
             let Some(wv) = wv_weak.upgrade() else {
-                return glib::signal::Propagation::proceed;
+                return glib::Propagation::Proceed;
             };
             let mut h = hints_clone.borrow_mut();
 
@@ -45,35 +46,35 @@ fn main() {
                 match keyval {
                     gtk4::gdk::Key::Escape => {
                         h.deactivate(&wv);
-                        return glib::signal::Propagation::stop;
+                        return glib::Propagation::Stop;
                     }
                     gtk4::gdk::Key::BackSpace => {
                         h.handle_backspace(&wv);
-                        return glib::signal::Propagation::stop;
+                        return glib::Propagation::Stop;
                     }
                     gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter | gtk4::gdk::Key::ISO_Enter => {
                         h.deactivate(&wv);
-                        return glib::signal::Propagation::stop;
+                        return glib::Propagation::Stop;
                     }
                     _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
                         if let Some(c) = keyval.to_unicode() {
                             h.handle_key(c, &wv);
                         }
-                        return glib::signal::Propagation::stop;
+                        return glib::Propagation::Stop;
                     }
                     _ => {
                         h.deactivate(&wv);
-                        return glib::signal::Propagation::stop;
+                        return glib::Propagation::Stop;
                     }
                 }
             }
 
             if keyval == gtk4::gdk::Key::F && modifier.is_empty() {
                 h.activate(&wv);
-                return glib::signal::Propagation::stop;
+                return glib::Propagation::Stop;
             }
 
-            glib::signal::Propagation::proceed
+            glib::Propagation::Proceed
         });
         webview.add_controller(&key_ctl);
 
