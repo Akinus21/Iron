@@ -1,5 +1,5 @@
-use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebView};
-use webkit6::prelude::WebViewExt;
+use gio::Cancellable;
+use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebInspector, WebView, prelude::WebViewExt};
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 const HINT_JS_MODULE: &str = r#"
@@ -102,16 +102,16 @@ impl HintManager {
         self.typed.clear();
         webview.evaluate_javascript(
             HINT_JS_MODULE,
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
+            None::<&str>,
+            None::<&WebInspector>,
+            None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
+            None::<&str>,
+            None::<&WebInspector>,
+            None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -122,9 +122,9 @@ impl HintManager {
         self.typed.push(c);
         webview.evaluate_javascript(
             &format!("__iron_hints_filter('{}');", self.typed),
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
+            None::<&str>,
+            None::<&WebInspector>,
+            None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -139,9 +139,9 @@ impl HintManager {
             };
             webview.evaluate_javascript(
                 &js,
-                None::<&gio::Cancellable>,
-                None::<&gio::Cancellable>,
-                None::<&gio::Cancellable>,
+                None::<&str>,
+                None::<&WebInspector>,
+                None::<&Cancellable>,
                 |_: Result<JsValue, JsError>| {},
             );
         }
@@ -153,9 +153,9 @@ impl HintManager {
         self.typed.clear();
         webview.evaluate_javascript(
             "__iron_hints_deactivate();",
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
-            None::<&gio::Cancellable>,
+            None::<&str>,
+            None::<&WebInspector>,
+            None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }
