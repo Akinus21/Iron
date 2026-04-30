@@ -38,7 +38,7 @@ fn main() {
         let key_ctl = gtk4::EventControllerKey::new();
         key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
             let Some(wv) = wv_weak.upgrade() else {
-                return gtk4::gdk::Propagation::proceed;
+                return glib::signal::Propagation::proceed;
             };
             let mut h = hints_clone.borrow_mut();
 
@@ -46,35 +46,35 @@ fn main() {
                 match keyval {
                     gtk4::gdk::Key::Escape => {
                         h.deactivate(&wv);
-                        return gtk4::gdk::Propagation::stop;
+                        return glib::signal::Propagation::stop;
                     }
                     gtk4::gdk::Key::BackSpace => {
                         h.handle_backspace(&wv);
-                        return gtk4::gdk::Propagation::stop;
+                        return glib::signal::Propagation::stop;
                     }
                     gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter | gtk4::gdk::Key::ISO_Enter => {
                         h.deactivate(&wv);
-                        return gtk4::gdk::Propagation::stop;
+                        return glib::signal::Propagation::stop;
                     }
                     _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
                         if let Some(c) = keyval.to_unicode() {
                             h.handle_key(c, &wv);
                         }
-                        return gtk4::gdk::Propagation::stop;
+                        return glib::signal::Propagation::stop;
                     }
                     _ => {
                         h.deactivate(&wv);
-                        return gtk4::gdk::Propagation::stop;
+                        return glib::signal::Propagation::stop;
                     }
                 }
             }
 
             if keyval == gtk4::gdk::Key::F && modifier.is_empty() {
                 h.activate(&wv);
-                return gtk4::gdk::Propagation::stop;
+                return glib::signal::Propagation::stop;
             }
 
-            gtk4::gdk::Propagation::proceed
+            glib::signal::Propagation::proceed
         });
         webview.add_controller(&key_ctl);
 
