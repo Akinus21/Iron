@@ -82,24 +82,28 @@ impl ThemeManager {
             error = error,
         );
 
+        // Only set color-scheme as a *hint* to pages that support it.
+        // DO NOT force color / background-color on body, because that
+        // overrides the page's own text colors and causes unreadable
+        // light-on-light (or dark-on-dark) combinations.
+        // We only override native form controls so they remain readable
+        // and match the Noctalia palette.
+        let scheme = if dark { "dark" } else { "light" };
         self.webkit_css = format!(
-            "\n                :root {{ color-scheme: {}; }}\n\
+            ":root {{ color-scheme: {}; }}\n\
              @media screen {{\n\
-             body, .content, main {{\n\
-             background-color: {surface} !important;\n\
+             input, textarea, select, option {{\n\
+             background-color: {surface_variant} !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
-             code, pre, textarea, input, select {{\n\
-             background-color: {surface_variant} !important;\n\
+             ::-webkit-input-placeholder {{\n\
+             color: {on_surface_variant} !important;\n\
              }}\n\
-             a {{ color: {accent} !important; }}\n\
-             img {{ opacity: 0.9; filter: brightness(95%); }}\n\
              }}\n",
-            if dark { "dark" } else { "light" },
-            surface = surface,
-            on_surface = on_surface,
+            scheme,
             surface_variant = surface_variant,
-            accent = on_primary,
+            on_surface = on_surface,
+            on_surface_variant = on_surface_variant,
         );
     }
 
@@ -219,6 +223,3 @@ pub fn is_dark_preferred() -> bool {
         .map(|t| t.to_lowercase().contains("dark"))
         .unwrap_or(false)
 }
-
-// re-export for consumers who want to check dark preference without
-// constructing a ThemeManager.
