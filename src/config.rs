@@ -1,7 +1,7 @@
 use gtk4;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct KeyBinding {
     pub key: String,
     #[serde(default)]
@@ -15,31 +15,10 @@ pub struct Mode {
     pub bindings: Vec<KeyBinding>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub normal: Mode,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            normal: Mode {
-                bindings: vec![
-                    KeyBinding {
-                        key: "f".to_string(),
-                        modifier: vec![],
-                        action: "hint".to_string(),
-                    },
-                    KeyBinding {
-                        key: "colon".to_string(),
-                        modifier: vec!["shift".to_string()],
-                        action: "command".to_string(),
-                    },
-                ],
-            },
-        }
-    }
 }
 
 impl Config {
@@ -143,6 +122,27 @@ impl Config {
             gtk4::gdk::Key::F11 => "f11".to_string(),
             gtk4::gdk::Key::F12 => "f12".to_string(),
             _ => format!("{:?}", keyval).to_lowercase(),
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            normal: Mode {
+                bindings: vec![
+                    KeyBinding {
+                        key: "f".to_string(),
+                        modifier: vec![],
+                        action: "hint".to_string(),
+                    },
+                    KeyBinding {
+                        key: "colon".to_string(),
+                        modifier: vec!["shift".to_string()],
+                        action: "command".to_string(),
+                    },
+                ],
+            },
         }
     }
 }
