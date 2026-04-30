@@ -91,20 +91,30 @@ Structural goals:
 - A proper relm4 Component for the browser tab/webview
 - A relm4 Component for the command bar (the vim-style input layer)
 
-## Phase 3 — Noctalia Integration
+## Phase 3 — Noctalia Integration ✅ (Complete)
 This is what makes Iron feel native rather than just functional.
-colors.json token consumption:
 
-- Watch ~/.config/noctalia/colors.json (or wherever BlueAK places it) for changes
-- On load/change, generate a GTK CSS provider from the tokens and inject it via gtk4::StyleContext::add_provider_for_display
-- Map Noctalia tokens → adwaita CSS variable names (--accent-color, --window-bg-color, etc.) so the cascade works automatically
-- Never hardcode a single hex value anywhere in Iron's UI code
+### Token source
+Noctalia stores theme files at:
+`~/.config/noctalia/colorschemes/<Name>/<Name>.json`
 
-Theme change reactivity:
+Each file has `dark` and `light` variants with these keys:
+`mPrimary`, `mOnPrimary`, `mSecondary`, `mOnSecondary`, `mTertiary`, `mOnTertiary`,
+`mError`, `mOnError`, `mSurface`, `mOnSurface`, `mHover`, `mOnHover`,
+`mSurfaceVariant`, `mOnSurfaceVariant`, `mOutline`, `mShadow`
 
-- Use inotify (via the notify crate) to watch the token file
-- On change event, reload and re-inject the CSS provider
-- The WebKit view itself can receive a user stylesheet derived from the same tokens for a cohesive reading experience
+### Architecture
+- `src/noctalia.rs` → `ThemeManager` struct
+  - `load()` — scans `~/.config/noctalia/colorschemes/`, picks first theme, parses JSON, generates CSS
+  - `apply_webkit_css()` — injects a `UserStyleSheet` into the WebView's `UserContentManager` for cohesive page rendering
+  - `start_watch()` — uses `gio::FileMonitor` on the theme directory; on `ChangesDoneHint` event, reloads the theme and re-applies the WebKit stylesheet (no polling)
+- GTK chrome theming is handled automatically by Noctalia's `adw-gtk-theme` stylesheet — Iron just uses standard adwaita widget classes
+- WebKit user stylesheet: `body, .content, main` get `background-color`/`color` from surface tokens; `code, pre, textarea, input, select` get surface_variant backgrounds
+
+### Key decisions
+- **No `notify` crate** — uses `gio::FileMonitor` (GLib-native, no threads, callback on main context)
+- **GTK CSS provider dropped** — Noctalia's GTK template handles the GTK chrome cascade; Iron only needs the WebKit user stylesheet for web page cohesion
+- **Dark mode** — detected via `GTK_THEME` env var containing "dark"; selects the appropriate variant from the theme JSON
 
 ## Phase 4 — Core Browser Features
 Port and modernize Titanium's killer features in priority order:
