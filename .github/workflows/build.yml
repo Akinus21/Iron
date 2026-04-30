@@ -45,8 +45,8 @@ jobs:
         run: cargo build --verbose
         id: build
 
-      - name: Build (release)
-        run: cargo build --release --verbose
+      - name: Check (release)
+        run: cargo check --release --verbose
         id: build_release
 
       - name: Send success webhook
