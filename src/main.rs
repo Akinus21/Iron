@@ -75,6 +75,7 @@ fn build_window(
     let css_provider_clone = css_provider.clone();
     let wv_weak = webview.downgrade();
     let cfg_clone = cfg.clone();
+    let app_clone = app.clone(); // own the Application so the closure can be 'static
 
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
@@ -240,8 +241,7 @@ fn build_window(
                     let wv_for_cmd = wv_weak.clone();
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
-                    // Clone the app GObject reference (safe, it's just a ref count bump).
-                    let app_for_cmd = app.clone();
+                    let app_for_cmd = app_clone.clone();
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
