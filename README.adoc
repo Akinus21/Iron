@@ -1,63 +1,62 @@
-= Titanium Web Browser
+= Iron Browser
 
-A keyboard-driven web browser written in Rust
+A GTK4 keyboard-driven web browser for the https://github.com/blueaklinux[BlueAK Linux] distribution, written in Rust.
 
-//image:https://img.shields.io/crates/v/titanium.svg[link="https://crates.io/crates/titanium"]
-//image:https://img.shields.io/crates/d/titanium.svg[link="https://crates.io/crates/titanium"]
-image:https://img.shields.io/crates/l/titanium.svg[link="LICENSE"]
-image:https://img.shields.io/badge/Donate-Patreon-orange.svg[link="https://www.patreon.com/antoyo"]
+https://github.com/Akinus21/Iron.svg?branch=main[image:https://github.com/Akinus21/Iron/actions/workflows/build.yml/badge.svg?branch=main[Build status]]
 
-Titanium is written in Rust and uses WebKit2GTK to render web pages.
+Iron is a spiritual successor to the https://github.com/antoyo/titanium[Titanium] browser, rebuilt from scratch on the modern GTK4 stack (GTK4, libadwaita, and WebKit 6.0). It is designed to feel native to the BlueAK/Noctalia desktop — not a port, not an afterthought.
 
-It is inspired on Vimperator and qutebrowser.py.
+== What's different from Titanium?
 
-== Screenshots
+||===
+| Titanium (GTK3) | Iron (GTK4)
+| gtk 0.16, gdk, relm 0.24 | gtk4 0.11, libadwaita 0.9, relm4 (planned)
+| webkit2gtk 1.0 (GTK3 WebKit) | webkit6 0.6 (GTK4 WebKit)
+| mg/minigui for UI chrome | adw::ApplicationWindow + adw::ToolbarView
+| Hardcoded colors | Noctalia theme tokens (no hardcoded hex values)
+|===
 
-image:doc/screenshots/titanium.png[Titanium,300,link="doc/screenshots/titanium.png"]
-image:doc/screenshots/titanium-follow-links.png[Titanium-Follow-Links,300,link="doc/screenshots/titanium-follow-links.png"]
+== Current status (Phase 2 — New Foundation)
 
-== Features
+- [x] adw::ApplicationWindow with webkit6::WebView rendering a live page
+- [x] Noctalia colors.json token loading stub (no hardcoded colors from day one)
+- [x] GitHub Actions CI with build webhooks
+- [ ] relm4 app architecture
+- [ ] Tab management (adw::TabBar + adw::TabView)
+- [ ] Command bar / vim-style input layer
 
- * vim-like keybindings
- * follow links/scroll from the keyboard
- * pop-up blocker with blacklist and whitelist
- * user scripts and user style sheet
- * page search
- * search engines
- * download manager
- * bookmarks (with completions)
- * ad blocker
+== Planned features (inherited from Titanium)
+
+- vim-like keybindings
+- hint/link navigation (f key overlay)
+- command mode (:open, :tabopen, :back, :forward, etc.)
+- pop-up blocker with blacklist and whitelist
+- user scripts and user stylesheets
+- page search
+- search engines
+- download manager
+- bookmarks (with completions)
+- ad blocker
+
+== Theming
+
+Iron targets https://github.com/Akinus21/noctalia[Noctalia], BlueAK's GTK4/adwaita theme system. All UI widgets use standard GTK4 widget classes and adwaita CSS conventions so Noctalia's color scheme cascades automatically. No hardcoded hex values anywhere.
+
+On startup, Iron loads `~/.config/noctalia/colors.json`, maps the tokens to GTK CSS variables, and injects a CSS provider. A file watcher (inotify) picks up theme changes live.
 
 == Building
 
-[source, bash]
-----
-cargo build
-cd titanium-web-extension
-cargo build
-----
+GitHub Actions handles all building automatically. The CI workflow builds the binary on `ubuntu-latest` and reports results back to GitHub.
 
-if you have issues compiling due to requiring an environment variable, set it to the web extension path
+If you need to verify code changes locally without building:
+. Review the code logic manually
+. Check for syntax errors by reading the files
+. Push to GitHub and wait for the CI results
 
-== Installing Titanium
+== Inspiration
 
-Set the `TITANIUM_EXTENSION_INSTALL_PATH` environment variable and compile in release mode.
-Then copy the executable and the library in `/usr/local`.
+Iron is inspired by https://github.com/antoyo/titanium[Titanium], http://www.qutebrowser.org/[qutebrowser], and Vimperator.
 
-[source, bash]
-----
-sudo mkdir -p /usr/local/lib/titanium/web-extensions
-export TITANIUM_EXTENSION_INSTALL_PATH=/usr/local/lib/titanium/web-extensions
-cargo build --release
-sudo cp target/release/titanium /usr/local/bin
-cd titanium-web-extension
-cargo build --release
-sudo cp target/release/libtitanium_web_extension.so /usr/local/lib/titanium/web-extensions/
-----
+== License
 
-== Donations
-
-If you appreciate this project and want new features to be
-implemented, please support me on Patreon.
-
-image:https://c5.patreon.com/external/logo/become_a_patron_button.png[link="https://www.patreon.com/antoyo"]
+https://github.com/Akinus21/Iron/blob/main/LICENSE[MIT]
