@@ -102,16 +102,16 @@ impl HintManager {
         self.typed.clear();
         webview.evaluate_javascript(
             HINT_JS_MODULE,
-            None,
-            None,
-            None,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
-            None,
-            None,
-            None,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -122,9 +122,9 @@ impl HintManager {
         self.typed.push(c);
         webview.evaluate_javascript(
             &format!("__iron_hints_filter('{}');", self.typed),
-            None,
-            None,
-            None,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }
@@ -139,9 +139,9 @@ impl HintManager {
             };
             webview.evaluate_javascript(
                 &js,
-                None,
-                None,
-                None,
+                None::<&gio::Cancellable>,
+                None::<&gio::Cancellable>,
+                None::<&gio::Cancellable>,
                 |_: Result<JsValue, JsError>| {},
             );
         }
@@ -153,9 +153,9 @@ impl HintManager {
         self.typed.clear();
         webview.evaluate_javascript(
             "__iron_hints_deactivate();",
-            None,
-            None,
-            None,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
+            None::<&gio::Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
     }

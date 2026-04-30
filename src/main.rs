@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use glib::Propagation;
-use gtk4::prelude::*;
+use gtk4::EventControllerKey;
 use webkit6::prelude::*;
 
 fn main() {
