@@ -1,5 +1,5 @@
 use gio::Cancellable;
-use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebInspector, WebView, prelude::WebViewExt};
+use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebView, prelude::WebViewExt};
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 const HINT_JS_MODULE: &str = r#"
