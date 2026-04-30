@@ -52,14 +52,16 @@ jobs:
 
       - name: Check (release)
         id: check_release
-        run: cargo check --release --verbose
+        run: |
+          set -o pipefail
+          cargo check --release --verbose 2>&1 | tee build.log
 
       - name: Build (release)
         if: success() && (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
         id: build_release
         run: |
           set -o pipefail
-          CARGO_BUILD_JOBS=2 cargo build --release 2>&1 | tee build.log
+          CARGO_BUILD_JOBS=2 cargo build --release 2>&1 | tee -a build.log
         shell: bash
 
       - name: Build (debug, PRs only)
@@ -237,7 +239,7 @@ jobs:
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHA="${{ github.sha }}"
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
-          ERRORS=$(cat build.log 2>/dev/null | tail -200 | jq -Rs . || echo '"build log not found"')
+          ERRORS=$(cat build.log 2>/dev/null | jq -Rs . || echo '""')
 
           PAYLOAD=$(jq -cn \
             --arg run_url "$RUN_URL" \
@@ -245,7 +247,7 @@ jobs:
             --arg commit_msg "$COMMIT_MSG" \
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
-            --argjson errors "$ERRORS" \
+            --arg errors "$ERRORS" \
             '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors}')
 
           SIG=$(printf '%s' "$PAYLOAD" | \

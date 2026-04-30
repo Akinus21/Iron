@@ -1,4 +1,5 @@
-use webkit6::{glib::Error as JsError, javascriptcore6::Value as JsValue, prelude::*, WebView};
+use webkit6::{glib::Error as JsError, javascriptcore6::Value as JsValue, WebView};
+use webkit6::prelude::WebViewExt;
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 const HINT_JS_MODULE: &str = r#"
