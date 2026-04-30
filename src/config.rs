@@ -1,4 +1,4 @@
-use gdk;
+use gtk4;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -74,17 +74,17 @@ impl Config {
         let _ = std::fs::write(path, toml);
     }
 
-    fn modifier_flag(mod_str: &str) -> gdk::ModifierType {
+    fn modifier_flag(mod_str: &str) -> gtk4::gdk::ModifierType {
         match mod_str.to_uppercase().as_str() {
-            "SHIFT" => gdk::ModifierType::SHIFT_MASK,
-            "CTRL" | "CONTROL" => gdk::ModifierType::CONTROL_MASK,
-            "ALT" => gdk::ModifierType::ALTMASK,
-            "META" | "SUPER" | "WIN" => gdk::ModifierType::META_MASK,
-            _ => gdk::ModifierType::empty(),
+            "SHIFT" => gtk4::gdk::ModifierType::SHIFT_MASK,
+            "CTRL" | "CONTROL" => gtk4::gdk::ModifierType::CONTROL_MASK,
+            "ALT" => gtk4::gdk::ModifierType::ALTMASK,
+            "META" | "SUPER" | "WIN" => gtk4::gdk::ModifierType::META_MASK,
+            _ => gtk4::gdk::ModifierType::empty(),
         }
     }
 
-    pub fn get_binding_by_keyval(&self, keyval: gdk::Key, modifier: &gdk::ModifierType) -> Option<&KeyBinding> {
+    pub fn get_binding_by_keyval(&self, keyval: gtk4::gdk::Key, modifier: &gtk4::gdk::ModifierType) -> Option<&KeyBinding> {
         let key_name = Self::keyval_to_string(keyval);
 
         for binding in &self.normal.bindings {
@@ -108,40 +108,40 @@ impl Config {
         None
     }
 
-    fn keyval_to_string(keyval: gdk::Key) -> String {
+    fn keyval_to_string(keyval: gtk4::gdk::Key) -> String {
         if let Some(c) = keyval.to_unicode() {
             return c.to_string();
         }
 
         match keyval {
-            gdk::Key::BackSpace => "backspace".to_string(),
-            gdk::Key::Tab => "tab".to_string(),
-            gdk::Key::Return => "return".to_string(),
-            gdk::Key::Escape => "escape".to_string(),
-            gdk::Key::Delete => "delete".to_string(),
-            gdk::Key::Up => "up".to_string(),
-            gdk::Key::Down => "down".to_string(),
-            gdk::Key::Left => "left".to_string(),
-            gdk::Key::Right => "right".to_string(),
-            gdk::Key::Home => "home".to_string(),
-            gdk::Key::End => "end".to_string(),
-            gdk::Key::Page_Up => "pageup".to_string(),
-            gdk::Key::Page_Down => "pagedown".to_string(),
-            gdk::Key::Insert => "insert".to_string(),
-            gdk::Key::KP_Enter => "kp-enter".to_string(),
-            gdk::Key::ISO_Enter => "iso-enter".to_string(),
-            gdk::Key::F1 => "f1".to_string(),
-            gdk::Key::F2 => "f2".to_string(),
-            gdk::Key::F3 => "f3".to_string(),
-            gdk::Key::F4 => "f4".to_string(),
-            gdk::Key::F5 => "f5".to_string(),
-            gdk::Key::F6 => "f6".to_string(),
-            gdk::Key::F7 => "f7".to_string(),
-            gdk::Key::F8 => "f8".to_string(),
-            gdk::Key::F9 => "f9".to_string(),
-            gdk::Key::F10 => "f10".to_string(),
-            gdk::Key::F11 => "f11".to_string(),
-            gdk::Key::F12 => "f12".to_string(),
+            gtk4::gdk::Key::BackSpace => "backspace".to_string(),
+            gtk4::gdk::Key::Tab => "tab".to_string(),
+            gtk4::gdk::Key::Return => "return".to_string(),
+            gtk4::gdk::Key::Escape => "escape".to_string(),
+            gtk4::gdk::Key::Delete => "delete".to_string(),
+            gtk4::gdk::Key::Up => "up".to_string(),
+            gtk4::gdk::Key::Down => "down".to_string(),
+            gtk4::gdk::Key::Left => "left".to_string(),
+            gtk4::gdk::Key::Right => "right".to_string(),
+            gtk4::gdk::Key::Home => "home".to_string(),
+            gtk4::gdk::Key::End => "end".to_string(),
+            gtk4::gdk::Key::Page_Up => "pageup".to_string(),
+            gtk4::gdk::Key::Page_Down => "pagedown".to_string(),
+            gtk4::gdk::Key::Insert => "insert".to_string(),
+            gtk4::gdk::Key::KP_Enter => "kp-enter".to_string(),
+            gtk4::gdk::Key::ISO_Enter => "iso-enter".to_string(),
+            gtk4::gdk::Key::F1 => "f1".to_string(),
+            gtk4::gdk::Key::F2 => "f2".to_string(),
+            gtk4::gdk::Key::F3 => "f3".to_string(),
+            gtk4::gdk::Key::F4 => "f4".to_string(),
+            gtk4::gdk::Key::F5 => "f5".to_string(),
+            gtk4::gdk::Key::F6 => "f6".to_string(),
+            gtk4::gdk::Key::F7 => "f7".to_string(),
+            gtk4::gdk::Key::F8 => "f8".to_string(),
+            gtk4::gdk::Key::F9 => "f9".to_string(),
+            gtk4::gdk::Key::F10 => "f10".to_string(),
+            gtk4::gdk::Key::F11 => "f11".to_string(),
+            gtk4::gdk::Key::F12 => "f12".to_string(),
             _ => format!("{:?}", keyval).to_lowercase(),
         }
     }
