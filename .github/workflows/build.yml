@@ -192,26 +192,24 @@ jobs:
 
           mkdir -p Formula
 
-          cat > Formula/iron.rb <<EOF
-class Iron < Formula
-  desc "GTK4 keyboard-driven web browser for BlueAK"
-  homepage "https://github.com/Akinus21/Iron"
-  version "${NEW_TAG#v}"
-  url "${BINARY_URL}"
-  sha256 "${SHA256}"
-  depends_on "gtk4"
-  depends_on "libadwaita"
-  depends_on "webkitgtk-6.0"
-
-  def install
-    bin.install "iron"
-  end
-
-  test do
-    assert_match "iron", shell_output("\#{bin}/iron --version 2>&1 || true")
-  end
-end
-EOF
+          printf 'class Iron < Formula\n' > Formula/iron.rb
+          printf '  desc "GTK4 keyboard-driven web browser for BlueAK"\n' >> Formula/iron.rb
+          printf '  homepage "https://github.com/Akinus21/Iron"\n' >> Formula/iron.rb
+          printf '  version "%s"\n' "${NEW_TAG#v}" >> Formula/iron.rb
+          printf '  url "%s"\n' "${BINARY_URL}" >> Formula/iron.rb
+          printf '  sha256 "%s"\n' "${SHA256}" >> Formula/iron.rb
+          printf '  depends_on "gtk4"\n' >> Formula/iron.rb
+          printf '  depends_on "libadwaita"\n' >> Formula/iron.rb
+          printf '  depends_on "webkitgtk-6.0"\n' >> Formula/iron.rb
+          printf '\n' >> Formula/iron.rb
+          printf '  def install\n' >> Formula/iron.rb
+          printf '    bin.install "iron"\n' >> Formula/iron.rb
+          printf '  end\n' >> Formula/iron.rb
+          printf '\n' >> Formula/iron.rb
+          printf '  test do\n' >> Formula/iron.rb
+          printf '    assert_match "iron", shell_output("#{bin}/iron --version 2>&1 || true")\n' >> Formula/iron.rb
+          printf '  end\n' >> Formula/iron.rb
+          printf 'end\n' >> Formula/iron.rb
 
           git add Formula/iron.rb
           git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
