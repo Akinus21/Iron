@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Iron
+Comment=GTK4 keyboard-driven web browser for BlueAK
+Exec=iron %u
+Icon=org.blueak.iron
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+Terminal=false

@@ -204,6 +204,20 @@ jobs:
           printf '\n' >> Formula/iron.rb
           printf '  def install\n' >> Formula/iron.rb
           printf '    bin.install "iron"\n' >> Formula/iron.rb
+          printf '\n' >> Formula/iron.rb
+          printf '    (share/"applications").mkpath\n' >> Formula/iron.rb
+          printf '    (share/"applications"/"org.blueak.iron.desktop").write <<~DESKTOP\n' >> Formula/iron.rb
+          printf '[Desktop Entry]\n' >> Formula/iron.rb
+          printf 'Type=Application\n' >> Formula/iron.rb
+          printf 'Name=Iron\n' >> Formula/iron.rb
+          printf 'Comment=GTK4 keyboard-driven web browser for BlueAK\n' >> Formula/iron.rb
+          printf 'Exec=iron %%u\n' >> Formula/iron.rb
+          printf 'Icon=org.blueak.iron\n' >> Formula/iron.rb
+          printf 'Categories=Network;WebBrowser;\n' >> Formula/iron.rb
+          printf 'MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;\n' >> Formula/iron.rb
+          printf 'StartupNotify=true\n' >> Formula/iron.rb
+          printf 'Terminal=false\n' >> Formula/iron.rb
+          printf 'DESKTOP\n' >> Formula/iron.rb
           printf '  end\n' >> Formula/iron.rb
           printf '\n' >> Formula/iron.rb
           printf '  test do\n' >> Formula/iron.rb
