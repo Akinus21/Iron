@@ -157,15 +157,13 @@ impl ThemeManager {
                 _ => return,
             }
 
-            if let Some(child) = child {
-                if let Some(child_path) = child.path() {
-                    let expected = theme_path.as_ref().map(|p| p.as_path());
-                    if Some(child_path.as_path()) == expected {
-                        tm.borrow_mut().reload(theme_path.as_deref());
-                        if let Some(wv) = webview_weak.upgrade() {
-                            let tm_ref = tm.borrow();
-                            tm_ref.apply_webkit_css(&wv);
-                        }
+            if let Some(child_path) = child.path() {
+                let expected = theme_path.as_ref().map(|p| p.as_path());
+                if Some(child_path.as_path()) == expected {
+                    tm.borrow_mut().reload(theme_path.as_deref());
+                    if let Some(wv) = webview_weak.upgrade() {
+                        let tm_ref = tm.borrow();
+                        tm_ref.apply_webkit_css(&wv);
                     }
                 }
             }
