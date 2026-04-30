@@ -10,7 +10,7 @@ pub struct KeyBinding {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Mode {
-    #[serde(default]
+    #[serde(default)]
     pub bindings: Vec<KeyBinding>,
 }
 
