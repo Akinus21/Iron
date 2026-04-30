@@ -1,5 +1,5 @@
 use gtk4;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct KeyBinding {
