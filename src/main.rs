@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::prelude::*;
+use gtk4::{EventControllerKey, gdk};
 use webkit6::prelude::*;
 
 fn main() {
@@ -76,7 +76,7 @@ fn main() {
 
             glib::Propagation::Proceed
         });
-        webview.add_controller(&key_ctl);
+        webview.add_controller(key_ctl);
 
         window.present();
 

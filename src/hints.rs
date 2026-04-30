@@ -103,14 +103,14 @@ impl HintManager {
         webview.evaluate_javascript(
             HINT_JS_MODULE,
             None::<&str>,
-            None::<&WebInspector>,
+            None::<&str>,
             None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
             "__iron_hints_activate();",
             None::<&str>,
-            None::<&WebInspector>,
+            None::<&str>,
             None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
@@ -123,7 +123,7 @@ impl HintManager {
         webview.evaluate_javascript(
             &format!("__iron_hints_filter('{}');", self.typed),
             None::<&str>,
-            None::<&WebInspector>,
+            None::<&str>,
             None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
@@ -140,7 +140,7 @@ impl HintManager {
             webview.evaluate_javascript(
                 &js,
                 None::<&str>,
-                None::<&WebInspector>,
+                None::<&str>,
                 None::<&Cancellable>,
                 |_: Result<JsValue, JsError>| {},
             );
@@ -154,7 +154,7 @@ impl HintManager {
         webview.evaluate_javascript(
             "__iron_hints_deactivate();",
             None::<&str>,
-            None::<&WebInspector>,
+            None::<&str>,
             None::<&Cancellable>,
             |_: Result<JsValue, JsError>| {},
         );
