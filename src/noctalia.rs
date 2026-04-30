@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use gtk4::prelude::*;
+use gio::prelude::*;
 use webkit6::prelude::*;
 use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
 
