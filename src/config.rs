@@ -15,7 +15,7 @@ pub struct Mode {
     pub bindings: Vec<KeyBinding>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
     pub normal: Mode,
