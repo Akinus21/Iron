@@ -1,5 +1,6 @@
 pub enum Command {
     Open(String),
+    NewWindowOpen(String),
     Back,
     Forward,
     Reload,
@@ -36,6 +37,18 @@ impl CommandInput {
                         format!("https://{}", rest)
                     };
                     Some(Command::Open(url))
+                }
+            }
+            "new-window-open" | "nwo" => {
+                if rest.is_empty() {
+                    None
+                } else {
+                    let url = if rest.starts_with("http") {
+                        rest.to_string()
+                    } else {
+                        format!("https://{}", rest)
+                    };
+                    Some(Command::NewWindowOpen(url))
                 }
             }
             "back" | "b" => Some(Command::Back),
