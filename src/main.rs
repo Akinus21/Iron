@@ -1,8 +1,10 @@
 mod command;
+mod config;
 mod hints;
 mod noctalia;
 
 use command::CommandInput;
+use config::Config;
 use hints::HintManager;
 use noctalia::ThemeManager;
 
@@ -58,13 +60,6 @@ fn main() {
         key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
             let hints_active = hints_clone.borrow().active;
 
-            if keyval == gdk::Key::F && modifier.is_empty() && !hints_active {
-                if let Some(wv) = wv_weak.upgrade() {
-                    hints_clone.borrow_mut().activate(&wv);
-                }
-                return glib::Propagation::Stop;
-            }
-
             if hints_active {
                 match keyval {
                     gdk::Key::Escape => {
@@ -102,88 +97,99 @@ fn main() {
                 }
             }
 
-            if keyval == gdk::Key::colon && modifier.contains(gdk::ModifierType::SHIFT_MASK) {
-                if cmd_bar_clone.borrow().is_some() {
-                    return glib::Propagation::Proceed;
-                }
-
-                let entry = gtk4::Entry::new();
-                entry.set_placeholder_text(Some(":open "));
-                entry.set_width_chars(60);
-                entry.set_halign(gtk4::Align::Center);
-                entry.set_valign(gtk4::Align::Start);
-                entry.set_margin_top(10);
-                entry.set_margin_start(80);
-                entry.set_margin_end(80);
-                entry.add_css_class("command-bar");
-                entry.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-                let container = GtkBox::new(gtk4::Orientation::Horizontal, 0);
-                container.add_css_class("command-bar");
-                container.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
-                container.append(&entry);
-
-                let wv_for_cmd = wv_weak.clone();
-                let cmd_bar_c = cmd_bar_clone.clone();
-                let cmd_entry_c = cmd_entry_clone.clone();
-
-                entry.connect_activate(move |e| {
-                    let text = e.text().to_string();
-                    let input = CommandInput::new(&text);
-                    if let Some(cmd) = input.parse() {
-                        if let Some(w) = wv_for_cmd.upgrade() {
-                            match cmd {
-                                command::Command::Open(url) => w.load_uri(&url),
-                                command::Command::Back => {
-                                    if w.can_go_back() {
-                                        w.go_back();
-                                    }
-                                }
-                                command::Command::Forward => {
-                                    if w.can_go_forward() {
-                                        w.go_forward();
-                                    }
-                                }
-                                command::Command::Reload => {
-                                    w.reload();
-                                }
-                            }
-                        }
-                    }
-                    if let Some(bar) = cmd_bar_c.borrow_mut().take() {
-                        bar.unparent();
-                    }
-                    cmd_entry_c.borrow_mut().take();
-                    if let Some(w) = wv_for_cmd.upgrade() {
-                        w.grab_focus();
-                    }
-                });
-
-                let entry_key_ctl = EventControllerKey::new();
-                entry.add_controller(entry_key_ctl.clone());
-                let cmd_bar_esc = cmd_bar_clone.clone();
-                let cmd_entry_esc = cmd_entry_clone.clone();
-                let wv_weak_esc = wv_weak.clone();
-                entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
-                    if k == gdk::Key::Escape {
-                        if let Some(bar) = cmd_bar_esc.borrow_mut().take() {
-                            bar.unparent();
-                        }
-                        cmd_entry_esc.borrow_mut().take();
-                        if let Some(w) = wv_weak_esc.upgrade() {
-                            w.grab_focus();
+            if let Some(binding) = Config::load().get_binding_by_keyval(keyval, modifier) {
+                match binding.action.as_str() {
+                    "hint" => {
+                        if let Some(wv) = wv_weak.upgrade() {
+                            hints_clone.borrow_mut().activate(&wv);
                         }
                         return glib::Propagation::Stop;
                     }
-                    glib::Propagation::Proceed
-                });
+                    "command" => {
+                        if cmd_bar_clone.borrow().is_some() {
+                            return glib::Propagation::Proceed;
+                        }
 
-                *cmd_bar_clone.borrow_mut() = Some(container.clone());
-                *cmd_entry_clone.borrow_mut() = Some(entry.clone());
-                overlay.add_overlay(&container);
-                entry.grab_focus();
+                        let entry = gtk4::Entry::new();
+                        entry.set_placeholder_text(Some(":open "));
+                        entry.set_width_chars(60);
+                        entry.set_halign(gtk4::Align::Center);
+                        entry.set_valign(gtk4::Align::Start);
+                        entry.set_margin_top(10);
+                        entry.set_margin_start(80);
+                        entry.set_margin_end(80);
+                        entry.add_css_class("command-bar");
+                        entry.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-                return glib::Propagation::Stop;
+                        let container = GtkBox::new(gtk4::Orientation::Horizontal, 0);
+                        container.add_css_class("command-bar");
+                        container.style_context().add_provider(&css_provider_clone, STYLE_PROVIDER_PRIORITY_APPLICATION);
+                        container.append(&entry);
+
+                        let wv_for_cmd = wv_weak.clone();
+                        let cmd_bar_c = cmd_bar_clone.clone();
+                        let cmd_entry_c = cmd_entry_clone.clone();
+
+                        entry.connect_activate(move |e| {
+                            let text = e.text().to_string();
+                            let input = CommandInput::new(&text);
+                            if let Some(cmd) = input.parse() {
+                                if let Some(w) = wv_for_cmd.upgrade() {
+                                    match cmd {
+                                        command::Command::Open(url) => w.load_uri(&url),
+                                        command::Command::Back => {
+                                            if w.can_go_back() {
+                                                w.go_back();
+                                            }
+                                        }
+                                        command::Command::Forward => {
+                                            if w.can_go_forward() {
+                                                w.go_forward();
+                                            }
+                                        }
+                                        command::Command::Reload => {
+                                            w.reload();
+                                        }
+                                    }
+                                }
+                            }
+                            if let Some(bar) = cmd_bar_c.borrow_mut().take() {
+                                bar.unparent();
+                            }
+                            cmd_entry_c.borrow_mut().take();
+                            if let Some(w) = wv_for_cmd.upgrade() {
+                                w.grab_focus();
+                            }
+                        });
+
+                        let entry_key_ctl = EventControllerKey::new();
+                        entry.add_controller(entry_key_ctl.clone());
+                        let cmd_bar_esc = cmd_bar_clone.clone();
+                        let cmd_entry_esc = cmd_entry_clone.clone();
+                        let wv_weak_esc = wv_weak.clone();
+                        entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
+                            if k == gdk::Key::Escape {
+                                if let Some(bar) = cmd_bar_esc.borrow_mut().take() {
+                                    bar.unparent();
+                                }
+                                cmd_entry_esc.borrow_mut().take();
+                                if let Some(w) = wv_weak_esc.upgrade() {
+                                    w.grab_focus();
+                                }
+                                return glib::Propagation::Stop;
+                            }
+                            glib::Propagation::Proceed
+                        });
+
+                        *cmd_bar_clone.borrow_mut() = Some(container.clone());
+                        *cmd_entry_clone.borrow_mut() = Some(entry.clone());
+                        overlay.add_overlay(&container);
+                        entry.grab_focus();
+
+                        return glib::Propagation::Stop;
+                    }
+                    _ => {}
+                }
             }
 
             glib::Propagation::Proceed
