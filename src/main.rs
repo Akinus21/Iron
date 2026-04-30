@@ -97,7 +97,7 @@ fn main() {
                 }
             }
 
-            if let Some(binding) = Config::load().get_binding_by_keyval(keyval, modifier) {
+            if let Some(binding) = Config::load().get_binding_by_keyval(keyval, &modifier) {
                 match binding.action.as_str() {
                     "hint" => {
                         if let Some(wv) = wv_weak.upgrade() {

@@ -9,13 +9,13 @@ pub struct KeyBinding {
     pub action: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Mode {
     #[serde(default)]
     pub bindings: Vec<KeyBinding>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
     pub normal: Mode,
@@ -78,7 +78,7 @@ impl Config {
         match mod_str.to_uppercase().as_str() {
             "SHIFT" => gtk4::gdk::ModifierType::SHIFT_MASK,
             "CTRL" | "CONTROL" => gtk4::gdk::ModifierType::CONTROL_MASK,
-            "ALT" => gtk4::gdk::ModifierType::ALTMASK,
+            "ALT" => gtk4::gdk::ModifierType::ALT_MASK,
             "META" | "SUPER" | "WIN" => gtk4::gdk::ModifierType::META_MASK,
             _ => gtk4::gdk::ModifierType::empty(),
         }
