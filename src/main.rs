@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk4::{EventControllerKey, gdk, Box as GtkBox, CssProvider, Overlay, STYLE_PROVIDER_PRIORITY_APPLICATION};
-use gtk4::prelude::{WidgetExt, OverlayExt};
+use gtk4::prelude::WidgetExt;
 use webkit6::prelude::*;
 
 fn main() {
@@ -151,7 +151,7 @@ fn main() {
                         }
                     }
                     if let Some(bar) = cmd_bar_c.borrow_mut().take() {
-                        Overlay::remove(&overlay_for_cmd, &bar);
+                        bar.unparent();
                     }
                     cmd_entry_c.borrow_mut().take();
                     if let Some(w) = wv_for_cmd.upgrade() {
@@ -164,7 +164,7 @@ fn main() {
                 entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
                         if let Some(bar) = cmd_bar_clone.borrow_mut().take() {
-                            Overlay::remove(&overlay_for_esc, &bar);
+                            bar.unparent();
                         }
                         cmd_entry_clone.borrow_mut().take();
                         if let Some(w) = wv_weak.upgrade() {
