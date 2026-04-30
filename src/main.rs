@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::{EventControllerKey, gdk, Overlay};
+use gtk4::{EventControllerKey, gdk, Box, CssProvider, Overlay, StyleContext};
 use webkit6::prelude::*;
 
 fn main() {
@@ -36,41 +36,100 @@ fn main() {
         overlay.set_child(Some(&webview));
         window.set_content(Some(&overlay));
 
-        let hints = Rc::new(RefCell::new(HintManager::new()));
+        let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
+        let cmd_bar: Rc<RefCell<Option<Box>>> = Rc::new(RefCell::new(None));
         let cmd_entry: Rc<RefCell<Option<gtk4::Entry>>> = Rc::new(RefCell::new(None));
 
+        let css_provider = CssProvider::new();
+        css_provider.load_from_string(
+            ".command-bar { background: rgba(30, 30, 40, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px 8px; }",
+        );
+
+        let window_weak = window.downgrade();
         let hints_clone = hints.clone();
-        let wv_weak = webview.downgrade();
-        let overlay_clone = overlay.downgrade();
+        let cmd_bar_clone = cmd_bar.clone();
         let cmd_entry_clone = cmd_entry.clone();
+        let css_provider_clone = css_provider.clone();
+        let wv_weak = webview.downgrade();
+
         let key_ctl = EventControllerKey::new();
         key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
-            let Some(wv) = wv_weak.upgrade() else {
-                return glib::Propagation::Proceed;
-            };
+            let hints_active = hints_clone.borrow().active;
 
-            if keyval == gdk::Key::F && modifier.is_empty() {
-                hints_clone.borrow_mut().activate(&wv);
+            if keyval == gdk::Key::F && modifier.is_empty() && !hints_active {
+                if let Some(wv) = wv_weak.upgrade() {
+                    hints_clone.borrow_mut().activate(&wv);
+                }
                 return glib::Propagation::Stop;
             }
 
+            if hints_active {
+                match keyval {
+                    gdk::Key::Escape => {
+                        if let Some(wv) = wv_weak.upgrade() {
+                            hints_clone.borrow_mut().deactivate(&wv);
+                        }
+                        return glib::Propagation::Stop;
+                    }
+                    gdk::Key::BackSpace => {
+                        if let Some(wv) = wv_weak.upgrade() {
+                            hints_clone.borrow_mut().handle_backspace(&wv);
+                        }
+                        return glib::Propagation::Stop;
+                    }
+                    gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
+                        if let Some(wv) = wv_weak.upgrade() {
+                            hints_clone.borrow_mut().deactivate(&wv);
+                        }
+                        return glib::Propagation::Stop;
+                    }
+                    _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
+                        if let Some(c) = keyval.to_unicode() {
+                            if let Some(wv) = wv_weak.upgrade() {
+                                hints_clone.borrow_mut().handle_key(c, &wv);
+                            }
+                        }
+                        return glib::Propagation::Stop;
+                    }
+                    _ => {
+                        if let Some(wv) = wv_weak.upgrade() {
+                            hints_clone.borrow_mut().deactivate(&wv);
+                        }
+                        return glib::Propagation::Stop;
+                    }
+                }
+            }
+
             if keyval == gdk::Key::colon && modifier.contains(gdk::ModifierType::SHIFT_MASK) {
-                let overlay = match overlay_clone.upgrade() {
-                    Some(a) => a,
+                let overlay = match window_weak.upgrade() {
+                    Some(w) => gtk4::Cast::unsafe_cast(&w),
                     None => return glib::Propagation::Proceed,
                 };
 
+                if cmd_bar_clone.borrow().is_some() {
+                    return glib::Propagation::Proceed;
+                }
+
                 let entry = gtk4::Entry::new();
-                entry.set_placeholder_text(Some(":"));
+                entry.set_placeholder_text(Some(":open "));
                 entry.set_width_chars(60);
                 entry.set_halign(gtk4::Align::Center);
                 entry.set_valign(gtk4::Align::Start);
                 entry.set_margin_top(10);
-                entry.set_margin_start(100);
-                entry.set_margin_end(100);
+                entry.set_margin_start(80);
+                entry.set_margin_end(80);
+                entry.add_css_class("command-bar");
 
-                let wv_for_cmd = wv.downgrade();
-                let entry_for_closure = entry.clone();
+                let style = entry.style_context();
+                style.add_provider(&css_provider_clone, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+                let container = Box::new(gtk4::Orientation::Horizontal, 0);
+                container.add_css_class("command-bar");
+                container.style_context().add_provider(&css_provider_clone, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
+                container.append(&entry);
+
+                let wv_for_cmd = wv_weak.downgrade();
+                let cmd_bar_c = cmd_bar_clone.clone();
                 let cmd_entry_c = cmd_entry_clone.clone();
 
                 entry.connect_activate(move |e| {
@@ -79,9 +138,7 @@ fn main() {
                     if let Some(cmd) = input.parse() {
                         if let Some(w) = wv_for_cmd.upgrade() {
                             match cmd {
-                                command::Command::Open(url) => {
-                                    w.load_uri(&url);
-                                }
+                                command::Command::Open(url) => w.load_uri(&url),
                                 command::Command::Back => {
                                     if w.can_go_back() {
                                         w.go_back();
@@ -98,61 +155,43 @@ fn main() {
                             }
                         }
                     }
-                    if let Some(old) = cmd_entry_c.borrow_mut().take() {
-                        drop(old);
+                    if let Some(bar) = cmd_bar_c.borrow_mut().take() {
+                        overlay.remove(&bar);
+                    }
+                    cmd_entry_c.borrow_mut().take();
+                    if let Some(w) = wv_for_cmd.upgrade() {
+                        w.grab_focus();
                     }
                 });
 
-                let cmd_entry_e = cmd_entry_clone.clone();
+                let cmd_bar_e = cmd_bar_clone.clone();
                 let entry_key_ctl = EventControllerKey::new();
+                entry.add_controller(entry_key_ctl);
                 entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                     if k == gdk::Key::Escape {
-                        if let Some(old) = cmd_entry_e.borrow_mut().take() {
-                            drop(old);
+                        if let Some(bar) = cmd_bar_e.borrow_mut().take() {
+                            overlay.remove(&bar);
+                        }
+                        cmd_entry_clone.borrow_mut().take();
+                        if let Some(w) = wv_weak.upgrade() {
+                            w.grab_focus();
                         }
                         return glib::Propagation::Stop;
                     }
                     glib::Propagation::Proceed
                 });
 
+                *cmd_bar_clone.borrow_mut() = Some(container.clone());
                 *cmd_entry_clone.borrow_mut() = Some(entry.clone());
-                overlay.add_overlay(&entry);
+                overlay.add_overlay(&container);
                 entry.grab_focus();
 
                 return glib::Propagation::Stop;
             }
 
-            let mut h = hints_clone.borrow_mut();
-            if h.active {
-                match keyval {
-                    gdk::Key::Escape => {
-                        h.deactivate(&wv);
-                        return glib::Propagation::Stop;
-                    }
-                    gdk::Key::BackSpace => {
-                        h.handle_backspace(&wv);
-                        return glib::Propagation::Stop;
-                    }
-                    gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
-                        h.deactivate(&wv);
-                        return glib::Propagation::Stop;
-                    }
-                    _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
-                        if let Some(c) = keyval.to_unicode() {
-                            h.handle_key(c, &wv);
-                        }
-                        return glib::Propagation::Stop;
-                    }
-                    _ => {
-                        h.deactivate(&wv);
-                        return glib::Propagation::Stop;
-                    }
-                }
-            }
-
             glib::Propagation::Proceed
         });
-        webview.add_controller(key_ctl);
+        window.add_controller(key_ctl);
 
         window.present();
 
