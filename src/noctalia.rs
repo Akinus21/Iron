@@ -145,7 +145,10 @@ impl ThemeManager {
         }
 
         let file = gio::File::for_path(&watch_dir);
-        let monitor = file.monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE);
+        let Ok(monitor) = file.monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) else {
+            eprintln!("Noctalia: failed to create directory monitor");
+            return;
+        };
 
         let webview_weak = webview.downgrade();
         monitor.connect_changed(move |_monitor, child, _other, event_type| {
