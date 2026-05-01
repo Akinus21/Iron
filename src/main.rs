@@ -84,7 +84,7 @@ fn main() {
     app.run();
 }
 
-const ALL_COMMANDS: [(&str, &str); 17] = [
+const ALL_COMMANDS: [(&str, &str); 18] = [
     ("duplicate", "Duplicate current window"),
     ("copy-address", "Copy current page URL"),
     ("downloads", "Show recent downloads"),
@@ -102,6 +102,7 @@ const ALL_COMMANDS: [(&str, &str); 17] = [
     ("cac-status", "Check smart-card readiness"),
     ("clear-site-data", "Clear all site data"),
     ("clear-cookies", "Clear cookies only"),
+    ("reload-theme", "Reload Noctalia theme manually"),
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -242,7 +243,10 @@ fn build_window(
          .command-row { padding: 4px 8px; }\n\
          .command-row-small { font-size: 12px; }\n\
          .command-selected { background-color: var(--accent-bg-color); color: var(--accent-fg-color); }\n\
-         .command-help { opacity: 0.5; font-size: 12px; }",
+         .command-help { opacity: 0.5; font-size: 12px; }\n\
+         .command-overlay, .command-row, .command-selected, .command-col-title {\n\
+           transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
+         }",
     );
     gtk4::style_context_add_provider_for_display(
         &gtk4::prelude::RootExt::display(&window),
@@ -475,55 +479,9 @@ fn build_window(
                     let overlay_cmd = overlay_clone.clone();
                     let download_mgr_cmd = download_mgr_clone.clone();
                     let session_mgr_cmd = session_mgr_clone.clone();
-                    let history_mgr_changed = history_mgr_clone.clone();
-                    let entry_state = state.clone();
-                    let entry_cmd_list = cmd_list_widget.clone();
-                    let entry_hist_list = hist_list_widget.clone();
-
-                    // ---- Text change handler ----
-                    entry.connect_changed(move |e| {
-                        let text = e.text().to_string();
-                        let cursor = e.position();
-                        let space_pos = text.find(' ');
-                        let (cmd_part, arg_part) = match space_pos {
-                            Some(pos) => (&text[..pos], &text[pos + 1..]),
-                            None => (&text[..], ""),
-                        };
-
-                        let in_command = space_pos.map_or(true, |pos| cursor <= pos as i32);
-                        let mut st = entry_state.borrow_mut();
-                        st.selected_cmd = -1;
-                        st.selected_hist = -1;
-                        st.cmd_navigated = false;
-                        st.hist_navigated = false;
-
-                        if in_command {
-                            st.active = OverlaySection::Command;
-                            let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), cmd_part, 50);
-                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
-                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
-                            let recent = history_mgr_changed.borrow().recent(20);
-                            rebuild_hist_list(&entry_hist_list, &recent, -1);
-                        } else if command::is_url_command(cmd_part) {
-                            st.active = OverlaySection::History;
-                            rebuild_cmd_list(&entry_cmd_list, &[cmd_part], -1);
-                            let filtered = history_mgr_changed.borrow().fuzzy(arg_part, 50);
-                            rebuild_hist_list(&entry_hist_list, &filtered, -1);
-                        } else {
-                            st.active = OverlaySection::Command;
-                            let filtered = fuzzy::filter(
-                                &all_cmd_names.iter().copied().collect::<Vec<_>>(),
-                                &text,
-                                50,
-                            );
-                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
-                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
-                            let recent = history_mgr_changed.borrow().recent(20);
-                            rebuild_hist_list(&entry_hist_list, &recent, -1);
-                        }
-                    });
-
                     let history_mgr_cmd = history_mgr_clone.clone();
+                    let tm_cmd = tm.clone();
+                    let noctalia_provider_cmd = noctalia_provider.clone();
 
                     // ---- Enter execution ----
                     entry.connect_activate(move |e| {
@@ -644,6 +602,14 @@ fn build_window(
                                     command::Command::DeleteHistory(url) => {
                                         history_mgr_cmd.borrow_mut().delete(&url);
                                         eprintln!("Deleted {} from history", url);
+                                    }
+                                    command::Command::ReloadTheme => {
+                                        tm_cmd.borrow_mut().load();
+                                        tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
+                                        if let Some(w) = wv_for_cmd.upgrade() {
+                                            tm_cmd.borrow().apply_webkit_css(&w);
+                                        }
+                                        eprintln!("Theme reloaded manually");
                                     }
                                 }
                             }

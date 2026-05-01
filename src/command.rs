@@ -19,6 +19,7 @@ pub enum Command {
     History,
     ClearHistory,
     DeleteHistory(String),
+    ReloadTheme,
 }
 
 /// Commands that accept a URL as their first argument.
@@ -101,6 +102,7 @@ impl CommandInput {
             "history" | "hist" => Some(Command::History),
             "clear-history" | "ch" => Some(Command::ClearHistory),
             "delete-history" | "dh" => Some(Command::DeleteHistory(rest.to_string())),
+            "reload-theme" | "rt" => Some(Command::ReloadTheme),
             _ => None,
         }
     }

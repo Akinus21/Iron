@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gio::Cancellable;
 use webkit6::prelude::*;
 use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
 
@@ -133,10 +134,16 @@ impl ThemeManager {
         let scheme = if dark { "dark" } else { "light" };
         self.webkit_css = format!(
             ":root {{ color-scheme: {}; }}\n\
+             *, *::before, *::after {{\n\
+               transition: background-color 150ms ease-in-out,\n\
+                           color 150ms ease-in-out,\n\
+                           border-color 150ms ease-in-out !important;\n\
+             }}\n\
              @media screen {{\n\
              input, textarea, select, option {{\n\
              background-color: {surface_variant} !important;\n\
              color: {on_surface} !important;\n\
+             transition: background-color 300ms ease-in-out, color 300ms ease-in-out !important;\n\
              }}\n\
              ::-webkit-input-placeholder {{\n\
              color: {on_surface_variant} !important;\n\
@@ -167,6 +174,34 @@ impl ThemeManager {
         if self.webkit_css.is_empty() {
             return;
         }
+
+        // Phase A: Inject into live DOM so the compositor interpolates transitions.
+        let escaped = self.webkit_css.replace('\\', "\\\\").replace('`', "\\`");
+        let js = format!(
+            r#"(function() {{
+                var el = document.getElementById('__iron_theme');
+                if (!el) {{
+                    el = document.createElement('style');
+                    el.id = '__iron_theme';
+                    document.head.appendChild(el);
+                }}
+                el.textContent = `{}`;
+            }})();"#,
+            escaped
+        );
+        webview.evaluate_javascript(
+            &js,
+            None::<&str>,
+            None::<&str>,
+            Some(&Cancellable::NONE),
+            |res| {
+                if let Err(e) = res {
+                    eprintln!("Noctalia: JS theme injection failed: {}", e);
+                }
+            },
+        );
+
+        // Phase B: Update UserStyleSheet as fallback for new page loads.
         if let Some(cm) = webview.user_content_manager() {
             cm.remove_all_style_sheets();
             let stylesheet = UserStyleSheet::new(
@@ -209,18 +244,24 @@ impl ThemeManager {
         let webview_weak = webview.downgrade();
         monitor.connect_changed(move |_monitor, child, _other, event_type| {
             match event_type {
-                gio::FileMonitorEvent::ChangesDoneHint => {}
+                gio::FileMonitorEvent::ChangesDoneHint
+                | gio::FileMonitorEvent::Created
+                | gio::FileMonitorEvent::Renamed
+                | gio::FileMonitorEvent::AttributeChanged => {}
                 _ => return,
             }
 
             if let Some(child_path) = child.path() {
+                eprintln!("Noctalia: {} on {:?}", event_type, child_path);
                 let expected = theme_path.as_ref().map(|p| p.as_path());
                 if Some(child_path.as_path()) == expected {
+                    eprintln!("Noctalia: theme file changed, reloading...");
                     tm.borrow_mut().reload(theme_path.as_deref());
                     if let Some(wv) = webview_weak.upgrade() {
                         let tm_ref = tm.borrow();
                         tm_ref.apply_gtk_css(&provider);
                         tm_ref.apply_webkit_css(&wv);
+                        eprintln!("Noctalia: theme reloaded and applied");
                     }
                 }
             }
