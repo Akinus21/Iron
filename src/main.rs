@@ -175,7 +175,7 @@ fn build_window(
     let noctalia_provider = CssProvider::new();
     tm.borrow().apply_gtk_css(&noctalia_provider);
     gtk4::style_context_add_provider_for_display(
-        &window.display(),
+        &gtk4::prelude::RootExt::display(&window),
         &noctalia_provider,
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
@@ -190,7 +190,7 @@ fn build_window(
          .command-entry { font-size: 16px; font-weight: 600; }",
     );
     gtk4::style_context_add_provider_for_display(
-        &window.display(),
+        &gtk4::prelude::RootExt::display(&window),
         &css_provider,
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
