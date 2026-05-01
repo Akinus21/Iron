@@ -32,13 +32,13 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Keybinding config layer (TOML file at `~/.config/iron/config.toml`)
 - [x] Settings window with keybinding editor (add/remove bindings, protected defaults)
 - [x] New-window-open command (`:new-window-open URL` / `:nwo URL`)
-- [x] **xdg-open / default browser handling** — `iron %u` in `.desktop`, `connect_open` handler, `:default-browser` command
+- [x] xdg-open / default browser handling — `iron %u` in `.desktop`, `connect_open` handler, `:default-browser` command
+- [x] CAC / smart-card access — status check command (`:cac-status`), PKCS#11 readiness detection
 - [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
 
 ### ToDo
-- [ ] CAC / smart-card access (PKCS#11 integration for WebKit, typically via `p11-kit`)
-- [ ] Page search (`/` or `Ctrl+F` find-in-page)
 - [ ] Search engines (default + custom, `:search` command)
+- [ ] Page search (`/` or `Ctrl+F` find-in-page)
 - [ ] Download manager (WebKit download signals → sidebar or notification)
 - [ ] History (SQLite via `rusqlite`, `:history` command)
 - [ ] Bookmarks (SQLite, `:bookmark` command, completions in command overlay)

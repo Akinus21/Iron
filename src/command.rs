@@ -6,6 +6,7 @@ pub enum Command {
     Reload,
     Settings,
     SetDefaultBrowser,
+    CacStatus,
 }
 
 pub struct CommandInput {
@@ -57,6 +58,7 @@ impl CommandInput {
             "reload" | "r" => Some(Command::Reload),
             "settings" | "set" => Some(Command::Settings),
             "default-browser" | "db" => Some(Command::SetDefaultBrowser),
+            "cac-status" | "cac" => Some(Command::CacStatus),
             _ => None,
         }
     }

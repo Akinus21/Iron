@@ -1,3 +1,4 @@
+mod cac;
 mod command;
 mod config;
 mod hints;
@@ -233,6 +234,7 @@ fn build_window(
                         (":reload (r)", "Reload the current page"),
                         (":settings (set)", "Open the settings window"),
                         (":default-browser (db)", "Set Iron as the system default browser"),
+                        (":cac-status (cac)", "Check CAC / smart-card PKCS#11 readiness"),
                     ] {
                         let row = ListBoxRow::new();
                         let h = GtkBox::new(Orientation::Horizontal, 12);
@@ -325,6 +327,9 @@ fn build_window(
                                         } else {
                                             eprintln!("Could not run xdg-settings; default browser not changed");
                                         }
+                                    }
+                                    command::Command::CacStatus => {
+                                        eprintln!("{}", cac::status_text());
                                     }
                                 }
                             }
