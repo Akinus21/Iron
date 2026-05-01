@@ -2,10 +2,15 @@ use gio::Cancellable;
 use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebView, prelude::WebViewExt};
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
+/// Supports:
+/// - hint generation, filtering, and auto-click on single visible match
+/// - selection tracking (arrow keys)   
+/// - commit-on-Enter (click currently selected / exact matching / last visible)
 const HINT_JS_MODULE: &str = r#"
 (function() {
   const CHARS = "asdfjklghqwer";
   let _hints = [];
+  let _selection = -1;
 
   function labels(count) {
     const out = [];
@@ -21,11 +26,14 @@ const HINT_JS_MODULE: &str = r#"
 
   window.__iron_hints_activate = function() {
     window.__iron_hints_deactivate();
+    // Prevent any focused page input from stealing hint keystrokes
+    if (document.activeElement) { document.activeElement.blur(); }
     const els = document.querySelectorAll(
       'a[href], button, input[type="submit"], [role="button"], [onclick], summary, [tabindex]',
     );
     const lbls = labels(els.length);
     _hints = [];
+    _selection = -1;
     let i = 0;
     for (const el of els) {
       if (i >= lbls.length) break;
@@ -50,9 +58,11 @@ const HINT_JS_MODULE: &str = r#"
         'left:' + Math.max(0, rect.left) + 'px',
         'top:' + Math.max(0, rect.top) + 'px',
       ].join(';');
+      // Track each hint's raw label, element, and DOM node
+      _hints.push({ el: el, label: label, div: div, visible: true });
       document.body.appendChild(div);
-      _hints.push({el, label, div});
     }
+    __iron_hints_update_selection();
   };
 
   window.__iron_hints_filter = function(prefix) {
@@ -61,22 +71,83 @@ const HINT_JS_MODULE: &str = r#"
     for (const h of _hints) {
       if (h.label.startsWith(prefix)) {
         h.div.style.display = '';
+        h.visible = true;
         visible++;
         last = h;
       } else {
         h.div.style.display = 'none';
+        h.visible = false;
       }
     }
+    // Reset selection to first visible on any prefix change
+    _selection = -1;
+    __iron_hints_update_selection();
     if (visible === 1 && last) {
       last.el.click();
       window.__iron_hints_deactivate();
     }
   };
 
+  window.__iron_hints_select_next = function() {
+    const vis = _hints.filter(function(h) { return h.visible; });
+    if (vis.length === 0) return;
+    // find current selected index among visible
+    let idx = -1;
+    for (let i = 0; i < vis.length; i++) { if (vis[i].selected) { idx = i; break; } }
+    const nextIdx = (idx + 1) % vis.length;
+    // clear all
+    for (const h of _hints) { h.selected = false; }
+    vis[nextIdx].selected = true;
+    __iron_hints_update_selection();
+  };
+
+  window.__iron_hints_select_prev = function() {
+    const vis = _hints.filter(function(h) { return h.visible; });
+    if (vis.length === 0) return;
+    let idx = -1;
+    for (let i = 0; i < vis.length; i++) { if (vis[i].selected) { idx = i; break; } }
+    let prevIdx = idx - 1;
+    if (prevIdx < 0) prevIdx = vis.length - 1;
+    for (const h of _hints) { h.selected = false; }
+    vis[prevIdx].selected = true;
+    __iron_hints_update_selection();
+  };
+
+  window.__iron_hints_commit = function() {
+    // 1. Exact label match (commit typed prefix as exact label)
+    const exact_match = _hints.filter(function(h) { return h.visible && h.label === window.__iron_hints_typed; })[0];
+    if (exact_match) { exact_match.el.click(); window.__iron_hints_deactivate(); return; }
+    // 2. Currently selected hint
+    const selected = _hints.filter(function(h) { return h.visible && h.selected; })[0];
+    if (selected) { selected.el.click(); window.__iron_hints_deactivate(); return; }
+    // 3. Last remaining visible hint
+    const vis = _hints.filter(function(h) { return h.visible; });
+    if (vis.length === 1) { vis[0].el.click(); window.__iron_hints_deactivate(); return; }
+    // Nothing to commit — just clear the overlays so the user isn't trapped
+    window.__iron_hints_deactivate();
+  };
+
+  window.__iron_hints_update_selection = function() {
+    const vis = _hints.filter(function(h) { return h.visible; });
+    for (let i = 0; i < vis.length; i++) {
+      const h = vis[i];
+      if (h.selected) {
+        h.div.style.cssText = h.div.style.cssText.replace(/background:#ffdd57/, 'background:#e08030');
+        h.div.style.cssText = h.div.style.cssText.replace(/color:#111/, 'color:#fff');
+      } else {
+        h.div.style.cssText = h.div.style.cssText.replace(/background:#e08030/, 'background:#ffdd57');
+        h.div.style.cssText = h.div.style.cssText.replace(/color:#fff/, 'color:#111');
+      }
+    }
+  };
+
   window.__iron_hints_deactivate = function() {
     for (const h of _hints) h.div.remove();
     _hints = [];
+    _selection = -1;
   };
+
+  window.__iron_hints_typed = '';
 })();
 "#;
 
@@ -108,7 +179,7 @@ impl HintManager {
             |_: Result<JsValue, JsError>| {},
         );
         webview.evaluate_javascript(
-            "__iron_hints_activate();",
+            "__iron_hints_activate(); window.__iron_hints_typed = '';",
             None::<&str>,
             None::<&str>,
             None::<&Cancellable>,
@@ -121,7 +192,7 @@ impl HintManager {
     pub fn handle_key(&mut self, c: char, webview: &WebView) {
         self.typed.push(c);
         webview.evaluate_javascript(
-            &format!("__iron_hints_filter('{}');", self.typed),
+            &format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed),
             None::<&str>,
             None::<&str>,
             None::<&Cancellable>,
@@ -133,9 +204,9 @@ impl HintManager {
     pub fn handle_backspace(&mut self, webview: &WebView) {
         if self.typed.pop().is_some() {
             let js = if self.typed.is_empty() {
-                "__iron_hints_filter('');".to_string()
+                "window.__iron_hints_typed = ''; __iron_hints_filter('');".to_string()
             } else {
-                format!("__iron_hints_filter('{}');", self.typed)
+                format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed)
             };
             webview.evaluate_javascript(
                 &js,
@@ -145,6 +216,41 @@ impl HintManager {
                 |_: Result<JsValue, JsError>| {},
             );
         }
+    }
+
+    /// Move selection to the next visible hint.
+    pub fn select_next(&mut self, webview: &WebView) {
+        webview.evaluate_javascript(
+            "__iron_hints_select_next();",
+            None::<&str>,
+            None::<&str>,
+            None::<&Cancellable>,
+            |_: Result<JsValue, JsError>| {},
+        );
+    }
+
+    /// Move selection to the previous visible hint.
+    pub fn select_prev(&mut self, webview: &WebView) {
+        webview.evaluate_javascript(
+            "__iron_hints_select_prev();",
+            None::<&str>,
+            None::<&str>,
+            None::<&Cancellable>,
+            |_: Result<JsValue, JsError>| {},
+        );
+    }
+
+    /// Commit the current selection (click it), or click the single visible hint.
+    pub fn commit(&mut self, webview: &WebView) {
+        self.active = false;
+        webview.evaluate_javascript(
+            "__iron_hints_commit();",
+            None::<&str>,
+            None::<&str>,
+            None::<&Cancellable>,
+            |_: Result<JsValue, JsError>| {},
+        );
+        self.typed.clear();
     }
 
     /// Remove all hint overlays and exit hint mode.

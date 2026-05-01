@@ -137,7 +137,19 @@ fn build_window(
                 }
                 gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
                     if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().deactivate(&wv);
+                        hints_clone.borrow_mut().commit(&wv);
+                    }
+                    return glib::Propagation::Stop;
+                }
+                gdk::Key::Down => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        hints_clone.borrow_mut().select_next(&wv);
+                    }
+                    return glib::Propagation::Stop;
+                }
+                gdk::Key::Up => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        hints_clone.borrow_mut().select_prev(&wv);
                     }
                     return glib::Propagation::Stop;
                 }
@@ -323,6 +335,9 @@ fn build_window(
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
                     let app_for_cmd = app_clone.clone();
+                    let find_overlay_cmd = find_overlay_clone.clone();
+                    let overlay_cmd = overlay_clone.clone();
+                    let css_provider_cmd = css_provider_clone.clone();
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
@@ -413,12 +428,12 @@ fn build_window(
                                     }
                                     command::Command::Find(query) => {
                                         if let Some(w) = wv_for_cmd.upgrade() {
-                                            find_overlay_clone.borrow_mut().activate(
-                                                &overlay_clone,
+                                            find_overlay_cmd.borrow_mut().activate(
+                                                &overlay_cmd,
                                                 &w,
-                                                &css_provider_clone,
+                                                &css_provider_cmd,
                                             );
-                                            if let Some(entry) = &find_overlay_clone.borrow().entry {
+                                            if let Some(entry) = &find_overlay_cmd.borrow().entry {
                                                 entry.set_text(&query);
                                                 entry.set_position(-1);
                                                 entry.grab_focus();

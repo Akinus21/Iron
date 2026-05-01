@@ -131,7 +131,7 @@ impl FindOverlay {
 
     pub fn deactivate(
         &mut self,
-        overlay: &gtk4::Overlay,
+        _overlay: &gtk4::Overlay,
     ) {
         if let Some(controller) = &self.controller {
             controller.search_finish();
