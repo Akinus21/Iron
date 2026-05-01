@@ -90,7 +90,7 @@ impl HistoryManager {
             "SELECT url, title, last_visit, visit_count
              FROM history
              ORDER BY last_visit DESC",
-            [],
+            &[],
         )
     }
 
@@ -127,7 +127,7 @@ impl HistoryManager {
 
     /// Remove every entry from history.
     pub fn clear(&mut self) {
-        let _ = self.db.execute("DELETE FROM history", []);
+        let _ = self.db.execute("DELETE FROM history", rusqlite::params![]);
     }
 
     /// Remove a single URL from history.
@@ -137,7 +137,7 @@ impl HistoryManager {
 
     fn query(&self,
         sql: &str,
-        params: &[(&dyn rusqlite::ToSql)],
+        params: &[&dyn rusqlite::ToSql],
     ) -> Vec<HistoryItem> {
         let mut stmt = match self.db.prepare(sql) {
             Ok(s) => s,

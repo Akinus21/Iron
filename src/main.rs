@@ -142,7 +142,7 @@ fn build_window(
     session_mgr.borrow().configure_session(&webview);
 
     // ---- History tracking ----
-    let wv_hist = webview.clone();
+    let _wv_hist = webview.clone();
     let hist_mgr_clone = history_mgr.clone();
     webview.connect_load_changed(move |wv, event| {
         if event == webkit6::LoadEvent::Finished {
@@ -153,7 +153,7 @@ fn build_window(
         }
     });
 
-    let wv_title = webview.clone();
+    let _wv_title = webview.clone();
     let hist_mgr_title = history_mgr.clone();
     webview.connect_title_notify(move |wv| {
         if let Some(uri) = wv.uri() {
@@ -475,11 +475,10 @@ fn build_window(
                     let overlay_cmd = overlay_clone.clone();
                     let download_mgr_cmd = download_mgr_clone.clone();
                     let session_mgr_cmd = session_mgr_clone.clone();
-                    let history_mgr_cmd = history_mgr_clone.clone();
+                    let history_mgr_changed = history_mgr_clone.clone();
                     let entry_state = state.clone();
                     let entry_cmd_list = cmd_list_widget.clone();
                     let entry_hist_list = hist_list_widget.clone();
-                    let entry_ref = entry.clone();
 
                     // ---- Text change handler ----
                     entry.connect_changed(move |e| {
@@ -503,22 +502,28 @@ fn build_window(
                             let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), cmd_part, 50);
                             let filtered_refs: Vec<&str> = filtered.into_iter().collect();
                             rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
-                            let recent = history_mgr_cmd.borrow().recent(20);
+                            let recent = history_mgr_changed.borrow().recent(20);
                             rebuild_hist_list(&entry_hist_list, &recent, -1);
                         } else if command::is_url_command(cmd_part) {
                             st.active = OverlaySection::History;
                             rebuild_cmd_list(&entry_cmd_list, &[cmd_part], -1);
-                            let filtered = history_mgr_cmd.borrow().fuzzy(arg_part, 50);
+                            let filtered = history_mgr_changed.borrow().fuzzy(arg_part, 50);
                             rebuild_hist_list(&entry_hist_list, &filtered, -1);
                         } else {
                             st.active = OverlaySection::Command;
-                            let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), &text, 50);
+                            let filtered = fuzzy::filter(
+                                &all_cmd_names.iter().copied().collect::<Vec<_>>(),
+                                &text,
+                                50,
+                            );
                             let filtered_refs: Vec<&str> = filtered.into_iter().collect();
                             rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
-                            let recent = history_mgr_cmd.borrow().recent(20);
+                            let recent = history_mgr_changed.borrow().recent(20);
                             rebuild_hist_list(&entry_hist_list, &recent, -1);
                         }
                     });
+
+                    let history_mgr_cmd = history_mgr_clone.clone();
 
                     // ---- Enter execution ----
                     entry.connect_activate(move |e| {
@@ -927,7 +932,8 @@ fn cmd_name_at_index(list: &ListBox, idx: i32) -> Option<String> {
     let row = list.row_at_index(idx)?;
     let child = row.child()?;
     let hbox = child.downcast_ref::<GtkBox>()?;
-    let lbl = hbox.first_child()?.downcast_ref::<Label>()?;
+    let first_widget = hbox.first_child()?;
+    let lbl = first_widget.downcast_ref::<Label>()?;
     Some(lbl.text().to_string())
 }
 
@@ -935,13 +941,14 @@ fn hist_url_at_index(list: &ListBox, idx: i32) -> Option<String> {
     let row = list.row_at_index(idx)?;
     let child = row.child()?;
     let vbox = child.downcast_ref::<GtkBox>()?;
-    // URL is either the second label (if title exists) or the first label
-    let first = vbox.first_child()?.downcast_ref::<Label>()?;
-    if let Some(second) = first.next_sibling().and_then(|s| s.downcast_ref::<Label>()) {
-        Some(second.text().to_string())
-    } else {
-        Some(first.text().to_string())
+    let first_widget = vbox.first_child()?;
+    let first_lbl = first_widget.downcast_ref::<Label>()?;
+    if let Some(second_widget) = first_lbl.next_sibling() {
+        if let Some(second_lbl) = second_widget.downcast_ref::<Label>() {
+            return Some(second_lbl.text().to_string());
+        }
     }
+    Some(first_lbl.text().to_string())
 }
 
 fn show_history_overlay(overlay: &Overlay, history_mgr: Rc<RefCell<HistoryManager>>) -> GtkBox {
