@@ -21,11 +21,23 @@ use gtk4::prelude::WidgetExt;
 use webkit6::prelude::*;
 
 fn main() {
-    let app = adw::Application::new(Some("org.blueak.iron"), gio::ApplicationFlags::default());
+    let app = adw::Application::new(
+        Some("org.blueak.iron"),
+        gio::ApplicationFlags::HANDLES_OPEN,
+    );
 
     app.connect_activate(|app| {
         let cfg = Rc::new(RefCell::new(Config::load()));
         let _win = build_window(app, cfg.clone(), Some("https://www.rust-lang.org"));
+    });
+
+    app.connect_open(|app, files, _hint| {
+        let cfg = Rc::new(RefCell::new(Config::load()));
+        for file in files {
+            if let Some(uri) = file.uri() {
+                let _win = build_window(app, cfg.clone(), Some(&uri));
+            }
+        }
     });
 
     app.run();
@@ -221,6 +233,7 @@ fn build_window(
                         (":forward (f)", "Go forward in history"),
                         (":reload (r)", "Reload the current page"),
                         (":settings (set)", "Open the settings window"),
+                        (":default-browser (db)", "Set Iron as the system default browser"),
                     ] {
                         let row = ListBoxRow::new();
                         let h = GtkBox::new(Orientation::Horizontal, 12);
@@ -294,6 +307,25 @@ fn build_window(
                                             cfg_cmd.clone(),
                                             Some(&url),
                                         );
+                                    }
+                                    command::Command::SetDefaultBrowser => {
+                                        let status = std::process::Command::new("xdg-settings")
+                                            .args([
+                                                "set",
+                                                "default-url-scheme-handler",
+                                                "https",
+                                                "org.blueak.iron.desktop",
+                                            ])
+                                            .status();
+                                        if let Ok(s) = status {
+                                            if s.success() {
+                                                eprintln!("Iron is now the default browser for https URLs");
+                                            } else {
+                                                eprintln!("Failed to set default browser (xdg-settings exited with code {:?})", s.code());
+                                            }
+                                        } else {
+                                            eprintln!("Could not run xdg-settings; default browser not changed");
+                                        }
                                     }
                                 }
                             }

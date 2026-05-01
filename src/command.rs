@@ -5,6 +5,7 @@ pub enum Command {
     Forward,
     Reload,
     Settings,
+    SetDefaultBrowser,
 }
 
 pub struct CommandInput {
@@ -55,6 +56,7 @@ impl CommandInput {
             "forward" | "f" => Some(Command::Forward),
             "reload" | "r" => Some(Command::Reload),
             "settings" | "set" => Some(Command::Settings),
+            "default-browser" | "db" => Some(Command::SetDefaultBrowser),
             _ => None,
         }
     }

@@ -32,10 +32,10 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Keybinding config layer (TOML file at `~/.config/iron/config.toml`)
 - [x] Settings window with keybinding editor (add/remove bindings, protected defaults)
 - [x] New-window-open command (`:new-window-open URL` / `:nwo URL`)
+- [x] **xdg-open / default browser handling** — `iron %u` in `.desktop`, `connect_open` handler, `:default-browser` command
 - [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
 
 ### ToDo
-- [ ] xdg-mime default browser registration (`xdg-settings set default-url-scheme-handler https iron.desktop`)
 - [ ] CAC / smart-card access (PKCS#11 integration for WebKit, typically via `p11-kit`)
 - [ ] Page search (`/` or `Ctrl+F` find-in-page)
 - [ ] Search engines (default + custom, `:search` command)
@@ -46,7 +46,6 @@ brew install Akinus21/homebrew-tap/iron
 - [ ] User scripts & user stylesheets
 - [ ] Pop-up blocker (blacklist/whitelist)
 - [ ] relm4 app architecture
-- [ ] `Ctrl+L` / `Ctrl+T` URL bar focus when overlay is closed
 - [ ] Zoom controls (`Ctrl+`/`Ctrl-`/`Ctrl0`)
 - [ ] Fullscreen mode (`F11`)
 - [ ] Private browsing / incognito mode
