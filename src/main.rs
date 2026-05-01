@@ -359,7 +359,6 @@ fn build_window(
 
                     let full_overlay = GtkBox::new(Orientation::Vertical, 0);
                     full_overlay.add_css_class("command-overlay");
-                    full_overlay.add_css_class("background");
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 
@@ -368,11 +367,11 @@ fn build_window(
                     entry.set_margin_top(16);
                     entry.set_margin_start(80);
                     entry.set_margin_end(80);
-                    entry.add_css_class("heading");
                     full_overlay.append(&entry);
 
                     // ---- Three-column layout ----
                     let columns = GtkBox::new(Orientation::Horizontal, 12);
+                    columns.set_homogeneous(true);
                     columns.set_margin_start(80);
                     columns.set_margin_end(80);
                     columns.set_margin_top(8);
@@ -380,7 +379,7 @@ fn build_window(
 
                     // Left: Commands
                     let left_col = GtkBox::new(Orientation::Vertical, 4);
-                    left_col.set_size_request(260, -1);
+                    left_col.set_size_request(280, -1);
                     let cmd_title_lbl = Label::new(Some("Commands"));
                     cmd_title_lbl.add_css_class("command-col-title");
                     cmd_title_lbl.set_halign(Align::Start);
@@ -393,8 +392,7 @@ fn build_window(
 
                     // Center: History
                     let center_col = GtkBox::new(Orientation::Vertical, 4);
-                    center_col.set_hexpand(true);
-                    center_col.set_size_request(360, -1);
+                    center_col.set_size_request(280, -1);
                     let hist_title_lbl = Label::new(Some("History"));
                     hist_title_lbl.add_css_class("command-col-title");
                     hist_title_lbl.set_halign(Align::Start);
@@ -407,7 +405,7 @@ fn build_window(
 
                     // Right: Keybindings
                     let right_col = GtkBox::new(Orientation::Vertical, 4);
-                    right_col.set_size_request(240, -1);
+                    right_col.set_size_request(280, -1);
                     let kb_title_lbl = Label::new(Some("Keybindings"));
                     kb_title_lbl.add_css_class("command-col-title");
                     kb_title_lbl.set_halign(Align::Start);

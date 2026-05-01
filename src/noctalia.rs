@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gio::Cancellable;
 use webkit6::prelude::*;
 use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
 
@@ -133,33 +132,13 @@ impl ThemeManager {
         );
 
         // Only set color-scheme as a *hint* to pages that support it.
-        // DO NOT force color / background-color on body, because that
-        // overrides the page's own text colors and causes unreadable
-        // light-on-light (or dark-on-dark) combinations.
-        // We only override native form controls so they remain readable
-        // and match the Noctalia palette.
+        // We do NOT override form control colors or add transitions to the page,
+        // because that causes unreadable light-on-light (or dark-on-dark)
+        // combinations on sites that don't respect color-scheme.
         let scheme = if dark { "dark" } else { "light" };
         self.webkit_css = format!(
-            ":root {{ color-scheme: {}; }}\n\
-             *, *::before, *::after {{\n\
-               transition: background-color 150ms ease-in-out,\n\
-                           color 150ms ease-in-out,\n\
-                           border-color 150ms ease-in-out !important;\n\
-             }}\n\
-             @media screen {{\n\
-             input, textarea, select, option {{\n\
-             background-color: {surface_variant} !important;\n\
-             color: {on_surface} !important;\n\
-             transition: background-color 300ms ease-in-out, color 300ms ease-in-out !important;\n\
-             }}\n\
-             ::-webkit-input-placeholder {{\n\
-             color: {on_surface_variant} !important;\n\
-             }}\n\
-             }}\n",
+            ":root {{ color-scheme: {}; }}\n",
             scheme,
-            surface_variant = surface_variant,
-            on_surface = on_surface,
-            on_surface_variant = on_surface_variant,
         );
     }
 
@@ -181,34 +160,6 @@ impl ThemeManager {
         if self.webkit_css.is_empty() {
             return;
         }
-
-        // Phase A: Inject into live DOM so the compositor interpolates transitions.
-        let escaped = self.webkit_css.replace('\\', "\\\\").replace('`', "\\`");
-        let js = format!(
-            r#"(function() {{
-                var el = document.getElementById('__iron_theme');
-                if (!el) {{
-                    el = document.createElement('style');
-                    el.id = '__iron_theme';
-                    document.head.appendChild(el);
-                }}
-                el.textContent = `{}`;
-            }})();"#,
-            escaped
-        );
-        webview.evaluate_javascript(
-            &js,
-            None::<&str>,
-            None::<&str>,
-            Cancellable::NONE,
-            |res| {
-                if let Err(e) = res {
-                    eprintln!("Noctalia: JS theme injection failed: {}", e);
-                }
-            },
-        );
-
-        // Phase B: Update UserStyleSheet as fallback for new page loads.
         if let Some(cm) = webview.user_content_manager() {
             cm.remove_all_style_sheets();
             let stylesheet = UserStyleSheet::new(
