@@ -1,5 +1,6 @@
 use gtk4;
 use serde::{Deserialize, Serialize};
+use crate::search::EngineRegistry;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct KeyBinding {
@@ -19,6 +20,8 @@ pub struct Mode {
 pub struct Config {
     #[serde(default)]
     pub normal: Mode,
+    #[serde(default)]
+    pub search: EngineRegistry,
 }
 
 impl Config {

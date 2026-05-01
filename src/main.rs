@@ -3,6 +3,7 @@ mod command;
 mod config;
 mod hints;
 mod noctalia;
+mod search;
 mod settings;
 
 use command::CommandInput;
@@ -229,6 +230,9 @@ fn build_window(
                     for (name, desc) in &[
                         (":open URL", "Load URL in current window"),
                         (":new-window-open URL (nwo)", "Open URL in a new BlueAK window"),
+                        (":search QUERY", "Search using the default engine"),
+                        (":search-add NAME TEMPLATE", "Add a search engine (e.g. ddg https://ddg.gg/?q={})"),
+                        (":search-del NAME", "Remove a search engine"),
                         (":back (b)", "Go back in history"),
                         (":forward (f)", "Go forward in history"),
                         (":reload (r)", "Reload the current page"),
@@ -330,6 +334,36 @@ fn build_window(
                                     }
                                     command::Command::CacStatus => {
                                         eprintln!("{}", cac::status_text());
+                                    }
+                                    command::Command::SearchAdd(name, template) => {
+                                        let mut cfg_mut = cfg_cmd.borrow_mut();
+                                        cfg_mut.search.insert(search::SearchEngine {
+                                            name: name.clone(),
+                                            template: template.clone(),
+                                        });
+                                        let _ = cfg_mut.save();
+                                        eprintln!("Added search engine '{}' = {}", name, template);
+                                    }
+                                    command::Command::SearchDel(name) => {
+                                        let mut cfg_mut = cfg_cmd.borrow_mut();
+                                        let removed = cfg_mut.search.remove(&name);
+                                        let _ = cfg_mut.save();
+                                        if removed {
+                                            eprintln!("Removed search engine '{}'", name);
+                                        } else {
+                                            eprintln!("No search engine named '{}' found", name);
+                                        }
+                                    }
+                                    command::Command::Search(query) => {
+                                        let engine = cfg_cmd.borrow().search.default_engine().cloned();
+                                        if let Some(e) = engine {
+                                            let url = e.build_url(&query);
+                                            if let Some(w) = wv_for_cmd.upgrade() {
+                                                w.load_uri(&url);
+                                            }
+                                        } else {
+                                            eprintln!("No default search engine configured");
+                                        }
                                     }
                                 }
                             }

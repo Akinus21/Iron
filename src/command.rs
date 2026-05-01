@@ -7,6 +7,9 @@ pub enum Command {
     Settings,
     SetDefaultBrowser,
     CacStatus,
+    SearchAdd(String, String),
+    SearchDel(String),
+    Search(String),
 }
 
 pub struct CommandInput {
@@ -23,6 +26,17 @@ impl CommandInput {
     pub fn parse(&self) -> Option<Command> {
         if self.raw.is_empty() {
             return None;
+        }
+
+        // search commands need special handling for multi-word queries
+        if self.raw.starts_with("search-add ") || self.raw == "search-add" {
+            return Self::parse_search_add(&self.raw);
+        }
+        if self.raw.starts_with("search-del ") || self.raw == "search-del" {
+            return Self::parse_search_del(&self.raw);
+        }
+        if self.raw.starts_with("search ") || self.raw == "search" {
+            return Self::parse_search(&self.raw);
         }
 
         let (cmd, rest) = self.raw.split_once(' ').unwrap_or((&self.raw[..], ""));
@@ -60,6 +74,30 @@ impl CommandInput {
             "default-browser" | "db" => Some(Command::SetDefaultBrowser),
             "cac-status" | "cac" => Some(Command::CacStatus),
             _ => None,
+        }
+    }
+
+    fn parse_search_add(raw: &str) -> Option<Command> {
+        let after = raw.strip_prefix("search-add")?.trim();
+        let (name, template) = after.split_once(' ')?;
+        Some(Command::SearchAdd(name.trim().to_string(), template.trim().to_string()))
+    }
+
+    fn parse_search_del(raw: &str) -> Option<Command> {
+        let after = raw.strip_prefix("search-del")?.trim();
+        if after.is_empty() {
+            None
+        } else {
+            Some(Command::SearchDel(after.to_string()))
+        }
+    }
+
+    fn parse_search(raw: &str) -> Option<Command> {
+        let after = raw.strip_prefix("search")?.trim();
+        if after.is_empty() {
+            None
+        } else {
+            Some(Command::Search(after.to_string()))
         }
     }
 }
