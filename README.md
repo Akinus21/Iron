@@ -43,7 +43,7 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Noctalia theme integration (token loading, CSS generation, file-watch live reload)
 - [x] WebKit CSS injection (form controls themed, dark/light `color-scheme` hint)
 - [x] Keyboard-driven hint mode (`f` key, qutebrowser-style link navigation)
-- [x] Full-window command overlay (lists keybindings, commands, themed)
+- [x] Enhanced command overlay — three-column layout (commands left, history center, keybindings right), fuzzy filtering, Up/Down navigation for commands and history, Tab/Space to commit selection, Enter to execute raw text
 - [x] Keybinding config layer (TOML file at `~/.config/iron/config.toml`)
 - [x] Settings overlay with keybinding editor (add/remove bindings, protected defaults, fullscreen overlay like command bar)
 - [x] New-window-open command (`:new-window-open URL` / `:nwo URL`)
@@ -53,7 +53,7 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Find-in-page (`/` or `:find QUERY` via WebKit `FindController`)
 - [x] Duplicate window (`:duplicate` / `Ctrl+d`) — clones current window with same page
 - [x] Copy address to clipboard (`:copy-address` / `:cpa`) — copies current URL
-- [x] History navigation (`Alt+Left` / `Alt+Right`) — back/forward via keybinding
+- [x] SQLite browsing history — auto-tracked on page load, fuzzy-searchable in overlay, `:history` / `:hist` overlay, `:clear-history` / `:ch`, `:delete-history URL` / `:dh URL`
 - [x] Settings overlay (`:settings` / `:set`) — fullscreen overlay with keybinding editor, no modal window
 
 ### ToDo
