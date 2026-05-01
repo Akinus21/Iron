@@ -3,7 +3,9 @@ mod command;
 mod config;
 mod download;
 mod find;
+mod fuzzy;
 mod hints;
+mod history;
 mod noctalia;
 mod search;
 mod session;
@@ -14,6 +16,7 @@ use config::Config;
 use download::DownloadManager;
 use find::FindOverlay;
 use hints::HintManager;
+use history::HistoryManager;
 use noctalia::ThemeManager;
 use session::SessionManager;
 
@@ -23,7 +26,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
-    ListBoxRow, Orientation, Overlay, ScrolledWindow, STYLE_PROVIDER_PRIORITY_APPLICATION,
+    ListBoxRow, Orientation, Overlay, ScrolledWindow, SelectionMode, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
 use gtk4::prelude::WidgetExt;
 use webkit6::prelude::*;
@@ -38,7 +41,7 @@ fn main() {
         if app.windows().is_empty() {
             let cfg = Rc::new(RefCell::new(Config::load()));
             let session_mgr = session::build_session_mgr();
-            // Check if user passed a URL on the command line
+            let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
             let args: Vec<String> = std::env::args().collect();
             let urls: Vec<&str> = args.iter()
                 .skip(1)
@@ -47,10 +50,10 @@ fn main() {
                 .collect();
 
             if urls.is_empty() {
-                let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some("https://www.rust-lang.org"));
+                let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some("https://www.rust-lang.org"));
             } else {
                 for url in urls {
-                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some(url));
+                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(url));
                 }
             }
         }
@@ -59,9 +62,10 @@ fn main() {
     app.connect_open(|app, files, _hint| {
         let cfg = Rc::new(RefCell::new(Config::load()));
         let session_mgr = session::build_session_mgr();
+        let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
         for file in files {
             let uri = file.uri();
-            let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some(&uri));
+            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(&uri));
         }
     });
 
@@ -80,10 +84,42 @@ fn main() {
     app.run();
 }
 
+const ALL_COMMANDS: [(&str, &str); 17] = [
+    ("duplicate", "Duplicate current window"),
+    ("copy-address", "Copy current page URL"),
+    ("downloads", "Show recent downloads"),
+    ("find", "Find text in page"),
+    ("open", "Load URL in current window"),
+    ("new-window-open", "Open URL in new window"),
+    ("search", "Search using default engine"),
+    ("search-add", "Add a search engine"),
+    ("search-del", "Remove a search engine"),
+    ("back", "Go back in history"),
+    ("forward", "Go forward in history"),
+    ("reload", "Reload the page"),
+    ("settings", "Open keybinding editor"),
+    ("default-browser", "Set as default browser"),
+    ("cac-status", "Check smart-card readiness"),
+    ("clear-site-data", "Clear all site data"),
+    ("clear-cookies", "Clear cookies only"),
+];
+
+#[derive(Clone, Copy, PartialEq)]
+enum OverlaySection { Command, History }
+
+struct OverlayState {
+    selected_cmd: i32,
+    selected_hist: i32,
+    active: OverlaySection,
+    cmd_navigated: bool,
+    hist_navigated: bool,
+}
+
 fn build_window(
     app: &adw::Application,
     cfg: Rc<RefCell<Config>>,
     session_mgr: Rc<RefCell<SessionManager>>,
+    history_mgr: Rc<RefCell<HistoryManager>>,
     initial_url: Option<&str>,
 ) -> adw::ApplicationWindow {
     let tm = Rc::new(RefCell::new(ThemeManager::new()));
@@ -104,6 +140,29 @@ fn build_window(
         .build();
 
     session_mgr.borrow().configure_session(&webview);
+
+    // ---- History tracking ----
+    let wv_hist = webview.clone();
+    let hist_mgr_clone = history_mgr.clone();
+    webview.connect_load_changed(move |wv, event| {
+        if event == webkit6::LoadEvent::Finished {
+            if let Some(uri) = wv.uri() {
+                let title = wv.title().unwrap_or_default();
+                hist_mgr_clone.borrow_mut().add(&uri, Some(&title));
+            }
+        }
+    });
+
+    let wv_title = webview.clone();
+    let hist_mgr_title = history_mgr.clone();
+    webview.connect_title_notify(move |wv| {
+        if let Some(uri) = wv.uri() {
+            let title = wv.title().unwrap_or_default();
+            if !title.is_empty() {
+                hist_mgr_title.borrow_mut().update_title(&uri, &title);
+            }
+        }
+    });
 
     // ---- WebView-level key interceptor for shortcuts WebKit would consume ----
     let wv_nav = webview.clone();
@@ -126,7 +185,6 @@ fn build_window(
     webview.add_controller(nav_ctl);
 
     // ---- Intercept new-window / target="_blank" navigations ----
-    // Redirect them into the current WebView instead of spawning hidden tabs.
     let wv_create = webview.clone();
     webview.connect_create(move |_wv, nav_action| {
         if let Some(req) = nav_action.request() {
@@ -155,9 +213,6 @@ fn build_window(
         false
     });
 
-    // Dark mode preference is communicated via the injected CSS stylesheet
-    // (color-scheme: dark) rather than a WebKit API setting.
-
     tm.borrow().apply_webkit_css(&webview);
     let url = initial_url.unwrap_or("https://www.rust-lang.org");
     webview.load_uri(url);
@@ -182,12 +237,12 @@ fn build_window(
 
     let css_provider = CssProvider::new();
     css_provider.load_from_string(
-        ".command-overlay { padding: 40px; }\n\
-         .command-section { margin-top: 16px; margin-bottom: 16px; }\n\
-         .command-row { padding: 10px 16px; }\n\
-         .command-help { opacity: 0.55; font-weight: 500; }\n\
-         .command-boxed { border-radius: 12px; padding: 8px; background: rgba(128,128,128,0.08); }\n\
-         .command-entry { font-size: 16px; font-weight: 600; }",
+        ".command-overlay { padding: 24px; font-size: 13px; }\n\
+         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
+         .command-row { padding: 4px 8px; }\n\
+         .command-row-small { font-size: 12px; }\n\
+         .command-selected { background-color: var(--accent-bg-color); color: var(--accent-fg-color); }\n\
+         .command-help { opacity: 0.5; font-size: 12px; }",
     );
     gtk4::style_context_add_provider_for_display(
         &gtk4::prelude::RootExt::display(&window),
@@ -204,12 +259,11 @@ fn build_window(
     let overlay_clone = overlay.clone();
     let download_mgr_clone = download_mgr.clone();
     let session_mgr_clone = session_mgr.clone();
+    let history_mgr_clone = history_mgr.clone();
 
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
         let hints_active = hints_clone.borrow().active;
-
-        // Always reload config before resolving a binding so edits take effect immediately
         cfg_clone.borrow_mut().reload();
 
         if hints_active {
@@ -303,126 +357,116 @@ fn build_window(
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 
-                    // --- Search entry (top) ---
                     let entry = Entry::new();
                     entry.set_placeholder_text(Some("Type a command..."));
-                    entry.set_margin_top(24);
+                    entry.set_margin_top(16);
                     entry.set_margin_start(80);
                     entry.set_margin_end(80);
                     entry.add_css_class("heading");
                     full_overlay.append(&entry);
 
-                    // --- Scrollable content ---
-                    let scroll = ScrolledWindow::builder().vexpand(true).build();
-                    let content = GtkBox::new(Orientation::Vertical, 8);
-                    content.set_margin_start(80);
-                    content.set_margin_end(80);
-                    content.set_margin_bottom(24);
+                    // ---- Three-column layout ----
+                    let columns = GtkBox::new(Orientation::Horizontal, 12);
+                    columns.set_margin_start(80);
+                    columns.set_margin_end(80);
+                    columns.set_margin_top(8);
+                    columns.set_vexpand(true);
 
-                    // Section: Current keybindings
-                    let kb_title = Label::new(Some("Key Bindings"));
-                    kb_title.add_css_class("title-2");
-                    kb_title.set_halign(Align::Start);
-                    content.append(&kb_title);
+                    // Left: Commands
+                    let left_col = GtkBox::new(Orientation::Vertical, 4);
+                    left_col.set_size_request(260, -1);
+                    let cmd_title_lbl = Label::new(Some("Commands"));
+                    cmd_title_lbl.add_css_class("command-col-title");
+                    cmd_title_lbl.set_halign(Align::Start);
+                    left_col.append(&cmd_title_lbl);
+                    let cmd_list_widget = ListBox::new();
+                    cmd_list_widget.set_selection_mode(SelectionMode::None);
+                    left_col.append(&cmd_list_widget);
+                    let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_col).build();
+                    columns.append(&left_scroll);
 
-                    let kb_list = ListBox::new();
-                    kb_list.set_selection_mode(gtk4::SelectionMode::None);
+                    // Center: History
+                    let center_col = GtkBox::new(Orientation::Vertical, 4);
+                    center_col.set_hexpand(true);
+                    center_col.set_size_request(360, -1);
+                    let hist_title_lbl = Label::new(Some("History"));
+                    hist_title_lbl.add_css_class("command-col-title");
+                    hist_title_lbl.set_halign(Align::Start);
+                    center_col.append(&hist_title_lbl);
+                    let hist_list_widget = ListBox::new();
+                    hist_list_widget.set_selection_mode(SelectionMode::None);
+                    center_col.append(&hist_list_widget);
+                    let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_col).build();
+                    columns.append(&center_scroll);
+
+                    // Right: Keybindings
+                    let right_col = GtkBox::new(Orientation::Vertical, 4);
+                    right_col.set_size_request(240, -1);
+                    let kb_title_lbl = Label::new(Some("Keybindings"));
+                    kb_title_lbl.add_css_class("command-col-title");
+                    kb_title_lbl.set_halign(Align::Start);
+                    right_col.append(&kb_title_lbl);
+                    let kb_list_widget = ListBox::new();
+                    kb_list_widget.set_selection_mode(SelectionMode::None);
                     for b in &cfg_clone.borrow().normal.bindings {
                         let row = ListBoxRow::new();
-                        let h = GtkBox::new(Orientation::Horizontal, 12);
-                        h.set_margin_top(6);
-                        h.set_margin_bottom(6);
-                        h.set_margin_start(12);
-                        h.set_margin_end(12);
-                        let mod_lbl = Label::new(Some(&format!(
-                            "{}",
-                            if b.modifier.is_empty() {
-                                "—".to_string()
-                            } else {
-                                b.modifier.join(" ").to_uppercase()
-                            }
-                        )));
+                        let h = GtkBox::new(Orientation::Horizontal, 8);
+                        h.set_margin_top(3);
+                        h.set_margin_bottom(3);
+                        h.set_margin_start(8);
+                        h.set_margin_end(8);
+                        let mod_str = if b.modifier.is_empty() {
+                            "—".to_string()
+                        } else {
+                            b.modifier.join(" ").to_uppercase()
+                        };
+                        let mod_lbl = Label::new(Some(&mod_str));
                         mod_lbl.add_css_class("monospace");
-                        mod_lbl.set_width_chars(12);
-                        mod_lbl.set_halign(Align::Start);
+                        mod_lbl.add_css_class("command-row-small");
+                        mod_lbl.set_width_chars(10);
                         let key_lbl = Label::new(Some(&b.key));
                         key_lbl.add_css_class("monospace");
-                        key_lbl.set_width_chars(10);
-                        key_lbl.set_halign(Align::Start);
+                        key_lbl.add_css_class("command-row-small");
+                        key_lbl.set_width_chars(8);
                         let act_lbl = Label::new(Some(&b.action));
-                        act_lbl.add_css_class("body");
                         act_lbl.add_css_class("command-help");
-                        act_lbl.set_halign(Align::Start);
                         act_lbl.set_hexpand(true);
+                        act_lbl.set_halign(Align::Start);
                         h.append(&mod_lbl);
                         h.append(&key_lbl);
                         h.append(&act_lbl);
                         row.set_child(Some(&h));
-                        kb_list.append(&row);
+                        kb_list_widget.append(&row);
                     }
-                    content.append(&kb_list);
+                    right_col.append(&kb_list_widget);
+                    let right_scroll = ScrolledWindow::builder().vexpand(true).child(&right_col).build();
+                    columns.append(&right_scroll);
 
-                    // Section: Available commands
-                    let cmd_title = Label::new(Some("Commands"));
-                    cmd_title.add_css_class("title-2");
-                    cmd_title.set_halign(Align::Start);
-                    cmd_title.set_margin_top(12);
-                    content.append(&cmd_title);
+                    full_overlay.append(&columns);
 
-                    let cmd_list = ListBox::new();
-                    cmd_list.set_selection_mode(gtk4::SelectionMode::None);
-                    for (name, desc) in &[
-                        (":duplicate (dup)", "Duplicate current window with the same page"),
-                        (":copy-address (cpa)", "Copy current page URL to clipboard"),
-                        (":downloads (dl)", "Show recent downloads in command overlay"),
-                        (":find QUERY", "Find text in the current page"),
-                        (":open URL", "Load URL in current window"),
-                        (":new-window-open URL (nwo)", "Open URL in a new BlueAK window"),
-                        (":search QUERY", "Search using the default engine"),
-                        (":search-add NAME TEMPLATE", "Add a search engine (e.g. ddg https://ddg.gg/?q={})"),
-                        (":search-del NAME", "Remove a search engine"),
-                        (":back (b)", "Go back in history"),
-                        (":forward (f)", "Go forward in history"),
-                        (":reload (r)", "Reload the current page"),
-                        (":settings (set)", "Open the settings overlay (keybinding editor)"),
-                        (":default-browser (db)", "Set Iron as the system default browser"),
-                        (":cac-status (cac)", "Check CAC / smart-card PKCS#11 readiness"),
-                        (":clear-site-data (csd)", "Clear all site data (cookies, cache, storage)"),
-                        (":clear-cookies (cc)", "Clear cookies only"),
-                    ] {
-                        let row = ListBoxRow::new();
-                        let h = GtkBox::new(Orientation::Horizontal, 12);
-                        h.set_margin_top(6);
-                        h.set_margin_bottom(6);
-                        h.set_margin_start(12);
-                        h.set_margin_end(12);
-                        let n = Label::new(Some(*name));
-                        n.add_css_class("monospace");
-                        n.set_width_chars(30);
-                        n.set_halign(Align::Start);
-                        let d = Label::new(Some(*desc));
-                        d.add_css_class("body");
-                        d.add_css_class("command-help");
-                        d.set_halign(Align::Start);
-                        d.set_hexpand(true);
-                        h.append(&n);
-                        h.append(&d);
-                        row.set_child(Some(&h));
-                        cmd_list.append(&row);
-                    }
-                    content.append(&cmd_list);
-
-                    scroll.set_child(Some(&content));
-                    full_overlay.append(&scroll);
-
-                    // --- Bottom escape hint ---
-                    let esc_hint =
-                        Label::new(Some("Press Escape to close this overlay"));
+                    let esc_hint = Label::new(Some("↑/↓ navigate · Tab commit · Enter execute · Esc close"));
                     esc_hint.add_css_class("caption");
                     esc_hint.add_css_class("command-help");
                     esc_hint.set_margin_bottom(12);
                     full_overlay.append(&esc_hint);
 
+                    // ---- State ----
+                    let state = Rc::new(RefCell::new(OverlayState {
+                        selected_cmd: -1,
+                        selected_hist: -1,
+                        active: OverlaySection::Command,
+                        cmd_navigated: false,
+                        hist_navigated: false,
+                    }));
+
+                    let all_cmd_names: Vec<&str> = ALL_COMMANDS.iter().map(|(n, _)| *n).collect();
+
+                    // ---- Populate initial lists ----
+                    rebuild_cmd_list(&cmd_list_widget, &all_cmd_names, -1);
+                    let recent = history_mgr_clone.borrow().recent(20);
+                    rebuild_hist_list(&hist_list_widget, &recent, -1);
+
+                    // ---- Clones for closures ----
                     let wv_for_cmd = wv_weak.clone();
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
@@ -431,7 +475,52 @@ fn build_window(
                     let overlay_cmd = overlay_clone.clone();
                     let download_mgr_cmd = download_mgr_clone.clone();
                     let session_mgr_cmd = session_mgr_clone.clone();
+                    let history_mgr_cmd = history_mgr_clone.clone();
+                    let entry_state = state.clone();
+                    let entry_cmd_list = cmd_list_widget.clone();
+                    let entry_hist_list = hist_list_widget.clone();
+                    let entry_ref = entry.clone();
 
+                    // ---- Text change handler ----
+                    entry.connect_changed(move |e| {
+                        let text = e.text().to_string();
+                        let cursor = e.position();
+                        let space_pos = text.find(' ');
+                        let (cmd_part, arg_part) = match space_pos {
+                            Some(pos) => (&text[..pos], &text[pos + 1..]),
+                            None => (&text[..], ""),
+                        };
+
+                        let in_command = space_pos.map_or(true, |pos| cursor <= pos as i32);
+                        let mut st = entry_state.borrow_mut();
+                        st.selected_cmd = -1;
+                        st.selected_hist = -1;
+                        st.cmd_navigated = false;
+                        st.hist_navigated = false;
+
+                        if in_command {
+                            st.active = OverlaySection::Command;
+                            let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), cmd_part, 50);
+                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
+                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
+                            let recent = history_mgr_cmd.borrow().recent(20);
+                            rebuild_hist_list(&entry_hist_list, &recent, -1);
+                        } else if command::is_url_command(cmd_part) {
+                            st.active = OverlaySection::History;
+                            rebuild_cmd_list(&entry_cmd_list, &[cmd_part], -1);
+                            let filtered = history_mgr_cmd.borrow().fuzzy(arg_part, 50);
+                            rebuild_hist_list(&entry_hist_list, &filtered, -1);
+                        } else {
+                            st.active = OverlaySection::Command;
+                            let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), &text, 50);
+                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
+                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
+                            let recent = history_mgr_cmd.borrow().recent(20);
+                            rebuild_hist_list(&entry_hist_list, &recent, -1);
+                        }
+                    });
+
+                    // ---- Enter execution ----
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
                         let input = CommandInput::new(&text);
@@ -439,43 +528,23 @@ fn build_window(
                             if let Some(w) = wv_for_cmd.upgrade() {
                                 match cmd {
                                     command::Command::Open(url) => w.load_uri(&url),
-                                    command::Command::Back => {
-                                        if w.can_go_back() {
-                                            w.go_back();
-                                        }
-                                    }
-                                    command::Command::Forward => {
-                                        if w.can_go_forward() {
-                                            w.go_forward();
-                                        }
-                                    }
-                                    command::Command::Reload => {
-                                        w.reload();
-                                    }
+                                    command::Command::Back => { if w.can_go_back() { w.go_back(); } }
+                                    command::Command::Forward => { if w.can_go_forward() { w.go_forward(); } }
+                                    command::Command::Reload => w.reload(),
                                     command::Command::Duplicate => {
                                         let url = w.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                                        let _ = build_window(
-                                            &app_for_cmd,
-                                            cfg_cmd.clone(),
-                                            session_mgr_cmd.clone(),
-                                            Some(&url),
-                                        );
+                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                     }
                                     command::Command::CopyAddress => {
                                         let url = w.uri().map(|u| u.to_string()).unwrap_or_default();
                                         if !url.is_empty() {
-                                            let display = gdk::Display::default();
-                                            if let Some(d) = display {
-                                                let clipboard = d.clipboard();
-                                                clipboard.set_text(&url);
+                                            if let Some(d) = gdk::Display::default() {
+                                                d.clipboard().set_text(&url);
                                             }
                                         }
                                     }
                                     command::Command::Settings => {
-                                        let settings_box = settings::show_settings_overlay(
-                                            &overlay_cmd,
-                                            cfg_cmd.clone(),
-                                        );
+                                        let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
                                         let settings_key_ctl = EventControllerKey::new();
                                         let settings_box_esc = settings_box.clone();
                                         settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
@@ -488,75 +557,43 @@ fn build_window(
                                         settings_box.add_controller(settings_key_ctl);
                                     }
                                     command::Command::NewWindowOpen(url) => {
-                                        let _ = build_window(
-                                            &app_for_cmd,
-                                            cfg_cmd.clone(),
-                                            session_mgr_cmd.clone(),
-                                            Some(&url),
-                                        );
+                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                     }
                                     command::Command::SetDefaultBrowser => {
                                         let status = std::process::Command::new("xdg-settings")
-                                            .args([
-                                                "set",
-                                                "default-url-scheme-handler",
-                                                "https",
-                                                "org.blueak.iron.desktop",
-                                            ])
+                                            .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
                                             .status();
-                                        if let Ok(s) = status {
-                                            if s.success() {
-                                                eprintln!("Iron is now the default browser for https URLs");
-                                            } else {
-                                                eprintln!("Failed to set default browser (xdg-settings exited with code {:?})", s.code());
-                                            }
-                                        } else {
-                                            eprintln!("Could not run xdg-settings; default browser not changed");
+                                        match status {
+                                            Ok(s) if s.success() => eprintln!("Iron is now the default browser"),
+                                            Ok(s) => eprintln!("Failed to set default browser: {:?}", s.code()),
+                                            Err(_) => eprintln!("Could not run xdg-settings"),
                                         }
                                     }
-                                    command::Command::CacStatus => {
-                                        eprintln!("{}", cac::status_text());
-                                    }
+                                    command::Command::CacStatus => eprintln!("{}", cac::status_text()),
                                     command::Command::SearchAdd(name, template) => {
                                         let mut cfg_mut = cfg_cmd.borrow_mut();
-                                        cfg_mut.search.insert(search::SearchEngine {
-                                            name: name.clone(),
-                                            template: template.clone(),
-                                        });
+                                        cfg_mut.search.insert(search::SearchEngine { name, template });
                                         let _ = cfg_mut.save();
-                                        eprintln!("Added search engine '{}' = {}", name, template);
                                     }
                                     command::Command::SearchDel(name) => {
                                         let mut cfg_mut = cfg_cmd.borrow_mut();
-                                        let removed = cfg_mut.search.remove(&name);
+                                        cfg_mut.search.remove(&name);
                                         let _ = cfg_mut.save();
-                                        if removed {
-                                            eprintln!("Removed search engine '{}'", name);
-                                        } else {
-                                            eprintln!("No search engine named '{}' found", name);
-                                        }
                                     }
                                     command::Command::Search(query) => {
-                                        let engine = cfg_cmd.borrow().search.default_engine().cloned();
-                                        if let Some(e) = engine {
-                                            let url = e.build_url(&query);
+                                        if let Some(e) = cfg_cmd.borrow().search.default_engine().cloned() {
                                             if let Some(w) = wv_for_cmd.upgrade() {
-                                                w.load_uri(&url);
+                                                w.load_uri(&e.build_url(&query));
                                             }
-                                        } else {
-                                            eprintln!("No default search engine configured");
                                         }
                                     }
                                     command::Command::Find(query) => {
                                         if let Some(w) = wv_for_cmd.upgrade() {
-                                            find_overlay_cmd.borrow_mut().activate(
-                                                &overlay_cmd,
-                                                &w,
-                                            );
-                                            if let Some(entry) = &find_overlay_cmd.borrow().entry {
-                                                entry.set_text(&query);
-                                                entry.set_position(-1);
-                                                entry.grab_focus();
+                                            find_overlay_cmd.borrow_mut().activate(&overlay_cmd, &w);
+                                            if let Some(ent) = &find_overlay_cmd.borrow().entry {
+                                                ent.set_text(&query);
+                                                ent.set_position(-1);
+                                                ent.grab_focus();
                                             }
                                         }
                                     }
@@ -567,13 +604,7 @@ fn build_window(
                                             eprintln!("No downloads yet");
                                         } else {
                                             for item in recent {
-                                                let status = if item.done {
-                                                    "done"
-                                                } else if item.failed {
-                                                    "failed"
-                                                } else {
-                                                    "in progress"
-                                                };
+                                                let status = if item.done { "done" } else if item.failed { "failed" } else { "in progress" };
                                                 eprintln!("{} [{}] - {}", item.filename, status, item.path);
                                             }
                                         }
@@ -588,6 +619,27 @@ fn build_window(
                                             session_mgr_cmd.borrow().clear_cookies(&w);
                                         }
                                     }
+                                    command::Command::History => {
+                                        let hist_box = show_history_overlay(&overlay_cmd, history_mgr_cmd.clone());
+                                        let hist_key_ctl = EventControllerKey::new();
+                                        let hist_box_esc = hist_box.clone();
+                                        hist_key_ctl.connect_key_pressed(move |_, k, _, _| {
+                                            if k == gdk::Key::Escape {
+                                                hist_box_esc.unparent();
+                                                return glib::Propagation::Stop;
+                                            }
+                                            glib::Propagation::Proceed
+                                        });
+                                        hist_box.add_controller(hist_key_ctl);
+                                    }
+                                    command::Command::ClearHistory => {
+                                        history_mgr_cmd.borrow_mut().clear();
+                                        eprintln!("History cleared");
+                                    }
+                                    command::Command::DeleteHistory(url) => {
+                                        history_mgr_cmd.borrow_mut().delete(&url);
+                                        eprintln!("Deleted {} from history", url);
+                                    }
                                 }
                             }
                         }
@@ -599,21 +651,135 @@ fn build_window(
                         }
                     });
 
+                    // ---- Key navigation ----
+                    let key_state = state.clone();
+                    let key_cmd_list = cmd_list_widget.clone();
+                    let key_hist_list = hist_list_widget.clone();
+                    let key_entry = entry.clone();
+
                     let entry_key_ctl = EventControllerKey::new();
                     entry.add_controller(entry_key_ctl.clone());
                     let cmd_overlay_esc = cmd_overlay_clone.clone();
                     let wv_weak_esc = wv_weak.clone();
+
                     entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
-                        if k == gdk::Key::Escape {
-                            if let Some(bar) = cmd_overlay_esc.borrow_mut().take() {
-                                bar.unparent();
+                        match k {
+                            gdk::Key::Escape => {
+                                if let Some(bar) = cmd_overlay_esc.borrow_mut().take() {
+                                    bar.unparent();
+                                }
+                                if let Some(w) = wv_weak_esc.upgrade() {
+                                    w.grab_focus();
+                                }
+                                return glib::Propagation::Stop;
                             }
-                            if let Some(w) = wv_weak_esc.upgrade() {
-                                w.grab_focus();
+                            gdk::Key::Up => {
+                                let mut st = key_state.borrow_mut();
+                                match st.active {
+                                    OverlaySection::Command => {
+                                        let count = listbox_row_count(&key_cmd_list);
+                                        if count > 0 {
+                                            st.selected_cmd = if st.selected_cmd <= 0 { count - 1 } else { st.selected_cmd - 1 };
+                                            st.cmd_navigated = true;
+                                        }
+                                    }
+                                    OverlaySection::History => {
+                                        let count = listbox_row_count(&key_hist_list);
+                                        if count > 0 {
+                                            st.selected_hist = if st.selected_hist <= 0 { count - 1 } else { st.selected_hist - 1 };
+                                            st.hist_navigated = true;
+                                        }
+                                    }
+                                }
+                                drop(st);
+                                update_highlight(&key_state, &key_cmd_list, &key_hist_list);
+                                return glib::Propagation::Stop;
                             }
-                            return glib::Propagation::Stop;
+                            gdk::Key::Down => {
+                                let mut st = key_state.borrow_mut();
+                                match st.active {
+                                    OverlaySection::Command => {
+                                        let count = listbox_row_count(&key_cmd_list);
+                                        if count > 0 {
+                                            st.selected_cmd = if st.selected_cmd >= count - 1 { 0 } else { st.selected_cmd + 1 };
+                                            st.cmd_navigated = true;
+                                        }
+                                    }
+                                    OverlaySection::History => {
+                                        let count = listbox_row_count(&key_hist_list);
+                                        if count > 0 {
+                                            st.selected_hist = if st.selected_hist >= count - 1 { 0 } else { st.selected_hist + 1 };
+                                            st.hist_navigated = true;
+                                        }
+                                    }
+                                }
+                                drop(st);
+                                update_highlight(&key_state, &key_cmd_list, &key_hist_list);
+                                return glib::Propagation::Stop;
+                            }
+                            gdk::Key::Tab => {
+                                let st = key_state.borrow();
+                                match st.active {
+                                    OverlaySection::Command if st.cmd_navigated && st.selected_cmd >= 0 => {
+                                        if let Some(name) = cmd_name_at_index(&key_cmd_list, st.selected_cmd) {
+                                            let new_text = if command::is_url_command(&name) {
+                                                format!("{} ", name)
+                                            } else {
+                                                name.clone()
+                                            };
+                                            key_entry.set_text(&new_text);
+                                            key_entry.set_position(-1);
+                                        }
+                                    }
+                                    OverlaySection::History if st.hist_navigated && st.selected_hist >= 0 => {
+                                        if let Some(url) = hist_url_at_index(&key_hist_list, st.selected_hist) {
+                                            let text = key_entry.text().to_string();
+                                            if let Some(pos) = text.find(' ') {
+                                                let cmd = &text[..pos];
+                                                key_entry.set_text(&format!("{} {}", cmd, url));
+                                                key_entry.set_position(-1);
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                                return glib::Propagation::Stop;
+                            }
+                            gdk::Key::space => {
+                                let st = key_state.borrow();
+                                let consumed = match st.active {
+                                    OverlaySection::Command if st.cmd_navigated && st.selected_cmd >= 0 => {
+                                        if let Some(name) = cmd_name_at_index(&key_cmd_list, st.selected_cmd) {
+                                            let new_text = if command::is_url_command(&name) {
+                                                format!("{} ", name)
+                                            } else {
+                                                name.clone()
+                                            };
+                                            key_entry.set_text(&new_text);
+                                            key_entry.set_position(-1);
+                                            true
+                                        } else { false }
+                                    }
+                                    OverlaySection::History if st.hist_navigated && st.selected_hist >= 0 => {
+                                        if let Some(url) = hist_url_at_index(&key_hist_list, st.selected_hist) {
+                                            let text = key_entry.text().to_string();
+                                            if let Some(pos) = text.find(' ') {
+                                                let cmd = &text[..pos];
+                                                key_entry.set_text(&format!("{} {}", cmd, url));
+                                                key_entry.set_position(-1);
+                                                true
+                                            } else { false }
+                                        } else { false }
+                                    }
+                                    _ => false,
+                                };
+                                if consumed {
+                                    return glib::Propagation::Stop;
+                                }
+                                glib::Propagation::Proceed
+                            }
+                            _ => glib::Propagation::Proceed,
                         }
-                        glib::Propagation::Proceed
                     });
 
                     *cmd_overlay_clone.borrow_mut() = Some(full_overlay.clone());
@@ -624,10 +790,7 @@ fn build_window(
                 }
                 "find" => {
                     if let Some(wv) = wv_weak.upgrade() {
-                        find_overlay_clone.borrow_mut().activate(
-                            &overlay_clone,
-                            &wv,
-                        );
+                        find_overlay_clone.borrow_mut().activate(&overlay_clone, &wv);
                     }
                     return glib::Propagation::Stop;
                 }
@@ -640,28 +803,19 @@ fn build_window(
                 "duplicate" => {
                     if let Some(wv) = wv_weak.upgrade() {
                         let url = wv.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                        let _ = build_window(
-                            &app_clone,
-                            cfg_clone.clone(),
-                            session_mgr_clone.clone(),
-                            Some(&url),
-                        );
+                        let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), Some(&url));
                     }
                     return glib::Propagation::Stop;
                 }
                 "back" => {
                     if let Some(wv) = wv_weak.upgrade() {
-                        if wv.can_go_back() {
-                            wv.go_back();
-                        }
+                        if wv.can_go_back() { wv.go_back(); }
                     }
                     return glib::Propagation::Stop;
                 }
                 "forward" => {
                     if let Some(wv) = wv_weak.upgrade() {
-                        if wv.can_go_forward() {
-                            wv.go_forward();
-                        }
+                        if wv.can_go_forward() { wv.go_forward(); }
                     }
                     return glib::Propagation::Stop;
                 }
@@ -674,19 +828,173 @@ fn build_window(
     window.add_controller(key_ctl);
 
     window.present();
-
     ThemeManager::start_watch(tm, &webview, &noctalia_provider);
-
     window
 }
 
-/// If a hint is currently matched (single visible hint), open that link
-/// in a new ApplicationWindow.
-fn open_current_hint_in_new_window(
-    _webview: &webkit6::WebView,
-    _hints: &HintManager,
-    _app: &adw::Application,
-    _cfg: Rc<RefCell<Config>>,
-) {
-    // TODO wire this up once hints track the currently matched element
+// ---- Helper functions for command overlay ----
+
+fn rebuild_cmd_list(list: &ListBox, items: &[&str], selected: i32) {
+    while let Some(c) = list.first_child() {
+        list.remove(&c);
+    }
+    for (idx, item) in items.iter().enumerate() {
+        let row = ListBoxRow::new();
+        let h = GtkBox::new(Orientation::Horizontal, 6);
+        h.set_margin_top(3);
+        h.set_margin_bottom(3);
+        h.set_margin_start(8);
+        h.set_margin_end(8);
+        let lbl = Label::new(Some(item));
+        lbl.add_css_class("command-row-small");
+        lbl.set_halign(Align::Start);
+        h.append(&lbl);
+        row.set_child(Some(&h));
+        if idx as i32 == selected {
+            row.add_css_class("command-selected");
+        }
+        list.append(&row);
+    }
+}
+
+fn rebuild_hist_list(list: &ListBox, items: &[history::HistoryItem], selected: i32) {
+    while let Some(c) = list.first_child() {
+        list.remove(&c);
+    }
+    for (idx, item) in items.iter().enumerate() {
+        let row = ListBoxRow::new();
+        let v = GtkBox::new(Orientation::Vertical, 2);
+        v.set_margin_top(3);
+        v.set_margin_bottom(3);
+        v.set_margin_start(8);
+        v.set_margin_end(8);
+        let title = if item.title.is_empty() { &item.url } else { &item.title };
+        let title_lbl = Label::new(Some(title));
+        title_lbl.add_css_class("command-row-small");
+        title_lbl.set_halign(Align::Start);
+        v.append(&title_lbl);
+        if !item.title.is_empty() && item.title != item.url {
+            let url_lbl = Label::new(Some(&item.url));
+            url_lbl.add_css_class("command-help");
+            url_lbl.set_halign(Align::Start);
+            v.append(&url_lbl);
+        }
+        row.set_child(Some(&v));
+        if idx as i32 == selected {
+            row.add_css_class("command-selected");
+        }
+        list.append(&row);
+    }
+}
+
+fn listbox_row_count(list: &ListBox) -> i32 {
+    let mut count = 0;
+    let mut child = list.first_child();
+    while let Some(c) = child {
+        count += 1;
+        child = c.next_sibling();
+    }
+    count
+}
+
+fn update_highlight(state: &Rc<RefCell<OverlayState>>, cmd_list: &ListBox, hist_list: &ListBox) {
+    for i in 0..listbox_row_count(cmd_list) {
+        if let Some(row) = cmd_list.row_at_index(i) {
+            row.remove_css_class("command-selected");
+        }
+    }
+    for i in 0..listbox_row_count(hist_list) {
+        if let Some(row) = hist_list.row_at_index(i) {
+            row.remove_css_class("command-selected");
+        }
+    }
+    let st = state.borrow();
+    match st.active {
+        OverlaySection::Command => {
+            if let Some(row) = cmd_list.row_at_index(st.selected_cmd) {
+                row.add_css_class("command-selected");
+            }
+        }
+        OverlaySection::History => {
+            if let Some(row) = hist_list.row_at_index(st.selected_hist) {
+                row.add_css_class("command-selected");
+            }
+        }
+    }
+}
+
+fn cmd_name_at_index(list: &ListBox, idx: i32) -> Option<String> {
+    let row = list.row_at_index(idx)?;
+    let child = row.child()?;
+    let hbox = child.downcast_ref::<GtkBox>()?;
+    let lbl = hbox.first_child()?.downcast_ref::<Label>()?;
+    Some(lbl.text().to_string())
+}
+
+fn hist_url_at_index(list: &ListBox, idx: i32) -> Option<String> {
+    let row = list.row_at_index(idx)?;
+    let child = row.child()?;
+    let vbox = child.downcast_ref::<GtkBox>()?;
+    // URL is either the second label (if title exists) or the first label
+    let first = vbox.first_child()?.downcast_ref::<Label>()?;
+    if let Some(second) = first.next_sibling().and_then(|s| s.downcast_ref::<Label>()) {
+        Some(second.text().to_string())
+    } else {
+        Some(first.text().to_string())
+    }
+}
+
+fn show_history_overlay(overlay: &Overlay, history_mgr: Rc<RefCell<HistoryManager>>) -> GtkBox {
+    let full = GtkBox::new(Orientation::Vertical, 0);
+    full.add_css_class("command-overlay");
+    full.add_css_class("background");
+    full.set_halign(Align::Fill);
+    full.set_valign(Align::Fill);
+
+    let title = Label::new(Some("History"));
+    title.add_css_class("title-1");
+    title.set_margin_top(24);
+    title.set_margin_start(80);
+    title.set_margin_end(80);
+    title.set_halign(Align::Start);
+    full.append(&title);
+
+    let scroll = ScrolledWindow::builder().vexpand(true).build();
+    let list = ListBox::new();
+    list.set_selection_mode(SelectionMode::None);
+
+    let items = history_mgr.borrow().all();
+    for item in items {
+        let row = ListBoxRow::new();
+        let v = GtkBox::new(Orientation::Vertical, 2);
+        v.set_margin_top(4);
+        v.set_margin_bottom(4);
+        v.set_margin_start(12);
+        v.set_margin_end(12);
+        let disp = if item.title.is_empty() { &item.url } else { &item.title };
+        let title_lbl = Label::new(Some(disp));
+        title_lbl.add_css_class("command-row-small");
+        title_lbl.set_halign(Align::Start);
+        v.append(&title_lbl);
+        if !item.title.is_empty() && item.title != item.url {
+            let url_lbl = Label::new(Some(&item.url));
+            url_lbl.add_css_class("command-help");
+            url_lbl.set_halign(Align::Start);
+            v.append(&url_lbl);
+        }
+        row.set_child(Some(&v));
+        list.append(&row);
+    }
+
+    scroll.set_child(Some(&list));
+    full.append(&scroll);
+
+    let esc_hint = Label::new(Some("Press Escape to close"));
+    esc_hint.add_css_class("caption");
+    esc_hint.add_css_class("command-help");
+    esc_hint.set_margin_bottom(12);
+    full.append(&esc_hint);
+
+    overlay.add_overlay(&full);
+    full
 }

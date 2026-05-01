@@ -16,6 +16,17 @@ pub enum Command {
     Find(String),
     ClearSiteData,
     ClearCookies,
+    History,
+    ClearHistory,
+    DeleteHistory(String),
+}
+
+/// Commands that accept a URL as their first argument.
+pub const URL_COMMANDS: [&str; 4] = ["open", "o", "new-window-open", "nwo"];
+
+/// Check whether a command name is one that expects a URL argument.
+pub fn is_url_command(cmd: &str) -> bool {
+    URL_COMMANDS.contains(&cmd)
 }
 
 pub struct CommandInput {
@@ -87,6 +98,9 @@ impl CommandInput {
             "downloads" | "dl" => Some(Command::Downloads),
             "clear-site-data" | "csd" => Some(Command::ClearSiteData),
             "clear-cookies" | "cc" => Some(Command::ClearCookies),
+            "history" | "hist" => Some(Command::History),
+            "clear-history" | "ch" => Some(Command::ClearHistory),
+            "delete-history" | "dh" => Some(Command::DeleteHistory(rest.to_string())),
             _ => None,
         }
     }
