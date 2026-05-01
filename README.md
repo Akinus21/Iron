@@ -1,6 +1,6 @@
 # Iron Browser
 
-A GTK4 keyboard-driven web browser for the [BlueAK Linux](https://github.com/blueaklinux) distribution, written in Rust.
+A GTK4 keyboard-driven web browser for the [BlueAK Linux](https://github.com/Akinus21/BlueAK) distribution, written in Rust.
 
 [![Build status](https://github.com/Akinus21/Iron/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Akinus21/Iron/actions/workflows/build.yml)
 
