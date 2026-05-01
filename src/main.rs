@@ -34,9 +34,8 @@ fn main() {
     app.connect_open(|app, files, _hint| {
         let cfg = Rc::new(RefCell::new(Config::load()));
         for file in files {
-            if let Some(uri) = file.uri() {
-                let _win = build_window(app, cfg.clone(), Some(&uri));
-            }
+            let uri = file.uri();
+            let _win = build_window(app, cfg.clone(), Some(&uri));
         }
     });
 
