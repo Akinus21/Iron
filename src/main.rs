@@ -1,6 +1,7 @@
 mod cac;
 mod command;
 mod config;
+mod find;
 mod hints;
 mod noctalia;
 mod search;
@@ -8,6 +9,7 @@ mod settings;
 
 use command::CommandInput;
 use config::Config;
+use find::FindOverlay;
 use hints::HintManager;
 use noctalia::ThemeManager;
 
@@ -71,6 +73,7 @@ fn build_window(
     let window = adw::ApplicationWindow::new(app);
     window.set_default_size(1024, 768);
     window.set_title(Some("Iron"));
+    window.set_icon_name(Some("org.blueak.iron"));
 
     let overlay = Overlay::new();
 
@@ -90,6 +93,7 @@ fn build_window(
 
     let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
     let cmd_overlay: Rc<RefCell<Option<GtkBox>>> = Rc::new(RefCell::new(None));
+    let find_overlay: Rc<RefCell<FindOverlay>> = Rc::new(RefCell::new(FindOverlay::new()));
 
     let css_provider = CssProvider::new();
     css_provider.load_from_string(
@@ -107,6 +111,8 @@ fn build_window(
     let wv_weak = webview.downgrade();
     let cfg_clone = cfg.clone();
     let app_clone = app.clone(); // own the Application so the closure can be 'static
+    let find_overlay_clone = find_overlay.clone();
+    let overlay_clone = overlay.clone();
 
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
@@ -149,6 +155,29 @@ fn build_window(
                     }
                     return glib::Propagation::Stop;
                 }
+            }
+        }
+
+        let find_active = find_overlay_clone.borrow().active;
+        if find_active {
+            match keyval {
+                gdk::Key::Escape => {
+                    find_overlay_clone.borrow_mut().deactivate(&overlay_clone);
+                    return glib::Propagation::Stop;
+                }
+                gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
+                    find_overlay_clone.borrow().search_next();
+                    return glib::Propagation::Stop;
+                }
+                gdk::Key::n => {
+                    find_overlay_clone.borrow().search_next();
+                    return glib::Propagation::Stop;
+                }
+                gdk::Key::p => {
+                    find_overlay_clone.borrow().search_previous();
+                    return glib::Propagation::Stop;
+                }
+                _ => {}
             }
         }
 
@@ -244,6 +273,7 @@ fn build_window(
                     let cmd_list = ListBox::new();
                     cmd_list.set_selection_mode(gtk4::SelectionMode::None);
                     for (name, desc) in &[
+                        (":find QUERY", "Find text in the current page"),
                         (":open URL", "Load URL in current window"),
                         (":new-window-open URL (nwo)", "Open URL in a new BlueAK window"),
                         (":search QUERY", "Search using the default engine"),
@@ -381,6 +411,20 @@ fn build_window(
                                             eprintln!("No default search engine configured");
                                         }
                                     }
+                                    command::Command::Find(query) => {
+                                        if let Some(w) = wv_for_cmd.upgrade() {
+                                            find_overlay_clone.borrow_mut().activate(
+                                                &overlay_clone,
+                                                &w,
+                                                &css_provider_clone,
+                                            );
+                                            if let Some(entry) = &find_overlay_clone.borrow().entry {
+                                                entry.set_text(&query);
+                                                entry.set_position(-1);
+                                                entry.grab_focus();
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -413,6 +457,16 @@ fn build_window(
                     overlay.add_overlay(&full_overlay);
                     entry.grab_focus();
 
+                    return glib::Propagation::Stop;
+                }
+                "find" => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        find_overlay_clone.borrow_mut().activate(
+                            &overlay_clone,
+                            &wv,
+                            &css_provider_clone,
+                        );
+                    }
                     return glib::Propagation::Stop;
                 }
                 _ => {}

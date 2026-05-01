@@ -10,6 +10,7 @@ pub enum Command {
     SearchAdd(String, String),
     SearchDel(String),
     Search(String),
+    Find(String),
 }
 
 pub struct CommandInput {
@@ -37,6 +38,9 @@ impl CommandInput {
         }
         if self.raw.starts_with("search ") || self.raw == "search" {
             return Self::parse_search(&self.raw);
+        }
+        if self.raw.starts_with("find ") || self.raw == "find" {
+            return Self::parse_find(&self.raw);
         }
 
         let (cmd, rest) = self.raw.split_once(' ').unwrap_or((&self.raw[..], ""));
@@ -98,6 +102,15 @@ impl CommandInput {
             None
         } else {
             Some(Command::Search(after.to_string()))
+        }
+    }
+
+    fn parse_find(raw: &str) -> Option<Command> {
+        let after = raw.strip_prefix("find")?.trim();
+        if after.is_empty() {
+            None
+        } else {
+            Some(Command::Find(after.to_string()))
         }
     }
 }

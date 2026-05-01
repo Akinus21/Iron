@@ -166,6 +166,11 @@ impl Default for Config {
                         action: "hint".to_string(),
                     },
                     KeyBinding {
+                        key: "slash".to_string(),
+                        modifier: vec![],
+                        action: "find".to_string(),
+                    },
+                    KeyBinding {
                         key: "colon".to_string(),
                         modifier: vec!["shift".to_string()],
                         action: "command".to_string(),
