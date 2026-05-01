@@ -265,6 +265,9 @@ fn build_window(
     let session_mgr_clone = session_mgr.clone();
     let history_mgr_clone = history_mgr.clone();
 
+    let tm_watch = tm.clone();
+    let noctalia_provider_watch = noctalia_provider.clone();
+
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
         let hints_active = hints_clone.borrow().active;
@@ -799,7 +802,7 @@ fn build_window(
     window.add_controller(key_ctl);
 
     window.present();
-    ThemeManager::start_watch(tm, &webview, &noctalia_provider);
+    ThemeManager::start_watch(tm_watch, &webview, &noctalia_provider_watch);
     window
 }
 

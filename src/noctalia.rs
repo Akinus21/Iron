@@ -193,7 +193,7 @@ impl ThemeManager {
             &js,
             None::<&str>,
             None::<&str>,
-            Some(&Cancellable::NONE),
+            Cancellable::NONE,
             |res| {
                 if let Err(e) = res {
                     eprintln!("Noctalia: JS theme injection failed: {}", e);
@@ -252,7 +252,7 @@ impl ThemeManager {
             }
 
             if let Some(child_path) = child.path() {
-                eprintln!("Noctalia: {} on {:?}", event_type, child_path);
+                eprintln!("Noctalia: {:?} on {:?}", event_type, child_path);
                 let expected = theme_path.as_ref().map(|p| p.as_path());
                 if Some(child_path.as_path()) == expected {
                     eprintln!("Noctalia: theme file changed, reloading...");
