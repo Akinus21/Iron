@@ -51,10 +51,11 @@ brew install Akinus21/homebrew-tap/iron
 - [x] CAC / smart-card access — status check command (`:cac-status`), PKCS#11 readiness detection
 - [x] Search engines (`:search`, `:search-add`, `:search-del`, default engine in config)
 - [x] Find-in-page (`/` or `:find QUERY` via WebKit `FindController`)
+- [x] Duplicate window (`:duplicate` / `Ctrl+d`) — clones current window with same page
+- [x] Copy address to clipboard (`:copy-address` / `:cpa`) — copies current URL
 - [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
 
 ### ToDo
-- [x] Page search (`/` or `Ctrl+F` find-in-page via WebKit `FindController`)
 - [ ] Download manager (WebKit `download-started` signal → notification/sidebar)
 - [ ] History (SQLite via `rusqlite`, `:history` command)
 - [ ] Bookmarks (SQLite, `:bookmark` command, completions in command overlay)

@@ -171,6 +171,16 @@ impl Default for Config {
                         action: "find".to_string(),
                     },
                     KeyBinding {
+                        key: "r".to_string(),
+                        modifier: vec!["ctrl".to_string()],
+                        action: "reload".to_string(),
+                    },
+                    KeyBinding {
+                        key: "d".to_string(),
+                        modifier: vec!["ctrl".to_string()],
+                        action: "duplicate".to_string(),
+                    },
+                    KeyBinding {
                         key: "colon".to_string(),
                         modifier: vec!["shift".to_string()],
                         action: "command".to_string(),

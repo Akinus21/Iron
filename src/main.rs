@@ -285,6 +285,8 @@ fn build_window(
                     let cmd_list = ListBox::new();
                     cmd_list.set_selection_mode(gtk4::SelectionMode::None);
                     for (name, desc) in &[
+                        (":duplicate (dup)", "Duplicate current window with the same page"),
+                        (":copy-address (cpa)", "Copy current page URL to clipboard"),
                         (":find QUERY", "Find text in the current page"),
                         (":open URL", "Load URL in current window"),
                         (":new-window-open URL (nwo)", "Open URL in a new BlueAK window"),
@@ -358,6 +360,24 @@ fn build_window(
                                     }
                                     command::Command::Reload => {
                                         w.reload();
+                                    }
+                                    command::Command::Duplicate => {
+                                        let url = w.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                                        let _ = build_window(
+                                            &app_for_cmd,
+                                            cfg_cmd.clone(),
+                                            Some(&url),
+                                        );
+                                    }
+                                    command::Command::CopyAddress => {
+                                        let url = w.uri().map(|u| u.to_string()).unwrap_or_default();
+                                        if !url.is_empty() {
+                                            let display = gdk::Display::default();
+                                            if let Some(d) = display {
+                                                let clipboard = d.clipboard();
+                                                clipboard.set_text(&url);
+                                            }
+                                        }
                                     }
                                     command::Command::Settings => {
                                         if let Some(window) = w.root().and_downcast::<adw::ApplicationWindow>() {
@@ -480,6 +500,23 @@ fn build_window(
                             &overlay_clone,
                             &wv,
                             &css_provider_clone,
+                        );
+                    }
+                    return glib::Propagation::Stop;
+                }
+                "reload" => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        wv.reload();
+                    }
+                    return glib::Propagation::Stop;
+                }
+                "duplicate" => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        let url = wv.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                        let _ = build_window(
+                            &app_clone,
+                            cfg_clone.clone(),
+                            Some(&url),
                         );
                     }
                     return glib::Propagation::Stop;
