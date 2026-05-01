@@ -47,16 +47,16 @@ impl ThemeManager {
             None => return,
         };
 
-        let primary = t.get("mPrimary").and_then(|v| v.as_str()).unwrap_or("");
-        let on_primary = t.get("mOnPrimary").and_then(|v| v.as_str()).unwrap_or("");
-        let surface = t.get("mSurface").and_then(|v| v.as_str()).unwrap_or("");
-        let on_surface = t.get("mOnSurface").and_then(|v| v.as_str()).unwrap_or("");
-        let surface_variant = t.get("mSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("");
-        let on_surface_variant = t.get("mOnSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("");
-        let error = t.get("mError").and_then(|v| v.as_str()).unwrap_or("");
+        let primary = t.get("mPrimary").and_then(|v| v.as_str()).unwrap_or("#3584e4");
+        let on_primary = t.get("mOnPrimary").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+        let surface = t.get("mSurface").and_then(|v| v.as_str()).unwrap_or("#1e1e1e");
+        let on_surface = t.get("mOnSurface").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+        let surface_variant = t.get("mSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("#2a2a2a");
+        let on_surface_variant = t.get("mOnSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("#c0c0c0");
+        let error = t.get("mError").and_then(|v| v.as_str()).unwrap_or("#e01b24");
 
         self.gtk_css = format!(
-            ":root {{\n\
+            "window {{\n\
              --accent-color: {primary};\n\
              --accent-bg-color: {primary};\n\
              --accent-fg-color: {on_primary};\n\
@@ -77,8 +77,7 @@ impl ThemeManager {
              * {{\n\
              transition: background-color 300ms ease-in-out,\n\
                          color 300ms ease-in-out,\n\
-                         border-color 300ms ease-in-out,\n\
-                         box-shadow 300ms ease-in-out;\n\
+                         border-color 300ms ease-in-out;\n\
              }}\n\
              window, .window, .dialog, .osd, .background {{\n\
              background-color: {surface};\n\
@@ -115,6 +114,14 @@ impl ThemeManager {
              }}\n\
              row:hover, listboxrow:hover {{\n\
              background-color: {surface_variant};\n\
+             }}\n\
+             .command-overlay {{\n\
+             background-color: {surface};\n\
+             color: {on_surface};\n\
+             }}\n\
+             .command-selected {{\n\
+             background-color: {primary};\n\
+             color: {on_primary};\n\
              }}\n",
             primary = primary,
             on_primary = on_primary,
@@ -270,8 +277,14 @@ impl ThemeManager {
 
     fn reload(&mut self, expected_path: Option<&Path>) {
         if let Some(path) = expected_path {
-            if path == self.theme_path.as_deref().unwrap_or(Path::new("")) && read_file(path).is_some() {
-                self.load();
+            let stored_path = self.theme_path.as_deref().unwrap_or(Path::new(""));
+            if path == stored_path {
+                if read_file(path).is_some() {
+                    self.load();
+                    eprintln!("Noctalia: theme reloaded from {:?}", path);
+                } else {
+                    eprintln!("Noctalia: theme file {:?} missing, skipping reload", path);
+                }
             }
         }
     }
@@ -308,17 +321,15 @@ fn read_file(path: &Path) -> Option<String> {
 }
 
 pub fn is_dark_preferred() -> bool {
-    // Prefer libadwaita's native dark detection over environment-variable heuristics.
-    // This avoids the Adwaita-WARNING about gtk-application-prefer-dark-theme.
     let style_manager = adw::StyleManager::default();
     match style_manager.color_scheme() {
         adw::ColorScheme::ForceDark | adw::ColorScheme::PreferDark => true,
         adw::ColorScheme::ForceLight | adw::ColorScheme::PreferLight => false,
-        // Default: follow the system.  Resolve through the env var fallback only if no libadwaita hint is present.
         adw::ColorScheme::Default => {
-            std::env::var("GTK_THEME")
-                .map(|t| t.to_lowercase().contains("dark"))
-                .unwrap_or(false)
+            // When libadwaita is in Default mode, check if the system prefers dark.
+            // Do NOT read GTK_THEME or gtk-application-prefer-dark-theme —
+            // libadwaita handles this internally and warns if we touch it.
+            style_manager.is_dark()
         }
         _ => false,
     }

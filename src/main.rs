@@ -242,7 +242,6 @@ fn build_window(
          .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
          .command-row { padding: 4px 8px; }\n\
          .command-row-small { font-size: 12px; }\n\
-         .command-selected { background-color: var(--accent-bg-color); color: var(--accent-fg-color); }\n\
          .command-help { opacity: 0.5; font-size: 12px; }\n\
          .command-overlay, .command-row, .command-selected, .command-col-title {\n\
            transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
