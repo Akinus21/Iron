@@ -105,6 +105,26 @@ fn build_window(
 
     session_mgr.borrow().configure_session(&webview);
 
+    // ---- WebView-level key interceptor for shortcuts WebKit would consume ----
+    let wv_nav = webview.clone();
+    let nav_ctl = EventControllerKey::new();
+    nav_ctl.connect_key_pressed(move |_, keyval, _, modifier| {
+        if keyval == gdk::Key::Left && modifier.contains(gdk::ModifierType::ALT_MASK) {
+            if wv_nav.can_go_back() {
+                wv_nav.go_back();
+            }
+            return glib::Propagation::Stop;
+        }
+        if keyval == gdk::Key::Right && modifier.contains(gdk::ModifierType::ALT_MASK) {
+            if wv_nav.can_go_forward() {
+                wv_nav.go_forward();
+            }
+            return glib::Propagation::Stop;
+        }
+        glib::Propagation::Proceed
+    });
+    webview.add_controller(nav_ctl);
+
     // ---- Intercept new-window / target="_blank" navigations ----
     // Redirect them into the current WebView instead of spawning hidden tabs.
     let wv_create = webview.clone();
@@ -154,7 +174,8 @@ fn build_window(
 
     let noctalia_provider = CssProvider::new();
     tm.borrow().apply_gtk_css(&noctalia_provider);
-    window.style_context().add_provider(
+    gtk4::style_context_add_provider_for_display(
+        &window.display(),
         &noctalia_provider,
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
@@ -168,7 +189,8 @@ fn build_window(
          .command-boxed { border-radius: 12px; padding: 8px; background: rgba(128,128,128,0.08); }\n\
          .command-entry { font-size: 16px; font-weight: 600; }",
     );
-    window.style_context().add_provider(
+    gtk4::style_context_add_provider_for_display(
+        &window.display(),
         &css_provider,
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
@@ -463,7 +485,7 @@ fn build_window(
                                             }
                                             glib::Propagation::Proceed
                                         });
-                                        settings_box.add_controller(&settings_key_ctl);
+                                        settings_box.add_controller(settings_key_ctl);
                                     }
                                     command::Command::NewWindowOpen(url) => {
                                         let _ = build_window(
