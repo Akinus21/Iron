@@ -56,7 +56,7 @@ brew install Akinus21/homebrew-tap/iron
 - [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
 
 ### ToDo
-- [ ] Download manager (WebKit `download-started` signal → notification/sidebar)
+- [x] Download manager — intercept WebKit downloads, auto-save to XDG_DOWNLOAD_DIR, uniquify filenames, Gio desktop notification, `xdg-open` folder action
 - [ ] History (SQLite via `rusqlite`, `:history` command)
 - [ ] Bookmarks (SQLite, `:bookmark` command, completions in command overlay)
 - [ ] Ad blocker (content-blocking rules)

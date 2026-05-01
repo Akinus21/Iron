@@ -6,6 +6,7 @@ pub enum Command {
     Reload,
     Duplicate,
     CopyAddress,
+    Downloads,
     Settings,
     SetDefaultBrowser,
     CacStatus,
@@ -81,6 +82,7 @@ impl CommandInput {
             "settings" | "set" => Some(Command::Settings),
             "default-browser" | "db" => Some(Command::SetDefaultBrowser),
             "cac-status" | "cac" => Some(Command::CacStatus),
+            "downloads" | "dl" => Some(Command::Downloads),
             _ => None,
         }
     }

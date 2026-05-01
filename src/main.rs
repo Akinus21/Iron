@@ -1,6 +1,7 @@
 mod cac;
 mod command;
 mod config;
+mod download;
 mod find;
 mod hints;
 mod noctalia;
@@ -9,6 +10,7 @@ mod settings;
 
 use command::CommandInput;
 use config::Config;
+use download::DownloadManager;
 use find::FindOverlay;
 use hints::HintManager;
 use noctalia::ThemeManager;
@@ -17,6 +19,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gio::prelude::*;
+use glib::prelude::*;
 use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
     ListBoxRow, Orientation, Overlay, ScrolledWindow, STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -59,6 +63,18 @@ fn main() {
         }
     });
 
+    let open_folder_action = gio::SimpleAction::new("open-folder", Some(&glib::VariantTy::STRING));
+    open_folder_action.connect_activate(move |_action, param| {
+        if let Some(variant) = param {
+            if let Some(folder) = variant.str() {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg(folder)
+                    .spawn();
+            }
+        }
+    });
+    app.add_action(&open_folder_action);
+
     app.run();
 }
 
@@ -87,6 +103,9 @@ fn build_window(
     tm.borrow().apply_webkit_css(&webview);
     let url = initial_url.unwrap_or("https://www.rust-lang.org");
     webview.load_uri(url);
+
+    let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
+    DownloadManager::attach(&webview, download_mgr.clone());
 
     overlay.set_child(Some(&webview));
     window.set_content(Some(&overlay));
@@ -123,6 +142,7 @@ fn build_window(
     let app_clone = app.clone(); // own the Application so the closure can be 'static
     let find_overlay_clone = find_overlay.clone();
     let overlay_clone = overlay.clone();
+    let download_mgr_clone = download_mgr.clone();
 
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
@@ -293,6 +313,7 @@ fn build_window(
                     for (name, desc) in &[
                         (":duplicate (dup)", "Duplicate current window with the same page"),
                         (":copy-address (cpa)", "Copy current page URL to clipboard"),
+                        (":downloads (dl)", "Show recent downloads in command overlay"),
                         (":find QUERY", "Find text in the current page"),
                         (":open URL", "Load URL in current window"),
                         (":new-window-open URL (nwo)", "Open URL in a new BlueAK window"),
@@ -345,6 +366,7 @@ fn build_window(
                     let app_for_cmd = app_clone.clone();
                     let find_overlay_cmd = find_overlay_clone.clone();
                     let overlay_cmd = overlay_clone.clone();
+                    let download_mgr_cmd = download_mgr_clone.clone();
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
@@ -461,6 +483,23 @@ fn build_window(
                                                 entry.set_text(&query);
                                                 entry.set_position(-1);
                                                 entry.grab_focus();
+                                            }
+                                        }
+                                    }
+                                    command::Command::Downloads => {
+                                        let recent = download_mgr_cmd.borrow().recent(10);
+                                        if recent.is_empty() {
+                                            eprintln!("No downloads yet");
+                                        } else {
+                                            for item in recent {
+                                                let status = if item.done {
+                                                    "done"
+                                                } else if item.failed {
+                                                    "failed"
+                                                } else {
+                                                    "in progress"
+                                                };
+                                                eprintln!("{} [{}] - {}", item.filename, status, item.path);
                                             }
                                         }
                                     }
