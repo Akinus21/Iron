@@ -181,6 +181,16 @@ impl Default for Config {
                         action: "duplicate".to_string(),
                     },
                     KeyBinding {
+                        key: "left".to_string(),
+                        modifier: vec!["alt".to_string()],
+                        action: "back".to_string(),
+                    },
+                    KeyBinding {
+                        key: "right".to_string(),
+                        modifier: vec!["alt".to_string()],
+                        action: "forward".to_string(),
+                    },
+                    KeyBinding {
                         key: "colon".to_string(),
                         modifier: vec!["shift".to_string()],
                         action: "command".to_string(),

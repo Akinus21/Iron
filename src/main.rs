@@ -619,6 +619,22 @@ fn build_window(
                     }
                     return glib::Propagation::Stop;
                 }
+                "back" => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        if wv.can_go_back() {
+                            wv.go_back();
+                        }
+                    }
+                    return glib::Propagation::Stop;
+                }
+                "forward" => {
+                    if let Some(wv) = wv_weak.upgrade() {
+                        if wv.can_go_forward() {
+                            wv.go_forward();
+                        }
+                    }
+                    return glib::Propagation::Stop;
+                }
                 _ => {}
             }
         }
