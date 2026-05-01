@@ -19,8 +19,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gio::prelude::*;
-use glib::prelude::*;
 use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
     ListBoxRow, Orientation, Overlay, ScrolledWindow, STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -487,7 +485,8 @@ fn build_window(
                                         }
                                     }
                                     command::Command::Downloads => {
-                                        let recent = download_mgr_cmd.borrow().recent(10);
+                                        let mgr = download_mgr_cmd.borrow();
+                                        let recent = mgr.recent(10);
                                         if recent.is_empty() {
                                             eprintln!("No downloads yet");
                                         } else {

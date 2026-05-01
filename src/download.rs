@@ -70,12 +70,13 @@ impl DownloadManager {
             });
 
             // Failure
+            let safe_name_fail = safe_name.clone();
             let mgr_fail = mgr.clone();
             dl.connect_failed(move |_dl, _err| {
                 if let Some(it) = mgr_fail.borrow_mut().items.get_mut(idx) {
                     it.failed = true;
                 }
-                eprintln!("Download failed: {}", safe_name);
+                eprintln!("Download failed: {}", safe_name_fail);
             });
 
             // Completion
@@ -117,15 +118,15 @@ fn notify_download_complete(filename: &str, path: &str) {
     notif.set_priority(gio::NotificationPriority::Normal);
 
     // Add an action to open the containing folder.
-    // The action ID is looked up by `app.connect_activate_action` in main.rs
     let folder = std::path::Path::new(path)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| path.to_string());
-    notif.add_button_with_target(
+    let target = glib::Variant::from(folder.as_str());
+    notif.add_button_with_target_value(
         "Open folder",
         "app.open-folder",
-        Some(&folder),
+        Some(&target),
     );
 
     app.send_notification(Some("iron-download"), &notif);
