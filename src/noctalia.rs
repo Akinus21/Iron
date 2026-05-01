@@ -73,6 +73,48 @@ impl ThemeManager {
              --popover-fg-color: {on_surface_variant};\n\
              --error-color: {error};\n\
              --destructive-color: {error};\n\
+             }}\n\
+             * {{\n\
+             transition: background-color 300ms ease-in-out,\n\
+                         color 300ms ease-in-out,\n\
+                         border-color 300ms ease-in-out,\n\
+                         box-shadow 300ms ease-in-out;\n\
+             }}\n\
+             window, .window, .dialog, .osd, .background {{\n\
+             background-color: {surface};\n\
+             color: {on_surface};\n\
+             }}\n\
+             label, .label, .heading, .title-1, .title-2, .title-3, .title-4,\n\
+             .caption, .body, .monospace {{\n\
+             color: {on_surface};\n\
+             }}\n\
+             entry, textview, text, .entry {{\n\
+             background-color: {surface_variant};\n\
+             color: {on_surface};\n\
+             }}\n\
+             button {{\n\
+             background-color: {surface_variant};\n\
+             color: {on_surface};\n\
+             }}\n\
+             button:hover {{\n\
+             background-color: {primary};\n\
+             color: {on_primary};\n\
+             }}\n\
+             .toolbar {{\n\
+             background-color: {surface_variant};\n\
+             color: {on_surface_variant};\n\
+             border-radius: 12px;\n\
+             }}\n\
+             listview, listbox, .list, .boxed-list {{\n\
+             background-color: {surface};\n\
+             color: {on_surface};\n\
+             }}\n\
+             row, listboxrow, .row {{\n\
+             background-color: transparent;\n\
+             color: {on_surface};\n\
+             }}\n\
+             row:hover, listboxrow:hover {{\n\
+             background-color: {surface_variant};\n\
              }}\n",
             primary = primary,
             on_primary = on_primary,
@@ -139,7 +181,11 @@ impl ThemeManager {
         }
     }
 
-    pub fn start_watch(tm: Rc<RefCell<ThemeManager>>, webview: &webkit6::WebView) {
+    pub fn start_watch(
+        tm: Rc<RefCell<ThemeManager>>,
+        webview: &webkit6::WebView,
+        provider: &gtk4::CssProvider,
+    ) {
         let theme_path = {
             let tm_ref = tm.borrow();
             tm_ref.theme_path.clone()
@@ -160,6 +206,7 @@ impl ThemeManager {
             return;
         };
 
+        let provider = provider.clone();
         let webview_weak = webview.downgrade();
         monitor.connect_changed(move |_monitor, child, _other, event_type| {
             match event_type {
@@ -173,6 +220,7 @@ impl ThemeManager {
                     tm.borrow_mut().reload(theme_path.as_deref());
                     if let Some(wv) = webview_weak.upgrade() {
                         let tm_ref = tm.borrow();
+                        tm_ref.apply_gtk_css(&provider);
                         tm_ref.apply_webkit_css(&wv);
                     }
                 }

@@ -95,6 +95,13 @@ fn build_window(
     let cmd_overlay: Rc<RefCell<Option<GtkBox>>> = Rc::new(RefCell::new(None));
     let find_overlay: Rc<RefCell<FindOverlay>> = Rc::new(RefCell::new(FindOverlay::new()));
 
+    let noctalia_provider = CssProvider::new();
+    tm.borrow().apply_gtk_css(&noctalia_provider);
+    window.style_context().add_provider(
+        &noctalia_provider,
+        STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
     let css_provider = CssProvider::new();
     css_provider.load_from_string(
         ".command-overlay { padding: 40px; }\n\
@@ -104,10 +111,13 @@ fn build_window(
          .command-boxed { border-radius: 12px; padding: 8px; background: rgba(128,128,128,0.08); }\n\
          .command-entry { font-size: 16px; font-weight: 600; }",
     );
+    window.style_context().add_provider(
+        &css_provider,
+        STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 
     let hints_clone = hints.clone();
     let cmd_overlay_clone = cmd_overlay.clone();
-    let css_provider_clone = css_provider.clone();
     let wv_weak = webview.downgrade();
     let cfg_clone = cfg.clone();
     let app_clone = app.clone(); // own the Application so the closure can be 'static
@@ -209,10 +219,6 @@ fn build_window(
                     let full_overlay = GtkBox::new(Orientation::Vertical, 0);
                     full_overlay.add_css_class("command-overlay");
                     full_overlay.add_css_class("background");
-                    full_overlay.style_context().add_provider(
-                        &css_provider_clone,
-                        STYLE_PROVIDER_PRIORITY_APPLICATION,
-                    );
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 
@@ -339,7 +345,6 @@ fn build_window(
                     let app_for_cmd = app_clone.clone();
                     let find_overlay_cmd = find_overlay_clone.clone();
                     let overlay_cmd = overlay_clone.clone();
-                    let css_provider_cmd = css_provider_clone.clone();
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
@@ -451,7 +456,6 @@ fn build_window(
                                             find_overlay_cmd.borrow_mut().activate(
                                                 &overlay_cmd,
                                                 &w,
-                                                &css_provider_cmd,
                                             );
                                             if let Some(entry) = &find_overlay_cmd.borrow().entry {
                                                 entry.set_text(&query);
@@ -499,7 +503,6 @@ fn build_window(
                         find_overlay_clone.borrow_mut().activate(
                             &overlay_clone,
                             &wv,
-                            &css_provider_clone,
                         );
                     }
                     return glib::Propagation::Stop;
@@ -531,7 +534,7 @@ fn build_window(
 
     window.present();
 
-    ThemeManager::start_watch(tm, &webview);
+    ThemeManager::start_watch(tm, &webview, &noctalia_provider);
 
     window
 }

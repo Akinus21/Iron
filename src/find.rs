@@ -1,4 +1,4 @@
-use gtk4::{Align, Box as GtkBox, Button, CssProvider, Entry, Label, Orientation, STYLE_PROVIDER_PRIORITY_APPLICATION};
+use gtk4::{Align, Box as GtkBox, Button, Entry, Label, Orientation};
 use webkit6::prelude::*;
 
 const MAX_MATCH_COUNT: u32 = 1000;
@@ -26,7 +26,6 @@ impl FindOverlay {
         &mut self,
         overlay: &gtk4::Overlay,
         webview: &webkit6::WebView,
-        css_provider: &CssProvider,
     ) {
         if self.active {
             if let Some(entry) = &self.entry {
@@ -40,7 +39,6 @@ impl FindOverlay {
 
         let container = GtkBox::new(Orientation::Horizontal, 8);
         container.add_css_class("toolbar");
-        container.style_context().add_provider(css_provider, STYLE_PROVIDER_PRIORITY_APPLICATION);
         container.set_margin_top(8);
         container.set_margin_start(8);
         container.set_margin_end(8);
