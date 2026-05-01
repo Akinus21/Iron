@@ -12,6 +12,21 @@ Iron is a spiritual successor to the [Titanium](https://github.com/antoyo/titani
 brew install Akinus21/homebrew-tap/iron
 ```
 
+### BlueAK / Fedora SilverBlue (atomic)
+
+1. Install the binary (e.g. via Homebrew or from the GitHub release)
+2. Copy the `.desktop` file into your writable app directory:
+   ```bash
+   mkdir -p ~/.local/share/applications
+   cp /path/to/org.blueak.iron.desktop ~/.local/share/applications/
+   ```
+3. Register Iron as the system default browser:
+   ```bash
+   xdg-settings set default-url-scheme-handler https org.blueak.iron.desktop
+   ```
+   (If you get "exited with code 2", the `.desktop` file isn't visible to xdg — make step 2 was done and run `update-desktop-database ~/.local/share/applications/`)
+4. You can now open links with `iron https://example.com` or via xdg-open
+
 ## What's different from Titanium?
 
 | Titanium (GTK3) | Iron (GTK4) |

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use adw::prelude::*;
 use gio::prelude::*;
 use webkit6::prelude::*;
 use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
@@ -219,7 +220,18 @@ fn read_file(path: &Path) -> Option<String> {
 }
 
 pub fn is_dark_preferred() -> bool {
-    std::env::var("GTK_THEME")
-        .map(|t| t.to_lowercase().contains("dark"))
-        .unwrap_or(false)
+    // Prefer libadwaita's native dark detection over environment-variable heuristics.
+    // This avoids the Adwaita-WARNING about gtk-application-prefer-dark-theme.
+    let style_manager = adw::StyleManager::default();
+    match style_manager.color_scheme() {
+        adw::ColorScheme::ForceDark | adw::ColorScheme::PreferDark => true,
+        adw::ColorScheme::ForceLight | adw::ColorScheme::PreferLight => false,
+        // Default: follow the system.  Resolve through the env var fallback only if no libadwaita hint is present.
+        adw::ColorScheme::Default => {
+            std::env::var("GTK_THEME")
+                .map(|t| t.to_lowercase().contains("dark"))
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
 }
