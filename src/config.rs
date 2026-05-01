@@ -172,6 +172,7 @@ impl Default for Config {
                     },
                 ],
             },
+            search: crate::search::EngineRegistry::default(),
         }
     }
 }
