@@ -105,6 +105,36 @@ fn build_window(
 
     session_mgr.borrow().configure_session(&webview);
 
+    // ---- Intercept new-window / target="_blank" navigations ----
+    // Redirect them into the current WebView instead of spawning hidden tabs.
+    let wv_create = webview.clone();
+    webview.connect_create(move |_wv, nav_action| {
+        if let Some(req) = nav_action.request() {
+            if let Some(uri) = req.uri() {
+                wv_create.load_uri(&uri);
+            }
+        }
+        None
+    });
+
+    let wv_policy = webview.clone();
+    webview.connect_decide_policy(|_wv, decision, decision_type| {
+        if decision_type == webkit6::PolicyDecisionType::NewWindowAction {
+            if let Some(nav) = decision.downcast_ref::<webkit6::NavigationPolicyDecision>() {
+                if let Some(action) = nav.navigation_action() {
+                    if let Some(req) = action.request() {
+                        if let Some(uri) = req.uri() {
+                            wv_policy.load_uri(&uri);
+                        }
+                    }
+                }
+            }
+            decision.ignore();
+            return true;
+        }
+        false
+    });
+
     // Dark mode preference is communicated via the injected CSS stylesheet
     // (color-scheme: dark) rather than a WebKit API setting.
 

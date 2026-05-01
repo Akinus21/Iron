@@ -26,7 +26,14 @@ const HINT_JS_MODULE: &str = r#"
 
   window.__iron_hints_activate = function() {
     window.__iron_hints_deactivate();
-    // Prevent any focused page input from stealing hint keystrokes
+    // Install a focus-capture listener that blurs anything trying to steal focus
+    window.__iron_hint_focus_trap = function(e) {
+      if (e.target && e.target !== document.body) {
+        e.target.blur();
+        e.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener('focus', window.__iron_hint_focus_trap, true);
     if (document.activeElement) { document.activeElement.blur(); }
     const els = document.querySelectorAll(
       'a[href], button, input[type="submit"], [role="button"], [onclick], summary, [tabindex]',
@@ -142,6 +149,10 @@ const HINT_JS_MODULE: &str = r#"
   };
 
   window.__iron_hints_deactivate = function() {
+    if (window.__iron_hint_focus_trap) {
+      document.removeEventListener('focus', window.__iron_hint_focus_trap, true);
+      window.__iron_hint_focus_trap = null;
+    }
     for (const h of _hints) h.div.remove();
     _hints = [];
     _selection = -1;
