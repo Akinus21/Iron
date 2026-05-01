@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use gio::Cancellable;
 use webkit6::prelude::*;
 use webkit6::{
     CookieAcceptPolicy, CookiePersistentStorage, NetworkSession, WebsiteDataTypes,

@@ -118,7 +118,7 @@ fn build_window(
     });
 
     let wv_policy = webview.clone();
-    webview.connect_decide_policy(|_wv, decision, decision_type| {
+    webview.connect_decide_policy(move |_wv, decision, decision_type| {
         if decision_type == webkit6::PolicyDecisionType::NewWindowAction {
             if let Some(nav) = decision.downcast_ref::<webkit6::NavigationPolicyDecision>() {
                 if let Some(action) = nav.navigation_action() {
