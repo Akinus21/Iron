@@ -28,9 +28,25 @@ fn main() {
         gio::ApplicationFlags::HANDLES_OPEN,
     );
 
-    app.connect_activate(|app| {
-        let cfg = Rc::new(RefCell::new(Config::load()));
-        let _win = build_window(app, cfg.clone(), Some("https://www.rust-lang.org"));
+    app.connect_activate(move |app| {
+        if app.windows().is_empty() {
+            let cfg = Rc::new(RefCell::new(Config::load()));
+            // Check if user passed a URL on the command line
+            let args: Vec<String> = std::env::args().collect();
+            let urls: Vec<&str> = args.iter()
+                .skip(1)
+                .map(|s| s.as_str())
+                .filter(|s| s.starts_with("http://") || s.starts_with("https://"))
+                .collect();
+
+            if urls.is_empty() {
+                let _win = build_window(app, cfg.clone(), Some("https://www.rust-lang.org"));
+            } else {
+                for url in urls {
+                    let _win = build_window(app, cfg.clone(), Some(url));
+                }
+            }
+        }
     });
 
     app.connect_open(|app, files, _hint| {
