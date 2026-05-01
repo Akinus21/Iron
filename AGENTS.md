@@ -90,6 +90,7 @@ Structural goals:
 - ApplicationWindow wrapping an adw::ToolbarView or adw::NavigationView
 - A proper relm4 Component for the browser tab/webview
 - A relm4 Component for the command bar (the vim-style input layer)
+- Overlays (command bar, settings, find-in-page) live inside gtk4::Overlay, not modal windows
 
 ## Phase 3 — Noctalia Integration ✅ (Complete)
 This is what makes Iron feel native rather than just functional.

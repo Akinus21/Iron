@@ -45,7 +45,7 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Keyboard-driven hint mode (`f` key, qutebrowser-style link navigation)
 - [x] Full-window command overlay (lists keybindings, commands, themed)
 - [x] Keybinding config layer (TOML file at `~/.config/iron/config.toml`)
-- [x] Settings window with keybinding editor (add/remove bindings, protected defaults)
+- [x] Settings overlay with keybinding editor (add/remove bindings, protected defaults, fullscreen overlay like command bar)
 - [x] New-window-open command (`:new-window-open URL` / `:nwo URL`)
 - [x] xdg-open / default browser handling
 - [x] CAC / smart-card access — status check command (`:cac-status`), PKCS#11 readiness detection
@@ -53,7 +53,8 @@ brew install Akinus21/homebrew-tap/iron
 - [x] Find-in-page (`/` or `:find QUERY` via WebKit `FindController`)
 - [x] Duplicate window (`:duplicate` / `Ctrl+d`) — clones current window with same page
 - [x] Copy address to clipboard (`:copy-address` / `:cpa`) — copies current URL
-- [x] GitHub Actions CI with auto-release, homebrew tap, and build webhooks
+- [x] History navigation (`Alt+Left` / `Alt+Right`) — back/forward via keybinding
+- [x] Settings overlay (`:settings` / `:set`) — fullscreen overlay with keybinding editor, no modal window
 
 ### ToDo
 - [x] Download manager — intercept WebKit downloads, auto-save to XDG_DOWNLOAD_DIR, uniquify filenames, Gio desktop notification, `xdg-open` folder action

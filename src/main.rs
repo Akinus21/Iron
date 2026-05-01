@@ -362,7 +362,7 @@ fn build_window(
                         (":back (b)", "Go back in history"),
                         (":forward (f)", "Go forward in history"),
                         (":reload (r)", "Reload the current page"),
-                        (":settings (set)", "Open the settings window"),
+                        (":settings (set)", "Open the settings overlay (keybinding editor)"),
                         (":default-browser (db)", "Set Iron as the system default browser"),
                         (":cac-status (cac)", "Check CAC / smart-card PKCS#11 readiness"),
                         (":clear-site-data (csd)", "Clear all site data (cookies, cache, storage)"),
@@ -450,12 +450,20 @@ fn build_window(
                                         }
                                     }
                                     command::Command::Settings => {
-                                        if let Some(window) = w.root().and_downcast::<adw::ApplicationWindow>() {
-                                            settings::show_settings_window(
-                                                &window,
-                                                cfg_cmd.clone(),
-                                            );
-                                        }
+                                        let settings_box = settings::show_settings_overlay(
+                                            &overlay_cmd,
+                                            cfg_cmd.clone(),
+                                        );
+                                        let settings_key_ctl = EventControllerKey::new();
+                                        let settings_box_esc = settings_box.clone();
+                                        settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
+                                            if k == gdk::Key::Escape {
+                                                settings_box_esc.unparent();
+                                                return glib::Propagation::Stop;
+                                            }
+                                            glib::Propagation::Proceed
+                                        });
+                                        settings_box.add_controller(&settings_key_ctl);
                                     }
                                     command::Command::NewWindowOpen(url) => {
                                         let _ = build_window(

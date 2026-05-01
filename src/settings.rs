@@ -2,46 +2,58 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gtk4::prelude::*;
-use gtk4::{Align, Box as GtkBox, Button, Entry, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, Window};
+use gtk4::{Align, Box as GtkBox, Button, Entry, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow};
 
 use crate::config::{Config, KeyBinding};
 
 const PROTECTED_ACTIONS: [&str; 2] = ["hint", "command"];
 
-pub fn show_settings_window(parent: &adw::ApplicationWindow, config: Rc<RefCell<Config>>) {
-    let win = Window::builder()
-        .title("Iron Settings")
-        .modal(true)
-        .transient_for(parent)
-        .default_width(600)
-        .default_height(400)
-        .build();
+/// Build and attach a full-window settings overlay to the given `Overlay`.
+/// Returns a `GtkBox` representing the overlay widget so the caller can
+/// track it and remove it later.
+pub fn show_settings_overlay(
+    overlay: &gtk4::Overlay,
+    config: Rc<RefCell<Config>>,
+) -> GtkBox {
+    let full = GtkBox::new(Orientation::Vertical, 0);
+    full.add_css_class("command-overlay");
+    full.add_css_class("background");
+    full.set_halign(Align::Fill);
+    full.set_valign(Align::Fill);
 
-    let vbox = GtkBox::new(Orientation::Vertical, 12);
-    vbox.set_margin_top(12);
-    vbox.set_margin_bottom(12);
-    vbox.set_margin_start(12);
-    vbox.set_margin_end(12);
+    // --- Title ---
+    let title = Label::new(Some("Settings"));
+    title.add_css_class("title-1");
+    title.set_margin_top(24);
+    title.set_margin_start(80);
+    title.set_margin_end(80);
+    title.set_halign(Align::Start);
+    full.append(&title);
 
-    let title = Label::new(Some("Key Bindings"));
-    title.add_css_class("title-3");
-    vbox.append(&title);
+    // --- Scrollable content ---
+    let scroll = ScrolledWindow::builder().vexpand(true).build();
+    let content = GtkBox::new(Orientation::Vertical, 12);
+    content.set_margin_start(80);
+    content.set_margin_end(80);
+    content.set_margin_bottom(24);
+
+    // Section: Current keybindings
+    let kb_title = Label::new(Some("Key Bindings"));
+    kb_title.add_css_class("title-2");
+    kb_title.set_halign(Align::Start);
+    content.append(&kb_title);
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::None);
     list.add_css_class("boxed-list");
-
-    let config_clone = config.clone();
-    rebuild_binding_rows(&list, &config_clone.borrow().normal.bindings, config.clone(), &win);
-
-    let scroll = ScrolledWindow::builder()
-        .child(&list)
-        .vexpand(true)
-        .build();
-    vbox.append(&scroll);
+    let config_list = config.clone();
+    rebuild_binding_rows(&list, &config_list.borrow().normal.bindings, config.clone(), overlay);
+    content.append(&list);
 
     // Add-new row
     let add_box = GtkBox::new(Orientation::Horizontal, 6);
+    add_box.set_margin_top(8);
+
     let key_entry = Entry::new();
     key_entry.set_placeholder_text(Some("Key (e.g. f, colon, g)"));
     key_entry.set_hexpand(true);
@@ -61,11 +73,11 @@ pub fn show_settings_window(parent: &adw::ApplicationWindow, config: Rc<RefCell<
     add_box.append(&mod_entry);
     add_box.append(&act_entry);
     add_box.append(&add_btn);
-    vbox.append(&add_box);
+    content.append(&add_box);
 
     let list_weak = list.downgrade();
     let config_weak = config.clone();
-    let win_ref = win.clone();
+    let overlay_weak = overlay.downgrade();
     add_btn.connect_clicked(move |_btn| {
         let key = key_entry.text().to_string().trim().to_lowercase();
         let mods: Vec<String> = mod_entry
@@ -95,7 +107,7 @@ pub fn show_settings_window(parent: &adw::ApplicationWindow, config: Rc<RefCell<
                 &list,
                 &config_weak.borrow().normal.bindings,
                 config_weak.clone(),
-                &win_ref,
+                &overlay_weak.upgrade().unwrap(),
             );
         }
 
@@ -104,15 +116,25 @@ pub fn show_settings_window(parent: &adw::ApplicationWindow, config: Rc<RefCell<
         act_entry.set_text("");
     });
 
-    win.set_child(Some(&vbox));
-    win.present();
+    scroll.set_child(Some(&content));
+    full.append(&scroll);
+
+    // --- Bottom escape hint ---
+    let esc_hint = Label::new(Some("Press Escape to close settings"));
+    esc_hint.add_css_class("caption");
+    esc_hint.add_css_class("command-help");
+    esc_hint.set_margin_bottom(12);
+    full.append(&esc_hint);
+
+    overlay.add_overlay(&full);
+    full
 }
 
 fn rebuild_binding_rows(
     list: &ListBox,
     bindings: &[KeyBinding],
     config: Rc<RefCell<Config>>,
-    win: &Window,
+    overlay: &gtk4::Overlay,
 ) {
     while let Some(row) = list.first_child() {
         list.remove(&row);
@@ -147,7 +169,7 @@ fn rebuild_binding_rows(
             del_btn.add_css_class("destructive-action");
             let config_c = config.clone();
             let list_weak = list.downgrade();
-            let win_ref = win.clone();
+            let overlay_ref = overlay.clone();
             del_btn.connect_clicked(move |_btn| {
                 {
                     let mut cfg = config_c.borrow_mut();
@@ -161,7 +183,7 @@ fn rebuild_binding_rows(
                         &list,
                         &config_c.borrow().normal.bindings,
                         config_c.clone(),
-                        &win_ref,
+                        &overlay_ref,
                     );
                 }
             });
