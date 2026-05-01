@@ -1,6 +1,6 @@
 [package]
 name = "iron"
-version = "0.1.0"
+version = "0.0.34"
 edition = "2024"
 description = "A GTK4 keyboard-driven web browser for BlueAK"
 license = "MIT"
