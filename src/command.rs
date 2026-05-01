@@ -14,6 +14,8 @@ pub enum Command {
     SearchDel(String),
     Search(String),
     Find(String),
+    ClearSiteData,
+    ClearCookies,
 }
 
 pub struct CommandInput {
@@ -83,6 +85,8 @@ impl CommandInput {
             "default-browser" | "db" => Some(Command::SetDefaultBrowser),
             "cac-status" | "cac" => Some(Command::CacStatus),
             "downloads" | "dl" => Some(Command::Downloads),
+            "clear-site-data" | "csd" => Some(Command::ClearSiteData),
+            "clear-cookies" | "cc" => Some(Command::ClearCookies),
             _ => None,
         }
     }

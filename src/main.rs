@@ -6,6 +6,7 @@ mod find;
 mod hints;
 mod noctalia;
 mod search;
+mod session;
 mod settings;
 
 use command::CommandInput;
@@ -14,6 +15,7 @@ use download::DownloadManager;
 use find::FindOverlay;
 use hints::HintManager;
 use noctalia::ThemeManager;
+use session::SessionManager;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -35,6 +37,7 @@ fn main() {
     app.connect_activate(move |app| {
         if app.windows().is_empty() {
             let cfg = Rc::new(RefCell::new(Config::load()));
+            let session_mgr = session::build_session_mgr();
             // Check if user passed a URL on the command line
             let args: Vec<String> = std::env::args().collect();
             let urls: Vec<&str> = args.iter()
@@ -44,10 +47,10 @@ fn main() {
                 .collect();
 
             if urls.is_empty() {
-                let _win = build_window(app, cfg.clone(), Some("https://www.rust-lang.org"));
+                let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some("https://www.rust-lang.org"));
             } else {
                 for url in urls {
-                    let _win = build_window(app, cfg.clone(), Some(url));
+                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some(url));
                 }
             }
         }
@@ -55,9 +58,10 @@ fn main() {
 
     app.connect_open(|app, files, _hint| {
         let cfg = Rc::new(RefCell::new(Config::load()));
+        let session_mgr = session::build_session_mgr();
         for file in files {
             let uri = file.uri();
-            let _win = build_window(app, cfg.clone(), Some(&uri));
+            let _win = build_window(app, cfg.clone(), session_mgr.clone(), Some(&uri));
         }
     });
 
@@ -79,6 +83,7 @@ fn main() {
 fn build_window(
     app: &adw::Application,
     cfg: Rc<RefCell<Config>>,
+    session_mgr: Rc<RefCell<SessionManager>>,
     initial_url: Option<&str>,
 ) -> adw::ApplicationWindow {
     let tm = Rc::new(RefCell::new(ThemeManager::new()));
@@ -91,9 +96,14 @@ fn build_window(
 
     let overlay = Overlay::new();
 
+    let network_session = session_mgr.borrow().build_network_session();
+
     let webview = webkit6::WebView::builder()
         .user_content_manager(&webkit6::UserContentManager::new())
+        .network_session(&network_session)
         .build();
+
+    session_mgr.borrow().configure_session(&webview);
 
     // Dark mode preference is communicated via the injected CSS stylesheet
     // (color-scheme: dark) rather than a WebKit API setting.
@@ -137,10 +147,11 @@ fn build_window(
     let cmd_overlay_clone = cmd_overlay.clone();
     let wv_weak = webview.downgrade();
     let cfg_clone = cfg.clone();
-    let app_clone = app.clone(); // own the Application so the closure can be 'static
+    let app_clone = app.clone();
     let find_overlay_clone = find_overlay.clone();
     let overlay_clone = overlay.clone();
     let download_mgr_clone = download_mgr.clone();
+    let session_mgr_clone = session_mgr.clone();
 
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
@@ -324,6 +335,8 @@ fn build_window(
                         (":settings (set)", "Open the settings window"),
                         (":default-browser (db)", "Set Iron as the system default browser"),
                         (":cac-status (cac)", "Check CAC / smart-card PKCS#11 readiness"),
+                        (":clear-site-data (csd)", "Clear all site data (cookies, cache, storage)"),
+                        (":clear-cookies (cc)", "Clear cookies only"),
                     ] {
                         let row = ListBoxRow::new();
                         let h = GtkBox::new(Orientation::Horizontal, 12);
@@ -365,6 +378,7 @@ fn build_window(
                     let find_overlay_cmd = find_overlay_clone.clone();
                     let overlay_cmd = overlay_clone.clone();
                     let download_mgr_cmd = download_mgr_clone.clone();
+                    let session_mgr_cmd = session_mgr_clone.clone();
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
@@ -391,6 +405,7 @@ fn build_window(
                                         let _ = build_window(
                                             &app_for_cmd,
                                             cfg_cmd.clone(),
+                                            session_mgr_cmd.clone(),
                                             Some(&url),
                                         );
                                     }
@@ -416,6 +431,7 @@ fn build_window(
                                         let _ = build_window(
                                             &app_for_cmd,
                                             cfg_cmd.clone(),
+                                            session_mgr_cmd.clone(),
                                             Some(&url),
                                         );
                                     }
@@ -502,6 +518,16 @@ fn build_window(
                                             }
                                         }
                                     }
+                                    command::Command::ClearSiteData => {
+                                        if let Some(w) = wv_for_cmd.upgrade() {
+                                            session_mgr_cmd.borrow().clear_all_site_data(&w);
+                                        }
+                                    }
+                                    command::Command::ClearCookies => {
+                                        if let Some(w) = wv_for_cmd.upgrade() {
+                                            session_mgr_cmd.borrow().clear_cookies(&w);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -557,6 +583,7 @@ fn build_window(
                         let _ = build_window(
                             &app_clone,
                             cfg_clone.clone(),
+                            session_mgr_clone.clone(),
                             Some(&url),
                         );
                     }

@@ -57,6 +57,7 @@ brew install Akinus21/homebrew-tap/iron
 
 ### ToDo
 - [x] Download manager — intercept WebKit downloads, auto-save to XDG_DOWNLOAD_DIR, uniquify filenames, Gio desktop notification, `xdg-open` folder action
+- [x] Session management — persistent cookies (SQLite `cookies.sqlite`), third-party cookie blocking, WebKit-native credential storage via libsecret/keyring, `:clear-site-data` / `:csd`, `:clear-cookies` / `:cc`, incognito-ready `NetworkSession`
 - [ ] History (SQLite via `rusqlite`, `:history` command)
 - [ ] Bookmarks (SQLite, `:bookmark` command, completions in command overlay)
 - [ ] Ad blocker (content-blocking rules)
