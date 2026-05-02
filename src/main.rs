@@ -25,7 +25,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk4::{
-    Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, Frame, gdk, Label, ListBox,
+    Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
     ListBoxRow, Orientation, Overlay, ScrolledWindow, SelectionMode, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
 use gtk4::prelude::WidgetExt;
@@ -379,6 +379,7 @@ fn build_window(
 
                     // Left: Commands
                     let left_col = GtkBox::new(Orientation::Vertical, 4);
+                    left_col.add_css_class("command-col");
                     left_col.set_size_request(280, -1);
                     let cmd_title_lbl = Label::new(Some("Commands"));
                     cmd_title_lbl.add_css_class("command-col-title");
@@ -387,14 +388,12 @@ fn build_window(
                     let cmd_list_widget = ListBox::new();
                     cmd_list_widget.set_selection_mode(SelectionMode::None);
                     left_col.append(&cmd_list_widget);
-                    let left_frame = Frame::new(None::<&str>);
-                    left_frame.set_child(Some(&left_col));
-                    left_frame.add_css_class("command-col");
-                    let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_frame).build();
+                    let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_col).build();
                     columns.append(&left_scroll);
 
                     // Center: History
                     let center_col = GtkBox::new(Orientation::Vertical, 4);
+                    center_col.add_css_class("command-col");
                     center_col.set_size_request(280, -1);
                     let hist_title_lbl = Label::new(Some("History"));
                     hist_title_lbl.add_css_class("command-col-title");
@@ -403,14 +402,12 @@ fn build_window(
                     let hist_list_widget = ListBox::new();
                     hist_list_widget.set_selection_mode(SelectionMode::None);
                     center_col.append(&hist_list_widget);
-                    let center_frame = Frame::new(None::<&str>);
-                    center_frame.set_child(Some(&center_col));
-                    center_frame.add_css_class("command-col");
-                    let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_frame).build();
+                    let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_col).build();
                     columns.append(&center_scroll);
 
                     // Right: Keybindings
                     let right_col = GtkBox::new(Orientation::Vertical, 4);
+                    right_col.add_css_class("command-col");
                     right_col.set_size_request(280, -1);
                     let kb_title_lbl = Label::new(Some("Keybindings"));
                     kb_title_lbl.add_css_class("command-col-title");
@@ -449,10 +446,7 @@ fn build_window(
                         kb_list_widget.append(&row);
                     }
                     right_col.append(&kb_list_widget);
-                    let right_frame = Frame::new(None::<&str>);
-                    right_frame.set_child(Some(&right_col));
-                    right_frame.add_css_class("command-col");
-                    let right_scroll = ScrolledWindow::builder().vexpand(true).child(&right_frame).build();
+                    let right_scroll = ScrolledWindow::builder().vexpand(true).child(&right_col).build();
                     columns.append(&right_scroll);
 
                     full_overlay.append(&columns);

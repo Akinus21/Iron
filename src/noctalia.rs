@@ -54,6 +54,7 @@ impl ThemeManager {
                                             .and_then(|v| v.as_str()).unwrap_or("#2a2a2a");
         let on_surface_variant = t.get("mOnSurfaceVariant")
                                             .and_then(|v| v.as_str()).unwrap_or("#c0c0c0");
+        let outline = t.get("mOutline").and_then(|v| v.as_str()).unwrap_or("#555555");
         let error = t.get("mError")            .and_then(|v| v.as_str()).unwrap_or("#e01b24");
 
         self.gtk_css = format!(
@@ -133,6 +134,13 @@ impl ThemeManager {
              .command-col label {{\n\
              color: {on_surface};\n\
              }}\n\
+             .command-col listbox {{\n\
+             background-color: {surface_variant};\n\
+             color: {on_surface};\n\
+             }}\n\
+             .command-col listbox row {{\n\
+             background-color: transparent;\n\
+             }}\n\
              .command-selected {{\n\
              background-color: {primary};\n\
              color: {on_primary};\n\
@@ -143,6 +151,7 @@ impl ThemeManager {
             on_surface = on_surface,
             surface_variant = surface_variant,
             on_surface_variant = on_surface_variant,
+            outline = outline,
             error = error,
         );
 
