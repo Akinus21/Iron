@@ -25,7 +25,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk4::{
-    Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
+    Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, Frame, gdk, Label, ListBox,
     ListBoxRow, Orientation, Overlay, ScrolledWindow, SelectionMode, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
 use gtk4::prelude::WidgetExt;
@@ -359,6 +359,7 @@ fn build_window(
 
                     let full_overlay = GtkBox::new(Orientation::Vertical, 0);
                     full_overlay.add_css_class("command-overlay");
+                    full_overlay.add_css_class("background");
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 
@@ -387,7 +388,10 @@ fn build_window(
                     let cmd_list_widget = ListBox::new();
                     cmd_list_widget.set_selection_mode(SelectionMode::None);
                     left_col.append(&cmd_list_widget);
-                    let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_col).build();
+                    let left_frame = Frame::new(None::<&str>);
+                    left_frame.set_child(Some(&left_col));
+                    left_frame.add_css_class("command-col");
+                    let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_frame).build();
                     columns.append(&left_scroll);
 
                     // Center: History
@@ -400,7 +404,10 @@ fn build_window(
                     let hist_list_widget = ListBox::new();
                     hist_list_widget.set_selection_mode(SelectionMode::None);
                     center_col.append(&hist_list_widget);
-                    let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_col).build();
+                    let center_frame = Frame::new(None::<&str>);
+                    center_frame.set_child(Some(&center_col));
+                    center_frame.add_css_class("command-col");
+                    let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_frame).build();
                     columns.append(&center_scroll);
 
                     // Right: Keybindings
@@ -443,7 +450,10 @@ fn build_window(
                         kb_list_widget.append(&row);
                     }
                     right_col.append(&kb_list_widget);
-                    let right_scroll = ScrolledWindow::builder().vexpand(true).child(&right_col).build();
+                    let right_frame = Frame::new(None::<&str>);
+                    right_frame.set_child(Some(&right_col));
+                    right_frame.add_css_class("command-col");
+                    let right_scroll = ScrolledWindow::builder().vexpand(true).child(&right_frame).build();
                     columns.append(&right_scroll);
 
                     full_overlay.append(&columns);
@@ -482,6 +492,53 @@ fn build_window(
                     let history_mgr_cmd = history_mgr_clone.clone();
                     let tm_cmd = tm.clone();
                     let noctalia_provider_cmd = noctalia_provider.clone();
+                    let history_mgr_changed = history_mgr_clone.clone();
+                    let entry_state = state.clone();
+                    let entry_cmd_list = cmd_list_widget.clone();
+                    let entry_hist_list = hist_list_widget.clone();
+
+                    // ---- Text change handler ----
+                    entry.connect_changed(move |e| {
+                        let text = e.text().to_string();
+                        let cursor = e.position();
+                        let space_pos = text.find(' ');
+                        let (cmd_part, arg_part) = match space_pos {
+                            Some(pos) => (&text[..pos], &text[pos + 1..]),
+                            None => (&text[..], ""),
+                        };
+
+                        let in_command = space_pos.map_or(true, |pos| cursor as usize <= pos);
+                        let mut st = entry_state.borrow_mut();
+                        st.selected_cmd = -1;
+                        st.selected_hist = -1;
+                        st.cmd_navigated = false;
+                        st.hist_navigated = false;
+
+                        if in_command {
+                            st.active = OverlaySection::Command;
+                            let filtered = fuzzy::filter(&all_cmd_names.iter().copied().collect::<Vec<_>>(), cmd_part, 50);
+                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
+                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
+                            let recent = history_mgr_changed.borrow().recent(20);
+                            rebuild_hist_list(&entry_hist_list, &recent, -1);
+                        } else if command::is_url_command(cmd_part) {
+                            st.active = OverlaySection::History;
+                            rebuild_cmd_list(&entry_cmd_list, &[cmd_part], -1);
+                            let filtered = history_mgr_changed.borrow().fuzzy(arg_part, 50);
+                            rebuild_hist_list(&entry_hist_list, &filtered, -1);
+                        } else {
+                            st.active = OverlaySection::Command;
+                            let filtered = fuzzy::filter(
+                                &all_cmd_names.iter().copied().collect::<Vec<_>>(),
+                                &text,
+                                50,
+                            );
+                            let filtered_refs: Vec<&str> = filtered.into_iter().collect();
+                            rebuild_cmd_list(&entry_cmd_list, &filtered_refs, -1);
+                            let recent = history_mgr_changed.borrow().recent(20);
+                            rebuild_hist_list(&entry_hist_list, &recent, -1);
+                        }
+                    });
 
                     // ---- Enter execution ----
                     entry.connect_activate(move |e| {
@@ -523,13 +580,24 @@ fn build_window(
                                         let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                     }
                                     command::Command::SetDefaultBrowser => {
-                                        let status = std::process::Command::new("xdg-settings")
-                                            .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
-                                            .status();
-                                        match status {
-                                            Ok(s) if s.success() => eprintln!("Iron is now the default browser"),
-                                            Ok(s) => eprintln!("Failed to set default browser: {:?}", s.code()),
-                                            Err(_) => eprintln!("Could not run xdg-settings"),
+                                        // Step 1: ensure the .desktop file is installed locally
+                                        match ensure_local_desktop_file() {
+                                            Ok(path) => {
+                                                // Step 2: tell xdg-settings to use it
+                                                let status = std::process::Command::new("xdg-settings")
+                                                    .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
+                                                    .status();
+                                                match status {
+                                                    Ok(s) if s.success() => eprintln!("Iron is now the default browser"),
+                                                    Ok(s) => eprintln!("Failed to set default browser: {:?}", s.code()),
+                                                    Err(_) => eprintln!("Could not run xdg-settings"),
+                                                }
+                                                // Also set for http
+                                                let _ = std::process::Command::new("xdg-settings")
+                                                    .args(["set", "default-url-scheme-handler", "http", "org.blueak.iron.desktop"])
+                                                    .status();
+                                            }
+                                            Err(e) => eprintln!("Could not install .desktop file: {}", e),
                                         }
                                     }
                                     command::Command::CacStatus => eprintln!("{}", cac::status_text()),
@@ -970,4 +1038,46 @@ fn show_history_overlay(overlay: &Overlay, history_mgr: Rc<RefCell<HistoryManage
 
     overlay.add_overlay(&full);
     full
+}
+
+/// Ensure the local .desktop file exists in ~/.local/share/applications/.
+/// This is required for xdg-settings to recognise it as a valid handler.
+fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
+    let local_apps = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".to_string())))
+        .join("applications");
+
+    std::fs::create_dir_all(&local_apps)?;
+
+    let dest = local_apps.join("org.blueak.iron.desktop");
+    if dest.exists() {
+        return Ok(dest);
+    }
+
+    // Try to copy from the install location first (standard FHS paths).
+    let candidates = [
+        std::path::PathBuf::from("/usr/share/applications/org.blueak.iron.desktop"),
+        std::path::PathBuf::from("/usr/local/share/applications/org.blueak.iron.desktop"),
+    ];
+    for src in candidates {
+        if src.exists() {
+            std::fs::copy(&src, &dest)?;
+            return Ok(dest);
+        }
+    }
+
+    // Fallback: write the desktop entry inline so the binary is self-contained.
+    let desktop_content = "[Desktop Entry]\n\
+                           Type=Application\n\
+                           Name=Iron\n\
+                           Comment=GTK4 keyboard-driven web browser for BlueAK\n\
+                           Exec=iron %u\n\
+                           Icon=org.blueak.iron\n\
+                           Categories=Network;WebBrowser;\n\
+                           MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;\n\
+                           StartupNotify=true\n\
+                           Terminal=false\n\
+                           NoDisplay=false\n";
+    std::fs::write(&dest, desktop_content)?;
+    Ok(dest)
 }

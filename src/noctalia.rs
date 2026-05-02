@@ -46,13 +46,16 @@ impl ThemeManager {
             None => return,
         };
 
-        let primary = t.get("mPrimary").and_then(|v| v.as_str()).unwrap_or("#3584e4");
-        let on_primary = t.get("mOnPrimary").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-        let surface = t.get("mSurface").and_then(|v| v.as_str()).unwrap_or("#1e1e1e");
-        let on_surface = t.get("mOnSurface").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-        let surface_variant = t.get("mSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("#2a2a2a");
-        let on_surface_variant = t.get("mOnSurfaceVariant").and_then(|v| v.as_str()).unwrap_or("#c0c0c0");
-        let error = t.get("mError").and_then(|v| v.as_str()).unwrap_or("#e01b24");
+        let primary = t.get("mPrimary")      .and_then(|v| v.as_str()).unwrap_or("#3584e4");
+        let on_primary = t.get("mOnPrimary")   .and_then(|v| v.as_str()).unwrap_or("#ffffff");
+        let surface = t.get("mSurface")        .and_then(|v| v.as_str()).unwrap_or("#1e1e1e");
+        let on_surface = t.get("mOnSurface")   .and_then(|v| v.as_str()).unwrap_or("#ffffff");
+        let surface_variant = t.get("mSurfaceVariant")
+                                            .and_then(|v| v.as_str()).unwrap_or("#2a2a2a");
+        let on_surface_variant = t.get("mOnSurfaceVariant")
+                                            .and_then(|v| v.as_str()).unwrap_or("#c0c0c0");
+        let outline = t.get("mOutline")        .and_then(|v| v.as_str()).unwrap_or("#555555");
+        let error = t.get("mError")            .and_then(|v| v.as_str()).unwrap_or("#e01b24");
 
         self.gtk_css = format!(
             "window {{\n\
@@ -118,6 +121,19 @@ impl ThemeManager {
              background-color: {surface};\n\
              color: {on_surface};\n\
              }}\n\
+             .command-overlay.background {{\n\
+             background-color: {surface};\n\
+             color: {on_surface};\n\
+             }}\n\
+             .command-col {{\n\
+             border: 2px solid {outline};\n\
+             border-radius: 12px;\n\
+             padding: 8px;\n\
+             background-color: {surface_variant};\n\
+             }}\n\
+             .command-col label {{\n\
+             color: {on_surface};\n\
+             }}\n\
              .command-selected {{\n\
              background-color: {primary};\n\
              color: {on_primary};\n\
@@ -128,6 +144,7 @@ impl ThemeManager {
             on_surface = on_surface,
             surface_variant = surface_variant,
             on_surface_variant = on_surface_variant,
+            outline = outline,
             error = error,
         );
 
