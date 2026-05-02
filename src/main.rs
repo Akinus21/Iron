@@ -581,7 +581,7 @@ fn build_window(
                                     command::Command::SetDefaultBrowser => {
                                         // Step 1: ensure the .desktop file is installed locally
                                         match ensure_local_desktop_file() {
-                                            Ok(path) => {
+                                            Ok(_path) => {
                                                 // Step 2: tell xdg-settings to use it
                                                 let status = std::process::Command::new("xdg-settings")
                                                     .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
