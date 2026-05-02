@@ -359,7 +359,6 @@ fn build_window(
 
                     let full_overlay = GtkBox::new(Orientation::Vertical, 0);
                     full_overlay.add_css_class("command-overlay");
-                    full_overlay.add_css_class("background");
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 
@@ -990,7 +989,6 @@ fn hist_url_at_index(list: &ListBox, idx: i32) -> Option<String> {
 fn show_history_overlay(overlay: &Overlay, history_mgr: Rc<RefCell<HistoryManager>>) -> GtkBox {
     let full = GtkBox::new(Orientation::Vertical, 0);
     full.add_css_class("command-overlay");
-    full.add_css_class("background");
     full.set_halign(Align::Fill);
     full.set_valign(Align::Fill);
 
@@ -1069,17 +1067,24 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
     }
 
     // Fallback: write the desktop entry inline so the binary is self-contained.
-    let desktop_content = "[Desktop Entry]\n\
-                           Type=Application\n\
-                           Name=Iron\n\
-                           Comment=GTK4 keyboard-driven web browser for BlueAK\n\
-                           Exec=iron %u\n\
-                           Icon=org.blueak.iron\n\
-                           Categories=Network;WebBrowser;\n\
-                           MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;\n\
-                           StartupNotify=true\n\
-                           Terminal=false\n\
-                           NoDisplay=false\n";
-    std::fs::write(&dest, desktop_content)?;
+    // Use the absolute path of the running binary so xdg-open can find it
+    // regardless of whether `iron` is on $PATH (important on Silverblue/atomic).
+    let exec_path = std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "iron".to_string());
+    let desktop_content = format!(
+        "[Desktop Entry]\n\
+         Type=Application\n\
+         Name=Iron\n\
+         Comment=GTK4 keyboard-driven web browser for BlueAK\n\
+         Exec={exec_path} %u\n\
+         Icon=org.blueak.iron\n\
+         Categories=Network;WebBrowser;\n\
+         MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;\n\
+         StartupNotify=true\n\
+         Terminal=false\n\
+         NoDisplay=false\n"
+    );
+    std::fs::write(&dest, &desktop_content)?;
     Ok(dest)
 }
