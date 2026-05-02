@@ -122,8 +122,8 @@ impl ThemeManager {
              color: {on_surface};\n\
              }}\n\
              .command-overlay.background {{\n\
-             background-color: {surface};\n\
-             color: {on_surface};\n\
+             background-color: {surface} !important;\n\
+             color: {on_surface} !important;\n\
              }}\n\
              .command-col {{\n\
              border: 2px solid {outline};\n\
