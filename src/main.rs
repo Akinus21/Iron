@@ -758,7 +758,7 @@ fn build_window(
                             }
                             gdk::Key::Tab => {
                                 let st = key_state.borrow();
-                                match st.active {
+                                let action = match st.active {
                                     OverlaySection::Command if st.cmd_navigated && st.selected_cmd >= 0 => {
                                         if let Some(name) = cmd_name_at_index(&key_cmd_list, st.selected_cmd) {
                                             let new_text = if command::is_url_command(&name) {
@@ -766,27 +766,30 @@ fn build_window(
                                             } else {
                                                 name.clone()
                                             };
-                                            key_entry.set_text(&new_text);
-                                            key_entry.set_position(-1);
-                                        }
+                                            Some(new_text)
+                                        } else { None }
                                     }
                                     OverlaySection::History if st.hist_navigated && st.selected_hist >= 0 => {
                                         if let Some(url) = hist_url_at_index(&key_hist_list, st.selected_hist) {
                                             let text = key_entry.text().to_string();
                                             if let Some(pos) = text.find(' ') {
                                                 let cmd = &text[..pos];
-                                                key_entry.set_text(&format!("{} {}", cmd, url));
-                                                key_entry.set_position(-1);
-                                            }
-                                        }
+                                                Some(format!("{} {}", cmd, url))
+                                            } else { None }
+                                        } else { None }
                                     }
-                                    _ => {}
+                                    _ => None,
+                                };
+                                drop(st);
+                                if let Some(new_text) = action {
+                                    key_entry.set_text(&new_text);
+                                    key_entry.set_position(-1);
                                 }
                                 return glib::Propagation::Stop;
                             }
                             gdk::Key::space => {
                                 let st = key_state.borrow();
-                                let consumed = match st.active {
+                                let action = match st.active {
                                     OverlaySection::Command if st.cmd_navigated && st.selected_cmd >= 0 => {
                                         if let Some(name) = cmd_name_at_index(&key_cmd_list, st.selected_cmd) {
                                             let new_text = if command::is_url_command(&name) {
@@ -794,25 +797,24 @@ fn build_window(
                                             } else {
                                                 name.clone()
                                             };
-                                            key_entry.set_text(&new_text);
-                                            key_entry.set_position(-1);
-                                            true
-                                        } else { false }
+                                            Some(new_text)
+                                        } else { None }
                                     }
                                     OverlaySection::History if st.hist_navigated && st.selected_hist >= 0 => {
                                         if let Some(url) = hist_url_at_index(&key_hist_list, st.selected_hist) {
                                             let text = key_entry.text().to_string();
                                             if let Some(pos) = text.find(' ') {
                                                 let cmd = &text[..pos];
-                                                key_entry.set_text(&format!("{} {}", cmd, url));
-                                                key_entry.set_position(-1);
-                                                true
-                                            } else { false }
-                                        } else { false }
+                                                Some(format!("{} {}", cmd, url))
+                                            } else { None }
+                                        } else { None }
                                     }
-                                    _ => false,
+                                    _ => None,
                                 };
-                                if consumed {
+                                drop(st);
+                                if let Some(new_text) = action {
+                                    key_entry.set_text(&new_text);
+                                    key_entry.set_position(-1);
                                     return glib::Propagation::Stop;
                                 }
                                 glib::Propagation::Proceed
