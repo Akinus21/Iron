@@ -38,17 +38,8 @@ jobs:
             libwebkitgtk-6.0-dev \
             jq
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-            ${{ runner.os }}-cargo-
+      - name: Clear cargo cache
+        run: rm -rf ~/.cargo/registry ~/.cargo/git target
 
       - name: Check (release)
         id: check_release
