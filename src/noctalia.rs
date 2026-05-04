@@ -6,6 +6,18 @@ use adw::prelude::*;
 use webkit6::prelude::*;
 use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
 
+/// Convert a 6-char hex colour like "#1e1e1e" into an rgba() string with the given opacity.
+fn hex_to_rgba(hex: &str, alpha: f64) -> String {
+    let t = hex.trim().trim_start_matches('#');
+    if t.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (u8::from_str_radix(&t[0..2], 16), u8::from_str_radix(&t[2..4], 16), u8::from_str_radix(&t[4..6], 16)) {
+            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha);
+        }
+    }
+    // Fallback: return the original hex unchanged
+    hex.to_string()
+}
+
 pub struct ThemeManager {
     gtk_css: String,
     webkit_css: String,
@@ -53,6 +65,8 @@ impl ThemeManager {
         let surface_variant = t.get("mSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#2a2a2a");
         let on_surface_variant = t.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0");
         let error = t.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24");
+
+        let surface_rgba = hex_to_rgba(surface, 0.88);
 
         self.gtk_css = format!(
             "window {{\n\
@@ -115,11 +129,11 @@ impl ThemeManager {
              background-color: {surface_variant};\n\
              }}\n\
              .command-overlay {{\n\
-             background-color: alpha({surface}, 0.92) !important;\n\
+             background-color: {surface_rgba} !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
              .command-overlay.background {{\n\
-             background-color: alpha({surface}, 0.92) !important;\n\
+             background-color: {surface_rgba} !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
              .command-col {{\n\
@@ -146,6 +160,7 @@ impl ThemeManager {
             on_primary = on_primary,
             surface = surface,
             on_surface = on_surface,
+            surface_rgba = surface_rgba,
             surface_variant = surface_variant,
             on_surface_variant = on_surface_variant,
             error = error,
