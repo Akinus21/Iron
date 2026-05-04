@@ -215,7 +215,8 @@ fn build_window(
     });
 
     tm.borrow().apply_webkit_css(&webview);
-    let url = initial_url.unwrap_or_else(|| cfg.borrow().home_page.as_str());
+    let default_url = cfg.borrow().home_page.clone();
+    let url = initial_url.unwrap_or_else(|| default_url.as_str());
     webview.load_uri(url);
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));

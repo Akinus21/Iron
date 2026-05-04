@@ -55,8 +55,9 @@ pub fn show_settings_overlay(
     save_home_btn.add_css_class("suggested-action");
 
     let config_home = config.clone();
+    let home_entry_c = home_entry.clone();
     save_home_btn.connect_clicked(move |_btn| {
-        let url = home_entry.text().to_string().trim().to_string();
+        let url = home_entry_c.text().to_string().trim().to_string();
         if !url.is_empty() {
             let mut cfg = config_home.borrow_mut();
             cfg.home_page = url;
