@@ -26,8 +26,13 @@ const HINT_JS_MODULE: &str = r#"
 
   window.__iron_hints_activate = function() {
     window.__iron_hints_deactivate();
-    // Install a focus-capture listener that blurs anything trying to steal focus
+    // Install a focus-capture listener that blurs anything trying to steal focus,
+    // but exempts text input fields so they can receive focus after a hint commit.
     window.__iron_hint_focus_trap = function(e) {
+      const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+      const type = e.target && e.target.type ? e.target.type.toLowerCase() : '';
+      if (tag === 'input' && (type === 'text' || type === 'password' || type === 'email' || type === 'search' || type === 'number' || type === 'tel' || type === 'url' || type === 'textarea')) return;
+      if (tag === 'textarea') return;
       if (e.target && e.target !== document.body) {
         e.target.blur();
         e.stopImmediatePropagation();
@@ -36,7 +41,7 @@ const HINT_JS_MODULE: &str = r#"
     document.addEventListener('focus', window.__iron_hint_focus_trap, true);
     if (document.activeElement) { document.activeElement.blur(); }
     const els = document.querySelectorAll(
-      'a[href], button, input[type="submit"], [role="button"], [onclick], summary, [tabindex]',
+      'a[href], button, input:not([type="hidden"]), textarea, [role="button"], [onclick], summary, [tabindex]',
     );
     const lbls = labels(els.length);
     _hints = [];
