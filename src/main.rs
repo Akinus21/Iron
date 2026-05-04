@@ -7,7 +7,6 @@ mod fuzzy;
 mod hints;
 mod history;
 mod noctalia;
-mod parallel_download;
 mod search;
 mod session;
 mod settings;
@@ -24,8 +23,6 @@ use session::SessionManager;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tokio;
-
 use adw::prelude::*;
 use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
@@ -35,13 +32,6 @@ use gtk4::prelude::WidgetExt;
 use webkit6::prelude::*;
 
 fn main() {
-    let tokio_handle = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(4)
-        .enable_all()
-        .expect("Failed to build tokio runtime")
-        .handle()
-        .clone();
-
     let app = adw::Application::new(
         Some("org.blueak.iron"),
         gio::ApplicationFlags::HANDLES_OPEN,
@@ -49,7 +39,6 @@ fn main() {
 
     app.connect_activate(move |app| {
         if app.windows().is_empty() {
-            let tokio_handle = tokio_handle.clone();
             let cfg = Rc::new(RefCell::new(Config::load()));
             let session_mgr = session::build_session_mgr();
             let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
@@ -61,23 +50,22 @@ fn main() {
                 .collect();
 
             if urls.is_empty() {
-                let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), tokio_handle.clone(), Some("https://www.rust-lang.org"));
+                let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some("https://www.rust-lang.org"));
             } else {
                 for url in urls {
-                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), tokio_handle.clone(), Some(url));
+                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(url));
                 }
             }
         }
     });
 
-    app.connect_open(move |app, files, _hint| {
-        let tokio_handle = tokio_handle.clone();
+    app.connect_open(|app, files, _hint| {
         let cfg = Rc::new(RefCell::new(Config::load()));
         let session_mgr = session::build_session_mgr();
         let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
         for file in files {
             let uri = file.uri();
-            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), tokio_handle.clone(), Some(&uri));
+            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(&uri));
         }
     });
 
@@ -133,7 +121,6 @@ fn build_window(
     cfg: Rc<RefCell<Config>>,
     session_mgr: Rc<RefCell<SessionManager>>,
     history_mgr: Rc<RefCell<HistoryManager>>,
-    tokio_handle: tokio::runtime::Handle,
     initial_url: Option<&str>,
 ) -> adw::ApplicationWindow {
     let tm = Rc::new(RefCell::new(ThemeManager::new()));
@@ -234,7 +221,7 @@ fn build_window(
     webview.load_uri(url);
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
-    DownloadManager::attach(&webview, download_mgr.clone(), &overlay, tokio_handle.clone());
+    DownloadManager::attach(&webview, download_mgr.clone());
 
     overlay.set_child(Some(&webview));
     window.set_content(Some(&overlay));
@@ -278,7 +265,6 @@ fn build_window(
     let download_mgr_clone = download_mgr.clone();
     let session_mgr_clone = session_mgr.clone();
     let history_mgr_clone = history_mgr.clone();
-    let tokio_handle_clone = tokio_handle.clone();
 
     let tm_watch = tm.clone();
     let noctalia_provider_watch = noctalia_provider.clone();
@@ -505,7 +491,6 @@ fn build_window(
                     let entry_state = state.clone();
                     let entry_cmd_list = cmd_list_widget.clone();
                     let entry_hist_list = hist_list_widget.clone();
-                    let tokio_handle_cmd = tokio_handle.clone();
 
                     // ---- Text change handler ----
                     entry.connect_changed(move |e| {
@@ -563,7 +548,7 @@ fn build_window(
                                     command::Command::Reload => w.reload(),
                                     command::Command::Duplicate => {
                                         let url = w.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), tokio_handle_cmd.clone(), Some(&url));
+                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                     }
                                     command::Command::CopyAddress => {
                                         let url = w.uri().map(|u| u.to_string()).unwrap_or_default();
@@ -588,7 +573,7 @@ fn build_window(
                                         settings_box.add_controller(settings_key_ctl);
                                     }
                                     command::Command::NewWindowOpen(url) => {
-                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), tokio_handle_cmd.clone(), Some(&url));
+                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                     }
                                     command::Command::SetDefaultBrowser => {
                                         // Step 1: ensure the .desktop file is installed locally
@@ -855,7 +840,7 @@ fn build_window(
                 "duplicate" => {
                     if let Some(wv) = wv_weak.upgrade() {
                         let url = wv.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                        let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), tokio_handle_clone.clone(), Some(&url));
+                        let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), Some(&url));
                     }
                     return glib::Propagation::Stop;
                 }
