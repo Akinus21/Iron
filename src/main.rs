@@ -127,14 +127,10 @@ fn build_window(
     let window = adw::ApplicationWindow::new(app);
     window.set_default_size(1024, 768);
     window.set_title(Some("Iron"));
-    let icon_path = std::env::current_exe()
+    let _icon_path = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.join("res/org.blueak.iron.svg")))
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("res/org.blueak.iron.svg"));
-    let file = gio::File::for_path(&icon_path);
-    if let Ok(icon) = gdk::Texture::from_file(&file) {
-        <adw::ApplicationWindow as GtkWindowExt>::set_icon(&window, Some(&icon));
-    }
 
     let overlay = Overlay::new();
 
