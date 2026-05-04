@@ -38,23 +38,21 @@ fn main() {
     );
 
     app.connect_activate(move |app| {
-        if app.windows().is_empty() {
-            let cfg = Rc::new(RefCell::new(Config::load()));
-            let session_mgr = session::build_session_mgr();
-            let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
-            let args: Vec<String> = std::env::args().collect();
-            let urls: Vec<&str> = args.iter()
-                .skip(1)
-                .map(|s| s.as_str())
-                .filter(|s| s.starts_with("http://") || s.starts_with("https://"))
-                .collect();
+        let cfg = Rc::new(RefCell::new(Config::load()));
+        let session_mgr = session::build_session_mgr();
+        let history_mgr = Rc::new(RefCell::new(HistoryManager::new()));
+        let args: Vec<String> = std::env::args().collect();
+        let urls: Vec<&str> = args.iter()
+            .skip(1)
+            .map(|s| s.as_str())
+            .filter(|s| s.starts_with("http://") || s.starts_with("https://"))
+            .collect();
 
-            if urls.is_empty() {
-                let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some("https://www.rust-lang.org"));
-            } else {
-                for url in urls {
-                    let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(url));
-                }
+        if urls.is_empty() {
+            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some("https://www.rust-lang.org"));
+        } else {
+            for url in urls {
+                let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(url));
             }
         }
     });
