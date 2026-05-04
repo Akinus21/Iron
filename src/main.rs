@@ -23,7 +23,6 @@ use session::SessionManager;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use tokio;
 

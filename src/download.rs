@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use gio::{Notification, prelude::*};
 use gtk4::prelude::*;
