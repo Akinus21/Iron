@@ -25,6 +25,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use tokio::runtime;
+
 use adw::prelude::*;
 use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
@@ -35,7 +37,7 @@ use webkit6::prelude::*;
 
 fn main() {
     let tokio_rt = Arc::new(
-        tokio::runtime::Builder::new_multi_thread()
+        runtime::Builder::new_multi_thread()
             .worker_threads(4)
             .enable_all()
             .expect("Failed to build tokio runtime")
