@@ -131,10 +131,9 @@ fn build_window(
         .ok()
         .and_then(|p| p.parent().map(|p| p.join("res/org.blueak.iron.svg")))
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("res/org.blueak.iron.svg"));
-    if let Ok(file) = gio::File::for_path(&icon_path) {
-        if let Ok(icon) = gdk::Texture::from_file(&file) {
-            window.set_icon(Some(&icon));
-        }
+    let file = gio::File::for_path(&icon_path);
+    if let Ok(icon) = gdk::Texture::from_file(&file) {
+        window.set_icon(&icon);
     }
 
     let overlay = Overlay::new();
