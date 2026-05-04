@@ -42,10 +42,11 @@ pub fn start(
     url: String,
     dest: PathBuf,
     user_agent: String,
+    rt: tokio::runtime::Handle,
 ) -> (watch::Receiver<Progress>, tokio::task::JoinHandle<Result<PathBuf, DownloadError>>) {
     let (tx, rx) = watch::channel(Progress { downloaded: 0, total: 0 });
 
-    let handle = tokio::spawn(async move {
+    let handle = rt.spawn(async move {
         run(url, dest, user_agent, tx).await
     });
 

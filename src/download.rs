@@ -75,7 +75,7 @@ impl DownloadManager {
             overlay.add_overlay(&progress_widget);
 
             let ua = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36".to_string();
-            let (mut rx, handle) = parallel_download::start(url, final_path.clone(), ua);
+            let (mut rx, handle) = parallel_download::start(url, final_path.clone(), ua, tokio_rt.handle().clone());
 
             let mgr_poll = mgr.clone();
             let progress_widget_poll = progress_widget.clone();
