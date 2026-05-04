@@ -5,6 +5,7 @@ use futures::future::join_all;
 use reqwest::Client;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::runtime::Handle;
 use tokio::sync::watch;
 
 const CHUNK_COUNT: u64 = 8;
@@ -42,7 +43,7 @@ pub fn start(
     url: String,
     dest: PathBuf,
     user_agent: String,
-    rt: tokio::runtime::Handle,
+    rt: Handle,
 ) -> (watch::Receiver<Progress>, tokio::task::JoinHandle<Result<PathBuf, DownloadError>>) {
     let (tx, rx) = watch::channel(Progress { downloaded: 0, total: 0 });
 
