@@ -1090,7 +1090,7 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
 /// Spoofs Chrome's UA so SPAs like claude.ai don't block us, and enables
 /// JavaScript, WebGL, and media features that most sites depend on.
 fn configure_webview_settings(webview: &webkit6::WebView) {
-    if let Some(settings) = webview.settings() {
+    if let Some(settings) = webkit6::prelude::WebViewExt::settings(webview) {
         settings.set_user_agent(Some(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
              (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
