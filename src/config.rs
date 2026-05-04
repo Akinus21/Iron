@@ -22,6 +22,12 @@ pub struct Config {
     pub normal: Mode,
     #[serde(default)]
     pub search: EngineRegistry,
+    #[serde(default = "default_home_page")]
+    pub home_page: String,
+}
+
+fn default_home_page() -> String {
+    "https://duckduckgo.com".to_string()
 }
 
 impl Config {
@@ -198,6 +204,7 @@ impl Default for Config {
                 ],
             },
             search: crate::search::EngineRegistry::default(),
+            home_page: default_home_page(),
         }
     }
 }

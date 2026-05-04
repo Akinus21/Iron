@@ -37,6 +37,37 @@ pub fn show_settings_overlay(
     content.set_margin_end(80);
     content.set_margin_bottom(24);
 
+    // Section: Home page
+    let home_title = Label::new(Some("Home Page"));
+    home_title.add_css_class("title-2");
+    home_title.set_halign(Align::Start);
+    content.append(&home_title);
+
+    let home_row = GtkBox::new(Orientation::Horizontal, 8);
+    home_row.set_margin_top(8);
+
+    let home_entry = Entry::new();
+    home_entry.set_hexpand(true);
+    home_entry.set_placeholder_text(Some("https://example.com"));
+    home_entry.set_text(&config.borrow().home_page);
+
+    let save_home_btn = Button::with_label("Save");
+    save_home_btn.add_css_class("suggested-action");
+
+    let config_home = config.clone();
+    save_home_btn.connect_clicked(move |_btn| {
+        let url = home_entry.text().to_string().trim().to_string();
+        if !url.is_empty() {
+            let mut cfg = config_home.borrow_mut();
+            cfg.home_page = url;
+            let _ = cfg.save();
+        }
+    });
+
+    home_row.append(&home_entry);
+    home_row.append(&save_home_btn);
+    content.append(&home_row);
+
     // Section: Current keybindings
     let kb_title = Label::new(Some("Key Bindings"));
     kb_title.add_css_class("title-2");

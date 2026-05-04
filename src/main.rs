@@ -215,7 +215,7 @@ fn build_window(
     });
 
     tm.borrow().apply_webkit_css(&webview);
-    let url = initial_url.unwrap_or("https://www.rust-lang.org");
+    let url = initial_url.unwrap_or_else(|| cfg.borrow().home_page.as_str());
     webview.load_uri(url);
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
@@ -558,6 +558,7 @@ fn build_window(
                                     }
                                     command::Command::Settings => {
                                         let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
+                                        settings_box.grab_focus();
                                         let settings_key_ctl = EventControllerKey::new();
                                         let settings_box_esc = settings_box.clone();
                                         settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
