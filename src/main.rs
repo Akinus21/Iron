@@ -127,7 +127,13 @@ fn build_window(
     let window = adw::ApplicationWindow::new(app);
     window.set_default_size(1024, 768);
     window.set_title(Some("Iron"));
-    window.set_icon_name(Some("org.blueak.iron"));
+    let icon_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join("res/org.blueak.iron.svg")))
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("res/org.blueak.iron.svg"));
+    if let Ok(icon) = gdk::Texture::from_file(&icon_path) {
+        window.set_icon(Some(&icon));
+    }
 
     let overlay = Overlay::new();
 
