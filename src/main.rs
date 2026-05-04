@@ -28,7 +28,7 @@ use gtk4::{
     Align, Box as GtkBox, CssProvider, Entry, EventControllerKey, gdk, Label, ListBox,
     ListBoxRow, Orientation, Overlay, ScrolledWindow, SelectionMode, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
-use gtk4::prelude::WidgetExt;
+use gtk4::prelude::{WidgetExt, GtkWindowExt};
 use webkit6::prelude::*;
 
 fn main() {
@@ -133,7 +133,7 @@ fn build_window(
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("res/org.blueak.iron.svg"));
     let file = gio::File::for_path(&icon_path);
     if let Ok(icon) = gdk::Texture::from_file(&file) {
-        gtk4::prelude::GtkWindowExt::set_icon(&window, &icon);
+        gtk4::prelude::GtkWindowExt::set_icon(&window, Some(&icon));
     }
 
     let overlay = Overlay::new();
