@@ -46,15 +46,15 @@ impl ThemeManager {
             None => return,
         };
 
-        let primary = t.get("mPrimary")      .and_then(|v| v.as_str()).unwrap_or("#3584e4");
-        let on_primary = t.get("mOnPrimary")   .and_then(|v| v.as_str()).unwrap_or("#ffffff");
-        let surface = t.get("mSurface")        .and_then(|v| v.as_str()).unwrap_or("#1e1e1e");
-        let on_surface = t.get("mOnSurface")   .and_then(|v| v.as_str()).unwrap_or("#ffffff");
+        let primary = t.get("mPrimary").and_then(|v| v.as_str().trim()).unwrap_or("#3584e4");
+        let on_primary = t.get("mOnPrimary").and_then(|v| v.as_str().trim()).unwrap_or("#ffffff");
+        let surface = t.get("mSurface").and_then(|v| v.as_str().trim()).unwrap_or("#1e1e1e");
+        let on_surface = t.get("mOnSurface").and_then(|v| v.as_str().trim()).unwrap_or("#ffffff");
         let surface_variant = t.get("mSurfaceVariant")
-                                            .and_then(|v| v.as_str()).unwrap_or("#2a2a2a");
+                                .and_then(|v| v.as_str().trim()).unwrap_or("#2a2a2a");
         let on_surface_variant = t.get("mOnSurfaceVariant")
-                                            .and_then(|v| v.as_str()).unwrap_or("#c0c0c0");
-        let error = t.get("mError")            .and_then(|v| v.as_str()).unwrap_or("#e01b24");
+                                  .and_then(|v| v.as_str().trim()).unwrap_or("#c0c0c0");
+        let error = t.get("mError").and_then(|v| v.as_str().trim()).unwrap_or("#e01b24");
 
         self.gtk_css = format!(
             "window {{\n\
