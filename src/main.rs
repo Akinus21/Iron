@@ -367,6 +367,7 @@ fn build_window(
 
                     let full_overlay = GtkBox::new(Orientation::Vertical, 0);
                     full_overlay.add_css_class("command-overlay");
+                    full_overlay.add_css_class("background");
                     full_overlay.set_halign(Align::Fill);
                     full_overlay.set_valign(Align::Fill);
 

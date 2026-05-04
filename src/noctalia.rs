@@ -115,11 +115,11 @@ impl ThemeManager {
              background-color: {surface_variant};\n\
              }}\n\
              .command-overlay {{\n\
-             background-color: {surface} !important;\n\
+             background-color: alpha({surface}, 0.92) !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
              .command-overlay.background {{\n\
-             background-color: {surface} !important;\n\
+             background-color: alpha({surface}, 0.92) !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
              .command-col {{\n\
