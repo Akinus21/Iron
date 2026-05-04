@@ -140,6 +140,7 @@ fn build_window(
         .network_session(&network_session)
         .build();
 
+    configure_webview_settings(&webview);
     session_mgr.borrow().configure_session(&webview);
 
     // ---- History tracking ----
@@ -1083,4 +1084,22 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
     );
     std::fs::write(&dest, &desktop_content)?;
     Ok(dest)
+}
+
+/// Configure WebView settings for maximum compatibility with modern sites.
+/// Spoofs Chrome's UA so SPAs like claude.ai don't block us, and enables
+/// JavaScript, WebGL, and media features that most sites depend on.
+fn configure_webview_settings(webview: &webkit6::WebView) {
+    if let Some(settings) = webview.settings() {
+        settings.set_user_agent(Some(
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        ));
+        settings.set_enable_javascript(true);
+        settings.set_enable_webgl(true);
+        settings.set_enable_media(true);
+        settings.set_javascript_can_open_windows_automatically(true);
+        settings.set_allow_modal_dialogs(true);
+        settings.set_enable_developer_extras(true);
+    }
 }
