@@ -49,7 +49,7 @@ fn main() {
             .collect();
 
         if urls.is_empty() {
-            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some("https://www.rust-lang.org"));
+            let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), None);
         } else {
             for url in urls {
                 let _win = build_window(app, cfg.clone(), session_mgr.clone(), history_mgr.clone(), Some(url));
