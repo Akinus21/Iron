@@ -144,6 +144,11 @@ fn build_window(
     configure_webview_settings(&webview);
     session_mgr.borrow().configure_session(&webview);
 
+    // ---- Web process crash monitor — log when renderer dies (often follows black screen) ----
+    webview.connect_web_process_terminated(|_wv, reason| {
+        eprintln!("Web process terminated: {:?}", reason);
+    });
+
     // ---- History tracking ----
     let _wv_hist = webview.clone();
     let hist_mgr_clone = history_mgr.clone();
@@ -1102,5 +1107,8 @@ fn configure_webview_settings(webview: &webkit6::WebView) {
         settings.set_javascript_can_open_windows_automatically(true);
         settings.set_allow_modal_dialogs(true);
         settings.set_enable_developer_extras(true);
+        // Disable GPU-accelerated compositing on nvidia/wayland WebKit's
+        // compositor can blank the view after idle time (GTK4 bug).
+        settings.set_hardware_acceleration_policy(webkit6::HardwareAccelerationPolicy::Never);
     }
 }
