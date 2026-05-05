@@ -31,7 +31,6 @@ use gtk4::{
     ListBoxRow, Orientation, Overlay, ScrolledWindow, SelectionMode, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
-use webkit6::prelude::*;
 
 fn main() {
     let app = adw::Application::new(
@@ -1026,22 +1025,5 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
 /// Configure WebView settings for maximum compatibility with modern sites.
 /// Spoofs Chrome's UA so SPAs like claude.ai don't block us, and enables
 /// JavaScript, WebGL, and media features that most sites depend on.
-fn configure_webview_settings(webview: &webkit6::WebView) {
-    if let Some(settings) = webkit6::prelude::WebViewExt::settings(webview) {
-        settings.set_user_agent(Some(
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        ));
-        settings.set_enable_javascript(true);
-        settings.set_enable_webgl(true);
-        settings.set_enable_media(true);
-        settings.set_javascript_can_open_windows_automatically(true);
-        settings.set_allow_modal_dialogs(true);
-        settings.set_enable_developer_extras(true);
-        settings.set_enable_media_stream(true);
-        settings.set_enable_mediasource(true);
-        // Disable GPU-accelerated compositing on nvidia/wayland WebKit's
-        // compositor can blank the view after idle time (GTK4 bug).
-        settings.set_hardware_acceleration_policy(webkit6::HardwareAccelerationPolicy::Never);
-    }
-}
+// Note: CEF configuration is handled in cef_init.rs
+// CEF uses Chrome/131 UA by default, JavaScript/WebGL/media enabled by default

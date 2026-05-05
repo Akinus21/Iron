@@ -1,10 +1,9 @@
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
-use adw::prelude::*;
-use webkit6::prelude::*;
-use webkit6::{UserContentInjectedFrames, UserStyleLevel, UserStyleSheet};
+use gtk4::{self, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
+use gtk4::prelude::{RootExt, StyleContextExt};
 
 /// Convert a 6-char hex colour like "#1e1e1e" into an rgba() string with the given opacity.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
@@ -191,26 +190,18 @@ impl ThemeManager {
         }
     }
 
-    pub fn apply_webkit_css(&self, webview: &webkit6::WebView) {
+    pub fn apply_webkit_css(&self, webview: &crate::cef_browser::CefBrowserWrapper) {
         if self.webkit_css.is_empty() {
             return;
         }
-        if let Some(cm) = webview.user_content_manager() {
-            cm.remove_all_style_sheets();
-            let stylesheet = UserStyleSheet::new(
-                &self.webkit_css,
-                UserContentInjectedFrames::AllFrames,
-                UserStyleLevel::User,
-                &[],
-                &[],
-            );
-            cm.add_style_sheet(&stylesheet);
-        }
+        // TODO: Inject CSS into CEF via execute_javascript
+        // For now, just log that we would inject CSS
+        eprintln!("Noctalia: Would inject WebKit CSS ({} chars)", self.webkit_css.len());
     }
 
     pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
-        webview: &webkit6::WebView,
+        _webview: &crate::cef_browser::CefBrowserWrapper,
         provider: &gtk4::CssProvider,
     ) {
         let theme_path = {

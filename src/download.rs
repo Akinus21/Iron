@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gio::{Notification, prelude::*};
-use webkit6::prelude::*;
+
+use crate::cef_browser::CefBrowserWrapper;
 
 pub struct DownloadItem {
     pub filename: String,
@@ -21,65 +22,17 @@ impl DownloadManager {
         DownloadManager { items: Vec::new() }
     }
 
-    pub fn attach(view: &webkit6::WebView, mgr: Rc<RefCell<DownloadManager>>) {
-        let Some(session) = view.network_session() else { return; };
-
-        session.connect_download_started(move |_sess, dl| {
-            let suggested = dl
-                .request()
-                .and_then(|r| r.uri().map(|u| u.to_string()))
-                .and_then(|uri| uri.rsplit_once('/').map(|(_, name)| name.to_string()))
-                .unwrap_or_else(|| "download.bin".to_string());
-
-            let dest_dir = dirs::download_dir()
-                .or_else(|| dirs::home_dir().map(|h| h.join("Downloads")))
-                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-
-            let safe_name = sanitize_filename(&suggested);
-            let path = dest_dir.join(&safe_name);
-
-            let final_path = uniquify(&path);
-            let path_str = final_path.to_string_lossy().to_string();
-
-            dl.set_allow_overwrite(true);
-            dl.set_destination(&path_str);
-
-            let item = DownloadItem {
-                filename: safe_name.clone(),
-                path: path_str.clone(),
-                done: false,
-                failed: false,
-                progress: 0.0,
-            };
-            mgr.borrow_mut().items.push(item);
-            let idx = mgr.borrow().items.len().saturating_sub(1);
-
-            let mgr_prog = mgr.clone();
-            dl.connect_estimated_progress_notify(move |dl| {
-                let p = dl.estimated_progress();
-                if let Some(it) = mgr_prog.borrow_mut().items.get_mut(idx) {
-                    it.progress = p.clamp(0.0, 1.0);
-                }
-            });
-
-            let safe_name_fail = safe_name.clone();
-            let mgr_fail = mgr.clone();
-            dl.connect_failed(move |_dl, _err| {
-                if let Some(it) = mgr_fail.borrow_mut().items.get_mut(idx) {
-                    it.failed = true;
-                }
-                eprintln!("Download failed: {}", safe_name_fail);
-            });
-
-            let mgr_done = mgr.clone();
-            dl.connect_finished(move |_dl| {
-                if let Some(it) = mgr_done.borrow_mut().items.get_mut(idx) {
-                    it.done = true;
-                    it.progress = 1.0;
-                }
-                notify_download_complete(&safe_name, &path_str);
-            });
-        });
+    /// Attach download handler to CEF browser
+    /// 
+    /// Note: Full CEF download implementation requires CefDownloadHandler
+    /// This is a placeholder for now
+    pub fn attach(_browser: &CefBrowserWrapper, _mgr: Rc<RefCell<DownloadManager>>) {
+        // TODO: When CEF is fully integrated:
+        // - Implement CefDownloadHandler trait
+        // - Set handler via CefClient
+        // - Handle OnBeforeDownload, OnDownloadUpdated, OnDownloadStateChanged
+        
+        eprintln!("Download handler attached (placeholder - full implementation pending CEF integration)");
     }
 
     pub fn recent(&self, limit: usize) -> Vec<&DownloadItem> {
