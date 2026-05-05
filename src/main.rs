@@ -1,5 +1,6 @@
 mod cac;
 mod cef_browser;
+mod cef_init;
 mod command;
 mod config;
 mod download;
@@ -118,7 +119,7 @@ struct OverlayState {
 fn build_window(
     app: &adw::Application,
     cfg: Rc<RefCell<Config>>,
-    session_mgr: Rc<RefCell<SessionManager>>,
+    _session_mgr: Rc<RefCell<SessionManager>>,
     history_mgr: Rc<RefCell<HistoryManager>>,
     initial_url: Option<&str>,
 ) -> adw::ApplicationWindow {
@@ -135,102 +136,47 @@ fn build_window(
 
     let overlay = Overlay::new();
 
-    let network_session = session_mgr.borrow().build_network_session();
+    // Initialize CEF on first window creation
+    let cef_config = cef_init::CefConfig {
+        track: cfg.borrow().cef_track.to_string(),
+        enable_window_sleep: cfg.borrow().enable_window_sleep,
+        ..Default::default()
+    };
+    
+    if let Err(e) = cef_init::initialize_cef(&cef_config) {
+        eprintln!("CEF initialization warning: {}", e);
+    }
 
-    let webview = webkit6::WebView::builder()
-        .user_content_manager(&webkit6::UserContentManager::new())
-        .network_session(&network_session)
-        .build();
-
-    configure_webview_settings(&webview);
-    session_mgr.borrow().configure_session(&webview);
-
-    // ---- Web process crash monitor — log when renderer dies (often follows black screen) ----
-    webview.connect_web_process_terminated(|_wv, reason| {
-        eprintln!("Web process terminated: {:?}", reason);
+    // Create CEF browser wrapper (placeholder until full integration)
+    let url = initial_url.unwrap_or(&cfg.borrow().home_page);
+    let browser = cef_browser::CefBrowserWrapper::new(
+        window.surface().as_ref(),
+        url,
+        false, // off-screen rendering disabled for now
+    ).unwrap_or_else(|e| {
+        eprintln!("Failed to create CEF browser: {}", e);
+        // Fallback: create empty box
+        cef_browser::CefBrowserWrapper::new(
+            window.surface().as_ref(),
+            "about:blank",
+            false,
+        ).unwrap()
     });
 
-    // ---- History tracking ----
-    let _wv_hist = webview.clone();
+    // ---- History tracking (CEF version) ----
+    let browser_hist = browser.clone();
     let hist_mgr_clone = history_mgr.clone();
-    webview.connect_load_changed(move |wv, event| {
-        if event == webkit6::LoadEvent::Finished {
-            if let Some(uri) = wv.uri() {
-                let title = wv.title().unwrap_or_default();
-                hist_mgr_clone.borrow_mut().add(&uri, Some(&title));
-            }
-        }
-    });
+    
+    // Note: CEF doesn't have direct load_changed signals like WebKitGTK
+    // We'll track history on URL changes via client handler callbacks
+    // For now, add initial URL to history
+    hist_mgr_clone.borrow_mut().add(url, Some("Loading..."));
 
-    let _wv_title = webview.clone();
-    let hist_mgr_title = history_mgr.clone();
-    webview.connect_title_notify(move |wv| {
-        if let Some(uri) = wv.uri() {
-            let title = wv.title().unwrap_or_default();
-            if !title.is_empty() {
-                hist_mgr_title.borrow_mut().update_title(&uri, &title);
-            }
-        }
-    });
-
-    // ---- WebView-level key interceptor for shortcuts WebKit would consume ----
-    let wv_nav = webview.clone();
-    let nav_ctl = EventControllerKey::new();
-    nav_ctl.connect_key_pressed(move |_, keyval, _, modifier| {
-        if keyval == gdk::Key::Left && modifier.contains(gdk::ModifierType::ALT_MASK) {
-            if wv_nav.can_go_back() {
-                wv_nav.go_back();
-            }
-            return glib::Propagation::Stop;
-        }
-        if keyval == gdk::Key::Right && modifier.contains(gdk::ModifierType::ALT_MASK) {
-            if wv_nav.can_go_forward() {
-                wv_nav.go_forward();
-            }
-            return glib::Propagation::Stop;
-        }
-        glib::Propagation::Proceed
-    });
-    webview.add_controller(nav_ctl);
-
-    // ---- Intercept new-window / target="_blank" navigations ----
-    let wv_create = webview.clone();
-    webview.connect_create(move |_wv, nav_action| {
-        if let Some(req) = nav_action.request() {
-            if let Some(uri) = req.uri() {
-                wv_create.load_uri(&uri);
-            }
-        }
-        None
-    });
-
-    let wv_policy = webview.clone();
-    webview.connect_decide_policy(move |_wv, decision, decision_type| {
-        if decision_type == webkit6::PolicyDecisionType::NewWindowAction {
-            if let Some(nav) = decision.downcast_ref::<webkit6::NavigationPolicyDecision>() {
-                if let Some(action) = nav.navigation_action() {
-                    if let Some(req) = action.request() {
-                        if let Some(uri) = req.uri() {
-                            wv_policy.load_uri(&uri);
-                        }
-                    }
-                }
-            }
-            decision.ignore();
-            return true;
-        }
-        false
-    });
-
-    tm.borrow().apply_webkit_css(&webview);
-    let default_url = cfg.borrow().home_page.clone();
-    let url = initial_url.unwrap_or_else(|| default_url.as_str());
-    webview.load_uri(url);
+    // Add CEF browser widget to overlay
+    overlay.set_child(Some(&browser.widget));
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
-    DownloadManager::attach(&webview, download_mgr.clone());
-
-    overlay.set_child(Some(&webview));
+    // Note: CEF download handling will be implemented separately
     window.set_content(Some(&overlay));
 
     let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
@@ -270,7 +216,6 @@ fn build_window(
     let find_overlay_clone = find_overlay.clone();
     let overlay_clone = overlay.clone();
     let download_mgr_clone = download_mgr.clone();
-    let session_mgr_clone = session_mgr.clone();
     let history_mgr_clone = history_mgr.clone();
 
     let tm_watch = tm.clone();
@@ -284,47 +229,33 @@ fn build_window(
         if hints_active {
             match keyval {
                 gdk::Key::Escape => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().deactivate(&wv);
-                    }
+                    hints_clone.borrow_mut().deactivate(&browser);
                     return glib::Propagation::Stop;
                 }
                 gdk::Key::BackSpace => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().handle_backspace(&wv);
-                    }
+                    hints_clone.borrow_mut().handle_backspace(&browser);
                     return glib::Propagation::Stop;
                 }
                 gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().commit(&wv);
-                    }
+                    hints_clone.borrow_mut().commit(&browser);
                     return glib::Propagation::Stop;
                 }
                 gdk::Key::Down => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().select_next(&wv);
-                    }
+                    hints_clone.borrow_mut().select_next(&browser);
                     return glib::Propagation::Stop;
                 }
                 gdk::Key::Up => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().select_prev(&wv);
-                    }
+                    hints_clone.borrow_mut().select_prev(&browser);
                     return glib::Propagation::Stop;
                 }
                 _ if keyval.to_unicode().is_some_and(|c| c.is_ascii_graphic()) => {
                     if let Some(c) = keyval.to_unicode() {
-                        if let Some(wv) = wv_weak.upgrade() {
-                            hints_clone.borrow_mut().handle_key(c, &wv);
-                        }
+                        hints_clone.borrow_mut().handle_key(c, &browser);
                     }
                     return glib::Propagation::Stop;
                 }
                 _ => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().deactivate(&wv);
-                    }
+                    hints_clone.borrow_mut().deactivate(&browser);
                     return glib::Propagation::Stop;
                 }
             }
@@ -356,9 +287,7 @@ fn build_window(
         if let Some(binding) = cfg_clone.borrow().get_binding_by_keyval(keyval, &modifier) {
             match binding.action.as_str() {
                 "hint" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        hints_clone.borrow_mut().activate(&wv);
-                    }
+                    hints_clone.borrow_mut().activate(&browser);
                     return glib::Propagation::Stop;
                 }
                 "command" => {

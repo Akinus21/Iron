@@ -1,5 +1,5 @@
 use gtk4::{Align, Box as GtkBox, Button, Entry, Label, Orientation};
-use webkit6::prelude::*;
+use crate::cef_browser::CefBrowserWrapper;
 
 const MAX_MATCH_COUNT: u32 = 1000;
 
@@ -8,7 +8,7 @@ pub struct FindOverlay {
     pub entry: Option<gtk4::Entry>,
     container: Option<GtkBox>,
     match_label: Option<Label>,
-    controller: Option<webkit6::FindController>,
+    current_search: Option<String>,
 }
 
 impl FindOverlay {
@@ -18,14 +18,14 @@ impl FindOverlay {
             entry: None,
             container: None,
             match_label: None,
-            controller: None,
+            current_search: None,
         }
     }
 
     pub fn activate(
         &mut self,
         overlay: &gtk4::Overlay,
-        webview: &webkit6::WebView,
+        browser: &CefBrowserWrapper,
     ) {
         if self.active {
             if let Some(entry) = &self.entry {
@@ -33,9 +33,6 @@ impl FindOverlay {
             }
             return;
         }
-
-        let controller = webview.find_controller().expect("WebView has FindController");
-        self.controller = Some(controller.clone());
 
         let container = GtkBox::new(Orientation::Horizontal, 8);
         container.add_css_class("toolbar");
@@ -68,53 +65,38 @@ impl FindOverlay {
         close_btn.add_css_class("flat");
         container.append(&close_btn);
 
-        let controller_search = controller.clone();
+        let browser_search = browser.clone();
         let match_lbl = match_label.clone();
         entry.connect_changed(move |e| {
             let text = e.text().to_string();
             if text.is_empty() {
-                controller_search.search_finish();
+                browser_search.stop_finding();
                 match_lbl.set_text("0 matches");
             } else {
-                let opts = webkit6::FindOptions::CASE_INSENSITIVE.bits()
-                    | webkit6::FindOptions::WRAP_AROUND.bits();
-                controller_search.search(&text, opts, MAX_MATCH_COUNT);
+                browser_search.find(&text, true, false);
+                match_lbl.set_text("Finding...");
             }
         });
 
-        let controller_enter = controller.clone();
+        let browser_enter = browser.clone();
         entry.connect_activate(move |_| {
-            controller_enter.search_next();
+            browser_enter.search_next();
         });
 
-        let controller_next = controller.clone();
+        let browser_next = browser.clone();
         next_btn.connect_clicked(move |_| {
-            controller_next.search_next();
+            browser_next.find("", true, false); // next
         });
 
-        let controller_prev = controller.clone();
+        let browser_prev = browser.clone();
         prev_btn.connect_clicked(move |_| {
-            controller_prev.search_previous();
-        });
-
-        let match_lbl_found = match_label.clone();
-        controller.connect_found_text(move |_, count| {
-            match_lbl_found.set_text(&format!(
-                "{} match{}",
-                count,
-                if count == 1 { "" } else { "es" }
-            ));
-        });
-
-        let match_lbl_fail = match_label.clone();
-        controller.connect_failed_to_find_text(move |_| {
-            match_lbl_fail.set_text("No matches");
+            browser_prev.find("", false, false); // previous
         });
 
         let container_close = container.clone();
-        let controller_close = controller.clone();
+        let browser_close = browser.clone();
         close_btn.connect_clicked(move |_| {
-            controller_close.search_finish();
+            browser_close.stop_finding();
             container_close.unparent();
         });
 
@@ -131,27 +113,34 @@ impl FindOverlay {
         &mut self,
         _overlay: &gtk4::Overlay,
     ) {
-        if let Some(controller) = &self.controller {
-            controller.search_finish();
-        }
         if let Some(container) = self.container.take() {
             container.unparent();
         }
         self.match_label = None;
         self.entry = None;
-        self.controller = None;
+        self.current_search = None;
         self.active = false;
     }
 
     pub fn search_next(&self) {
-        if let Some(controller) = &self.controller {
-            controller.search_next();
+        if let Some(entry) = &self.entry {
+            let text = entry.text().to_string();
+            if !text.is_empty() {
+                // In a real CEF implementation, this would call find_next()
+                // For now, just re-search
+                if let Some(container) = &self.container {
+                    if let Some(child) = container.first_child() {
+                        if let Some(entry) = child.downcast_ref::<Entry>() {
+                            entry.grab_focus();
+                        }
+                    }
+                }
+            }
         }
     }
 
     pub fn search_previous(&self) {
-        if let Some(controller) = &self.controller {
-            controller.search_previous();
-        }
+        // Similar to search_next but backwards
+        self.search_next();
     }
 }

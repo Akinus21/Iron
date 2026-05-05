@@ -1,5 +1,4 @@
-use gio::Cancellable;
-use webkit6::{glib::Error as JsError, javascriptcore::Value as JsValue, WebView, prelude::WebViewExt};
+use crate::cef_browser::CefBrowserWrapper;
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 /// Supports:
@@ -181,104 +180,58 @@ impl HintManager {
     }
 
     /// Inject hints into the page and start capture.
-    pub fn activate(&mut self, webview: &WebView) {
+    pub fn activate(&mut self, browser: &CefBrowserWrapper) {
         if self.active {
-            self.deactivate(webview);
+            self.deactivate(browser);
         }
         self.active = true;
         self.typed.clear();
-        webview.evaluate_javascript(
-            HINT_JS_MODULE,
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
-        webview.evaluate_javascript(
-            "__iron_hints_activate(); window.__iron_hints_typed = '';",
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
+        browser.execute_javascript(HINT_JS_MODULE);
+        browser.execute_javascript("__iron_hints_activate(); window.__iron_hints_typed = '';");
     }
 
     /// Append `c` to the typed prefix and filter visible hints.
     /// Auto-clicks + deactivates if only one hint matches.
-    pub fn handle_key(&mut self, c: char, webview: &WebView) {
+    pub fn handle_key(&mut self, c: char, browser: &CefBrowserWrapper) {
         self.typed.push(c);
-        webview.evaluate_javascript(
+        browser.execute_javascript(
             &format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed),
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
         );
     }
 
     /// Pop the last typed character and re-filter.
-    pub fn handle_backspace(&mut self, webview: &WebView) {
+    pub fn handle_backspace(&mut self, browser: &CefBrowserWrapper) {
         if self.typed.pop().is_some() {
             let js = if self.typed.is_empty() {
                 "window.__iron_hints_typed = ''; __iron_hints_filter('');".to_string()
             } else {
                 format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed)
             };
-            webview.evaluate_javascript(
-                &js,
-                None::<&str>,
-                None::<&str>,
-                None::<&Cancellable>,
-                |_: Result<JsValue, JsError>| {},
-            );
+            browser.execute_javascript(&js);
         }
     }
 
     /// Move selection to the next visible hint.
-    pub fn select_next(&mut self, webview: &WebView) {
-        webview.evaluate_javascript(
-            "__iron_hints_select_next();",
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
+    pub fn select_next(&mut self, browser: &CefBrowserWrapper) {
+        browser.execute_javascript("__iron_hints_select_next();");
     }
 
     /// Move selection to the previous visible hint.
-    pub fn select_prev(&mut self, webview: &WebView) {
-        webview.evaluate_javascript(
-            "__iron_hints_select_prev();",
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
+    pub fn select_prev(&mut self, browser: &CefBrowserWrapper) {
+        browser.execute_javascript("__iron_hints_select_prev();");
     }
 
     /// Commit the current selection (click it), or click the single visible hint.
-    pub fn commit(&mut self, webview: &WebView) {
+    pub fn commit(&mut self, browser: &CefBrowserWrapper) {
         self.active = false;
-        webview.evaluate_javascript(
-            "__iron_hints_commit();",
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
+        browser.execute_javascript("__iron_hints_commit();");
         self.typed.clear();
     }
 
     /// Remove all hint overlays and exit hint mode.
-    pub fn deactivate(&mut self, webview: &WebView) {
+    pub fn deactivate(&mut self, browser: &CefBrowserWrapper) {
         self.active = false;
         self.typed.clear();
-        webview.evaluate_javascript(
-            "__iron_hints_deactivate();",
-            None::<&str>,
-            None::<&str>,
-            None::<&Cancellable>,
-            |_: Result<JsValue, JsError>| {},
-        );
+        browser.execute_javascript("__iron_hints_deactivate();");
     }
 }
