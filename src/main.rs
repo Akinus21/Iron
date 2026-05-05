@@ -1022,7 +1022,7 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
     Ok(dest)
 }
 
-/// Configure WebView settings for maximum compatibility with modern sites.
+// Note: CEF configuration is handled in cef_init.rs
 /// Spoofs Chrome's UA so SPAs like claude.ai don't block us, and enables
 /// JavaScript, WebGL, and media features that most sites depend on.
 // Note: CEF configuration is handled in cef_init.rs
