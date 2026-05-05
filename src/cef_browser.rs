@@ -16,6 +16,7 @@ static BROWSER_REGISTRY: Lazy<Arc<RefCell<HashMap<u64, CefBrowserWrapper>>>> =
     Lazy::new(|| Arc::new(RefCell::new(HashMap::new())));
 
 /// CEF Browser wrapper that integrates with GTK4
+#[derive(Clone)]
 pub struct CefBrowserWrapper {
     /// The GTK widget containing the CEF browser
     pub widget: Widget,

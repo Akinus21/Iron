@@ -35,8 +35,28 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libadwaita-1-dev \
-            libwebkitgtk-6.0-dev \
+            cmake \
             jq
+
+      - name: Download CEF binary distribution
+        run: |
+          # Download CEF for Linux (stable branch)
+          CEF_VERSION="147.1.0+147.0.10"
+          CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64.tar.bz2"
+          
+          echo "Downloading CEF ${CEF_VERSION}..."
+          curl -L -o cef.tar.bz2 "${CEF_URL}"
+          
+          # Extract to /opt/cef
+          sudo mkdir -p /opt/cef
+          sudo tar -xjf cef.tar.bz2 -C /opt/cef --strip-components=1
+          
+          # Set environment variable for build script
+          echo "CEF_DIR=/opt/cef" >> $GITHUB_ENV
+          
+          # Verify extraction
+          ls -la /opt/cef/Release/
+          echo "CEF binary installed at /opt/cef"
 
       - name: Clear cargo cache
         run: rm -rf ~/.cargo/registry ~/.cargo/git target
