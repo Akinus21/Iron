@@ -89,8 +89,8 @@ impl SessionManager {
             if let Some(path) = self.cookie_file.to_str() {
                 cm.set_persistent_storage(path, CookiePersistentStorage::Sqlite);
             }
-            // Reject third-party cookies outright (privacy by default)
-            cm.set_accept_policy(CookieAcceptPolicy::OnlyFromMainDocumentDomain);
+            // Allow all cookies (required for CAPTCHAs like Cloudflare Turnstile, reCAPTCHA, hCaptcha)
+            cm.set_accept_policy(CookieAcceptPolicy::Always);
         }
 
         // ---- Credentials ----
