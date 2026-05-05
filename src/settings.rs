@@ -20,6 +20,7 @@ pub fn show_settings_overlay(
     full.add_css_class("background");
     full.set_halign(Align::Fill);
     full.set_valign(Align::Fill);
+    full.set_focusable(true);
 
     // --- Title ---
     let title = Label::new(Some("Settings"));
