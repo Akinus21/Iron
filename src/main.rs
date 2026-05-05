@@ -1100,7 +1100,7 @@ fn configure_webview_settings(webview: &webkit6::WebView) {
     if let Some(settings) = webkit6::prelude::WebViewExt::settings(webview) {
         settings.set_user_agent(Some(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+             (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Iron/1.0",
         ));
         settings.set_enable_javascript(true);
         settings.set_enable_webgl(true);
@@ -1108,6 +1108,8 @@ fn configure_webview_settings(webview: &webkit6::WebView) {
         settings.set_javascript_can_open_windows_automatically(true);
         settings.set_allow_modal_dialogs(true);
         settings.set_enable_developer_extras(true);
+        settings.set_enable_media_stream(true);
+        settings.set_enable_mediasource(true);
         // Disable GPU-accelerated compositing on nvidia/wayland WebKit's
         // compositor can blank the view after idle time (GTK4 bug).
         settings.set_hardware_acceleration_policy(webkit6::HardwareAccelerationPolicy::Never);

@@ -90,7 +90,7 @@ impl SessionManager {
                 cm.set_persistent_storage(path, CookiePersistentStorage::Sqlite);
             }
             // Reject third-party cookies outright (privacy by default)
-            cm.set_accept_policy(CookieAcceptPolicy::NoThirdParty);
+            cm.set_accept_policy(CookieAcceptPolicy::OnlyFromMainDocumentDomain);
         }
 
         // ---- Credentials ----
