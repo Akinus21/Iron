@@ -1,4 +1,5 @@
 mod cac;
+mod cef_browser;
 mod command;
 mod config;
 mod download;

@@ -16,6 +16,22 @@ pub struct Mode {
     pub bindings: Vec<KeyBinding>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Default, PartialEq)]
+pub enum CefTrack {
+    #[default]
+    Stable,
+    Nightly,
+}
+
+impl std::fmt::Display for CefTrack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CefTrack::Stable => write!(f, "stable"),
+            CefTrack::Nightly => write!(f, "nightly"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
@@ -24,6 +40,14 @@ pub struct Config {
     pub search: EngineRegistry,
     #[serde(default = "default_home_page")]
     pub home_page: String,
+    #[serde(default)]
+    pub cef_track: CefTrack,
+    #[serde(default = "default_true")]
+    pub enable_window_sleep: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_home_page() -> String {
@@ -205,6 +229,8 @@ impl Default for Config {
             },
             search: crate::search::EngineRegistry::default(),
             home_page: default_home_page(),
+            cef_track: CefTrack::default(),
+            enable_window_sleep: true,
         }
     }
 }

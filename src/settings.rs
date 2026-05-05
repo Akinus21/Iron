@@ -38,6 +38,66 @@ pub fn show_settings_overlay(
     content.set_margin_end(80);
     content.set_margin_bottom(24);
 
+    // Section: CEF Track (browser engine update channel)
+    let cef_title = Label::new(Some("Browser Engine"));
+    cef_title.add_css_class("title-2");
+    cef_title.set_halign(Align::Start);
+    content.append(&cef_title);
+    
+    let cef_desc = Label::new(Some("Choose between stable (quarterly updates) or nightly (latest Chromium)"));
+    cef_desc.add_css_class("caption");
+    cef_desc.set_halign(Align::Start);
+    content.append(&cef_desc);
+    
+    let cef_row = GtkBox::new(Orientation::Horizontal, 8);
+    cef_row.set_margin_top(8);
+    
+    let cef_track_combo = gtk4::DropDown::new(
+        Some(&gtk4::StringList::new(&["Stable (Recommended)", "Nightly (Latest)"])),
+        None::<&gtk4::Expression>,
+    );
+    cef_track_combo.set_hexpand(true);
+    cef_track_combo.set_selected(if config.borrow().cef_track == crate::config::CefTrack::Nightly { 1 } else { 0 });
+    
+    let config_cef = config.clone();
+    cef_track_combo.connect_selected_item_notify(move |combo| {
+        let mut cfg = config_cef.borrow_mut();
+        cfg.cef_track = if combo.selected() == 1 {
+            crate::config::CefTrack::Nightly
+        } else {
+            crate::config::CefTrack::Stable
+        };
+        let _ = cfg.save();
+    });
+    
+    cef_row.append(&cef_track_combo);
+    content.append(&cef_row);
+    
+    // Section: Window Sleep Mode
+    let sleep_title = Label::new(Some("Window Sleep Mode"));
+    sleep_title.add_css_class("title-2");
+    sleep_title.set_halign(Align::Start);
+    content.append(&sleep_title);
+    
+    let sleep_desc = Label::new(Some("Automatically suspend inactive windows after 15 minutes to save memory"));
+    sleep_desc.add_css_class("caption");
+    sleep_desc.set_halign(Align::Start);
+    content.append(&sleep_desc);
+    
+    let sleep_switch = gtk4::Switch::new();
+    sleep_switch.set_active(config.borrow().enable_window_sleep);
+    sleep_switch.set_halign(Align::Start);
+    sleep_switch.set_margin_top(8);
+    
+    let config_sleep = config.clone();
+    sleep_switch.connect_active_notify(move |switch| {
+        let mut cfg = config_sleep.borrow_mut();
+        cfg.enable_window_sleep = switch.is_active();
+        let _ = cfg.save();
+    });
+    
+    content.append(&sleep_switch);
+    
     // Section: Home page
     let home_title = Label::new(Some("Home Page"));
     home_title.add_css_class("title-2");
