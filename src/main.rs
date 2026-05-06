@@ -147,7 +147,9 @@ fn build_window(
     }
 
     // Create CEF browser wrapper (placeholder until full integration)
-    let url = initial_url.unwrap_or(&cfg.borrow().home_page);
+    let cfg_ref = cfg.borrow();
+    let url = initial_url.unwrap_or(&cfg_ref.home_page);
+    drop(cfg_ref);
     let surface = window.surface().expect("Window must have a surface");
     let browser = cef_browser::CefBrowserWrapper::new(
         &surface,
@@ -222,6 +224,7 @@ fn build_window(
     let tm_watch = tm.clone();
     let noctalia_provider_watch = noctalia_provider.clone();
 
+    let browser_watch = browser.clone();
     let key_ctl = EventControllerKey::new();
     key_ctl.connect_key_pressed(move |_, keyval, _keycode, modifier| {
         let hints_active = hints_clone.borrow().active;
@@ -774,7 +777,7 @@ fn build_window(
     window.add_controller(key_ctl);
 
     window.present();
-    ThemeManager::start_watch(tm_watch, &browser, &noctalia_provider_watch);
+    ThemeManager::start_watch(tm_watch, &browser_watch, &noctalia_provider_watch);
     window
 }
 
