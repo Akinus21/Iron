@@ -180,7 +180,7 @@ jobs:
       - name: Update homebrew tap
         if: steps.build_release.outcome == 'success'
         env:
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config --global user.email "iron-bot@akinus21.com"
           git config --global user.name "Iron Bot"
@@ -194,9 +194,9 @@ jobs:
 
           if [ -d "$TAP_DIR" ]; then
             cd "$TAP_DIR"
-            git pull origin main
+            git pull origin master
           else
-            git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" "$TAP_DIR"
+            git clone "https://x-access-token:${GH_TOKEN}@github.com/${TAP_REPO}.git" "$TAP_DIR"
             cd "$TAP_DIR"
           fi
 
@@ -211,7 +211,7 @@ jobs:
 
           git add Formula/iron.rb
           git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
-          git push || echo "Nothing to push"
+          git push origin master
 
       - name: Notify webhook on failure
         if: failure() && github.ref == 'refs/heads/main'
