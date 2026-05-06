@@ -202,7 +202,7 @@ jobs:
 
           mkdir -p Formula
 
-          cat > Formula/iron.rb <<EOF
+          cat > Formula/iron.rb <<-EOF
 class Iron < Formula
   desc "GTK4 keyboard-driven web browser for BlueAK"
   homepage "https://github.com/Akinus21/Iron"

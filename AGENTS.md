@@ -72,7 +72,7 @@ Because the `gh` CLI is not authenticated on the runner, push via SSH directly:
 cd /home/akinus/dockge-stacks/dev-stack/projects/Iron
 git add -A
 git commit -m "<description>"
-GIT_SSH_COMMAND="ssh -i /home/akinus/.ssh/github -o StrictHostKeyChecking=no" \
+GIT_SSH_COMMAND="ssh -i /config/.ssh/github -o StrictHostKeyChecking=no" \
     git push origin main
 ```
 
