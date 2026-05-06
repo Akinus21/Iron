@@ -216,15 +216,21 @@ impl ThemeManager {
     ) {
         let theme_path = {
             let tm_ref = tm.borrow();
+            eprintln!("Noctalia: start_watch theme_path={:?}", tm_ref.theme_path);
             tm_ref.theme_path.clone()
         };
 
         let watch_dir = match theme_path.as_ref() {
             Some(path) => path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| path.clone()),
-            None => return,
+            None => {
+                eprintln!("Noctalia: no theme_path, not watching");
+                return;
+            }
         };
 
+        eprintln!("Noctalia: watching dir={:?}", watch_dir);
         if !watch_dir.is_dir() {
+            eprintln!("Noctalia: watch_dir is not a directory");
             return;
         }
 
@@ -237,16 +243,10 @@ impl ThemeManager {
     let _provider = provider.clone();
     let _wv = _webview.clone();
     monitor.connect_changed(move |_monitor, child, _other, event_type| {
-        match event_type {
-            gio::FileMonitorEvent::ChangesDoneHint
-            | gio::FileMonitorEvent::Created
-            | gio::FileMonitorEvent::Renamed
-            | gio::FileMonitorEvent::AttributeChanged => {}
-            _ => return,
-        }
-
+        eprintln!("Noctalia: file changed event: {:?}", event_type);
         if let Some(child_path) = child.path() {
             let expected = theme_path.as_ref().map(|p| p.as_path());
+            eprintln!("Noctalia: changed path={:?}, expected={:?}", child_path.as_path(), expected);
             if Some(child_path.as_path()) == expected {
                 eprintln!("Noctalia: theme file changed, reloading...");
                 tm.borrow_mut().reload(theme_path.as_deref());
@@ -258,8 +258,10 @@ impl ThemeManager {
 }
 
     fn reload(&mut self, expected_path: Option<&Path>) {
+        eprintln!("Noctalia: reload called with path={:?}", expected_path);
         if let Some(path) = expected_path {
             let stored_path = self.theme_path.as_deref().unwrap_or(Path::new(""));
+            eprintln!("Noctalia: stored_path={:?}, expected={:?}", stored_path, path);
             if path == stored_path {
                 if read_file(path).is_some() {
                     self.load();
@@ -267,7 +269,11 @@ impl ThemeManager {
                 } else {
                     eprintln!("Noctalia: theme file {:?} missing, skipping reload", path);
                 }
+            } else {
+                eprintln!("Noctalia: path mismatch, not reloading");
             }
+        } else {
+            eprintln!("Noctalia: no expected_path, not reloading");
         }
     }
 }
