@@ -5,15 +5,25 @@ use std::rc::Rc;
 use gtk4::{self};
 use gtk4::prelude::{FileMonitorExt, FileExt};
 
-/// Convert a 6-char hex colour like "#1e1e1e" into an rgba() string with the given opacity.
+/// Convert a hex colour to an rgba() string with the given opacity.
+/// Handles 6-char ("#RRGGBB") and 8-char ("#RRGGBBAA") formats.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
     let t = hex.trim().trim_start_matches('#');
     if t.len() == 6 {
         if let (Ok(r), Ok(g), Ok(b)) = (u8::from_str_radix(&t[0..2], 16), u8::from_str_radix(&t[2..4], 16), u8::from_str_radix(&t[4..6], 16)) {
             return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha);
         }
+    } else if t.len() == 8 {
+        if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
+            u8::from_str_radix(&t[0..2], 16),
+            u8::from_str_radix(&t[2..4], 16),
+            u8::from_str_radix(&t[4..6], 16),
+            u8::from_str_radix(&t[6..8], 16),
+        ) {
+            let alpha_from_hex = a as f64 / 255.0;
+            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha_from_hex);
+        }
     }
-    // Fallback: return the original hex unchanged
     hex.to_string()
 }
 
