@@ -209,53 +209,47 @@ impl ThemeManager {
         eprintln!("Noctalia: Would inject WebKit CSS ({} chars)", self.webkit_css.len());
     }
 
-    pub fn start_watch(
+pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
         _webview: &crate::cef_browser::CefBrowserWrapper,
         provider: &gtk4::CssProvider,
     ) {
-        let theme_path = {
-            let tm_ref = tm.borrow();
-            eprintln!("Noctalia: start_watch theme_path={:?}", tm_ref.theme_path);
-            tm_ref.theme_path.clone()
-        };
-
-        let watch_dir = match theme_path.as_ref() {
-            Some(path) => path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| path.clone()),
+        let config_dir = match dirs::config_dir() {
+            Some(d) => d,
             None => {
-                eprintln!("Noctalia: no theme_path, not watching");
+                eprintln!("Noctalia: no config dir found");
                 return;
             }
         };
+        // Noctalia Shell stores active colors in colors.json in ~/.config/noctalia/
+        let noctalia_dir = config_dir.join("noctalia");
+        let colors_file_name = "colors.json";
 
-        eprintln!("Noctalia: watching dir={:?}", watch_dir);
-        if !watch_dir.is_dir() {
-            eprintln!("Noctalia: watch_dir is not a directory");
+        eprintln!("Noctalia: watching dir={:?} for {}", noctalia_dir, colors_file_name);
+        if !noctalia_dir.exists() {
+            eprintln!("Noctalia: noctalia config dir does not exist");
             return;
         }
 
-        let file = gio::File::for_path(&watch_dir);
+        let file = gio::File::for_path(&noctalia_dir);
         let Ok(monitor) = file.monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) else {
             eprintln!("Noctalia: failed to create directory monitor");
             return;
         };
 
-    let _provider = provider.clone();
-    let _wv = _webview.clone();
-    monitor.connect_changed(move |_monitor, child, _other, event_type| {
-        eprintln!("Noctalia: file changed event: {:?}", event_type);
-        if let Some(child_path) = child.path() {
-            let expected = theme_path.as_ref().map(|p| p.as_path());
-            eprintln!("Noctalia: changed path={:?}, expected={:?}", child_path.as_path(), expected);
-            if Some(child_path.as_path()) == expected {
-                eprintln!("Noctalia: theme file changed, reloading...");
-                tm.borrow_mut().reload(theme_path.as_deref());
-                tm.borrow().apply_gtk_css(&_provider);
-                eprintln!("Noctalia: theme reloaded and applied");
+        let _provider = provider.clone();
+        monitor.connect_changed(move |_monitor, child, _other, event_type| {
+            eprintln!("Noctalia: file changed event: {:?} -> {:?}", event_type, child.path());
+            if let Some(path) = child.path() {
+                if path.file_name().map(|n| n == colors_file_name).unwrap_or(false) {
+                    eprintln!("Noctalia: colors.json changed, reloading...");
+                    tm.borrow_mut().load();
+                    tm.borrow().apply_gtk_css(&_provider);
+                    eprintln!("Noctalia: theme reloaded");
+                }
             }
-        }
-    });
-}
+        });
+    }
 
     fn reload(&mut self, expected_path: Option<&Path>) {
         eprintln!("Noctalia: reload called with path={:?}", expected_path);
@@ -280,20 +274,12 @@ impl ThemeManager {
 
 fn find_active_theme() -> Option<PathBuf> {
     let config_dir = dirs::config_dir()?;
-    let schemes_dir = config_dir.join("noctalia").join("colorschemes");
-
-    let entries = std::fs::read_dir(&schemes_dir).ok()?;
-    for entry in entries.flatten() {
-        let theme_dir = entry.path();
-        if theme_dir.is_dir() {
-            let theme_name = theme_dir.file_name()?.to_str()?;
-            let json_path = theme_dir.join(format!("{}.json", theme_name));
-            if json_path.exists() {
-                return Some(json_path);
-            }
-        }
+    // Noctalia Shell writes active colors to colors.json in its config dir
+    // This is NOT the same as user color schemes in colorschemes/
+    let colors_file = config_dir.join("noctalia").join("colors.json");
+    if colors_file.exists() {
+        return Some(colors_file);
     }
-
     None
 }
 
