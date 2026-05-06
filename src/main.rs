@@ -210,13 +210,14 @@ fn build_window(
 
     let hints_clone = hints.clone();
     let cmd_overlay_clone = cmd_overlay.clone();
-    let wv_weak = browser.downgrade();
+    let browser_ref = browser.clone();
     let cfg_clone = cfg.clone();
     let app_clone = app.clone();
     let find_overlay_clone = find_overlay.clone();
     let overlay_clone = overlay.clone();
     let download_mgr_clone = download_mgr.clone();
     let history_mgr_clone = history_mgr.clone();
+    let session_mgr_clone = session_mgr.clone();
 
     let tm_watch = tm.clone();
     let noctalia_provider_watch = noctalia_provider.clone();
@@ -413,7 +414,7 @@ fn build_window(
                     rebuild_hist_list(&hist_list_widget, &recent, -1);
 
                     // ---- Clones for closures ----
-                    let wv_for_cmd = wv_weak.clone();
+                    let wv_for_cmd = browser_ref.clone();
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
                     let app_for_cmd = app_clone.clone();
@@ -477,150 +478,133 @@ fn build_window(
                         let text = e.text().to_string();
                         let input = CommandInput::new(&text);
                         if let Some(cmd) = input.parse() {
-                            if let Some(w) = wv_for_cmd.upgrade() {
-                                match cmd {
-                                    command::Command::Open(url) => w.load_uri(&url),
-                                    command::Command::Back => { if w.can_go_back() { w.go_back(); } }
-                                    command::Command::Forward => { if w.can_go_forward() { w.go_forward(); } }
-                                    command::Command::Reload => w.reload(),
-                                    command::Command::Duplicate => {
-                                        let url = w.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
+                            match cmd {
+                                command::Command::Open(url) => wv_for_cmd.load_uri(&url),
+                                command::Command::Back => { if wv_for_cmd.can_go_back() { wv_for_cmd.go_back(); } }
+                                command::Command::Forward => { if wv_for_cmd.can_go_forward() { wv_for_cmd.go_forward(); } }
+                                command::Command::Reload => wv_for_cmd.reload(),
+                                command::Command::Duplicate => {
+                                    let url = wv_for_cmd.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                                    let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
+                                }
+                                command::Command::CopyAddress => {
+                                    let url = wv_for_cmd.uri().map(|u| u.to_string()).unwrap_or_default();
+                                    if !url.is_empty() {
+                                        if let Some(d) = gdk::Display::default() {
+                                            d.clipboard().set_text(&url);
+                                        }
                                     }
-                                    command::Command::CopyAddress => {
-                                        let url = w.uri().map(|u| u.to_string()).unwrap_or_default();
-                                        if !url.is_empty() {
-                                            if let Some(d) = gdk::Display::default() {
-                                                d.clipboard().set_text(&url);
+                                }
+                                command::Command::Settings => {
+                                    let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
+                                    settings_box.grab_focus();
+                                    let settings_key_ctl = EventControllerKey::new();
+                                    let settings_box_esc = settings_box.clone();
+                                    settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
+                                        if k == gdk::Key::Escape {
+                                            settings_box_esc.unparent();
+                                            return glib::Propagation::Stop;
+                                        }
+                                        glib::Propagation::Proceed
+                                    });
+                                    settings_box.add_controller(settings_key_ctl);
+                                }
+                                command::Command::NewWindowOpen(url) => {
+                                    let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
+                                }
+                                command::Command::SetDefaultBrowser => {
+                                    match ensure_local_desktop_file() {
+                                        Ok(_path) => {
+                                            let status = std::process::Command::new("xdg-settings")
+                                                .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
+                                                .status();
+                                            match status {
+                                                Ok(s) if s.success() => eprintln!("Iron is now the default browser"),
+                                                Ok(s) => eprintln!("Failed to set default browser: {:?}", s.code()),
+                                                Err(_) => eprintln!("Could not run xdg-settings"),
                                             }
+                                            let _ = std::process::Command::new("xdg-settings")
+                                                .args(["set", "default-url-scheme-handler", "http", "org.blueak.iron.desktop"])
+                                                .status();
+                                        }
+                                        Err(e) => eprintln!("Could not install .desktop file: {}", e),
+                                    }
+                                }
+                                command::Command::CacStatus => eprintln!("{}", cac::status_text()),
+                                command::Command::SearchAdd(name, template) => {
+                                    let mut cfg_mut = cfg_cmd.borrow_mut();
+                                    cfg_mut.search.insert(search::SearchEngine { name, template });
+                                    let _ = cfg_mut.save();
+                                }
+                                command::Command::SearchDel(name) => {
+                                    let mut cfg_mut = cfg_cmd.borrow_mut();
+                                    cfg_mut.search.remove(&name);
+                                    let _ = cfg_mut.save();
+                                }
+                                command::Command::Search(query) => {
+                                    if let Some(e) = cfg_cmd.borrow().search.default_engine().cloned() {
+                                        wv_for_cmd.load_uri(&e.build_url(&query));
+                                    }
+                                }
+                                command::Command::Find(query) => {
+                                    find_overlay_cmd.borrow_mut().activate(&overlay_cmd, &wv_for_cmd);
+                                    if let Some(ent) = &find_overlay_cmd.borrow().entry {
+                                        ent.set_text(&query);
+                                        ent.set_position(-1);
+                                        ent.grab_focus();
+                                    }
+                                }
+                                command::Command::Downloads => {
+                                    let mgr = download_mgr_cmd.borrow();
+                                    let recent = mgr.recent(10);
+                                    if recent.is_empty() {
+                                        eprintln!("No downloads yet");
+                                    } else {
+                                        for item in recent {
+                                            let status = if item.done { "done" } else if item.failed { "failed" } else { "in progress" };
+                                            eprintln!("{} [{}] - {}", item.filename, status, item.path);
                                         }
                                     }
-                                    command::Command::Settings => {
-                                        let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
-                                        settings_box.grab_focus();
-                                        let settings_key_ctl = EventControllerKey::new();
-                                        let settings_box_esc = settings_box.clone();
-                                        settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
-                                            if k == gdk::Key::Escape {
-                                                settings_box_esc.unparent();
-                                                return glib::Propagation::Stop;
-                                            }
-                                            glib::Propagation::Proceed
-                                        });
-                                        settings_box.add_controller(settings_key_ctl);
-                                    }
-                                    command::Command::NewWindowOpen(url) => {
-                                        let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
-                                    }
-                                    command::Command::SetDefaultBrowser => {
-                                        // Step 1: ensure the .desktop file is installed locally
-                                        match ensure_local_desktop_file() {
-                                            Ok(_path) => {
-                                                // Step 2: tell xdg-settings to use it
-                                                let status = std::process::Command::new("xdg-settings")
-                                                    .args(["set", "default-url-scheme-handler", "https", "org.blueak.iron.desktop"])
-                                                    .status();
-                                                match status {
-                                                    Ok(s) if s.success() => eprintln!("Iron is now the default browser"),
-                                                    Ok(s) => eprintln!("Failed to set default browser: {:?}", s.code()),
-                                                    Err(_) => eprintln!("Could not run xdg-settings"),
-                                                }
-                                                // Also set for http
-                                                let _ = std::process::Command::new("xdg-settings")
-                                                    .args(["set", "default-url-scheme-handler", "http", "org.blueak.iron.desktop"])
-                                                    .status();
-                                            }
-                                            Err(e) => eprintln!("Could not install .desktop file: {}", e),
+                                }
+                                command::Command::ClearSiteData => {
+                                    session_mgr_cmd.borrow().clear_all_site_data(&wv_for_cmd);
+                                }
+                                command::Command::ClearCookies => {
+                                    session_mgr_cmd.borrow().clear_cookies(&wv_for_cmd);
+                                }
+                                command::Command::History => {
+                                    let hist_box = show_history_overlay(&overlay_cmd, history_mgr_cmd.clone());
+                                    let hist_key_ctl = EventControllerKey::new();
+                                    let hist_box_esc = hist_box.clone();
+                                    hist_key_ctl.connect_key_pressed(move |_, k, _, _| {
+                                        if k == gdk::Key::Escape {
+                                            hist_box_esc.unparent();
+                                            return glib::Propagation::Stop;
                                         }
-                                    }
-                                    command::Command::CacStatus => eprintln!("{}", cac::status_text()),
-                                    command::Command::SearchAdd(name, template) => {
-                                        let mut cfg_mut = cfg_cmd.borrow_mut();
-                                        cfg_mut.search.insert(search::SearchEngine { name, template });
-                                        let _ = cfg_mut.save();
-                                    }
-                                    command::Command::SearchDel(name) => {
-                                        let mut cfg_mut = cfg_cmd.borrow_mut();
-                                        cfg_mut.search.remove(&name);
-                                        let _ = cfg_mut.save();
-                                    }
-                                    command::Command::Search(query) => {
-                                        if let Some(e) = cfg_cmd.borrow().search.default_engine().cloned() {
-                                            if let Some(w) = wv_for_cmd.upgrade() {
-                                                w.load_uri(&e.build_url(&query));
-                                            }
-                                        }
-                                    }
-                                    command::Command::Find(query) => {
-                                        if let Some(w) = wv_for_cmd.upgrade() {
-                                            find_overlay_cmd.borrow_mut().activate(&overlay_cmd, &w);
-                                            if let Some(ent) = &find_overlay_cmd.borrow().entry {
-                                                ent.set_text(&query);
-                                                ent.set_position(-1);
-                                                ent.grab_focus();
-                                            }
-                                        }
-                                    }
-                                    command::Command::Downloads => {
-                                        let mgr = download_mgr_cmd.borrow();
-                                        let recent = mgr.recent(10);
-                                        if recent.is_empty() {
-                                            eprintln!("No downloads yet");
-                                        } else {
-                                            for item in recent {
-                                                let status = if item.done { "done" } else if item.failed { "failed" } else { "in progress" };
-                                                eprintln!("{} [{}] - {}", item.filename, status, item.path);
-                                            }
-                                        }
-                                    }
-                                    command::Command::ClearSiteData => {
-                                        if let Some(w) = wv_for_cmd.upgrade() {
-                                            session_mgr_cmd.borrow().clear_all_site_data(&w);
-                                        }
-                                    }
-                                    command::Command::ClearCookies => {
-                                        if let Some(w) = wv_for_cmd.upgrade() {
-                                            session_mgr_cmd.borrow().clear_cookies(&w);
-                                        }
-                                    }
-                                    command::Command::History => {
-                                        let hist_box = show_history_overlay(&overlay_cmd, history_mgr_cmd.clone());
-                                        let hist_key_ctl = EventControllerKey::new();
-                                        let hist_box_esc = hist_box.clone();
-                                        hist_key_ctl.connect_key_pressed(move |_, k, _, _| {
-                                            if k == gdk::Key::Escape {
-                                                hist_box_esc.unparent();
-                                                return glib::Propagation::Stop;
-                                            }
-                                            glib::Propagation::Proceed
-                                        });
-                                        hist_box.add_controller(hist_key_ctl);
-                                    }
-                                    command::Command::ClearHistory => {
-                                        history_mgr_cmd.borrow_mut().clear();
-                                        eprintln!("History cleared");
-                                    }
-                                    command::Command::DeleteHistory(url) => {
-                                        history_mgr_cmd.borrow_mut().delete(&url);
-                                        eprintln!("Deleted {} from history", url);
-                                    }
-                                    command::Command::ReloadTheme => {
-                                        tm_cmd.borrow_mut().load();
-                                        tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
-                                        if let Some(w) = wv_for_cmd.upgrade() {
-                                            tm_cmd.borrow().apply_webkit_css(&w);
-                                        }
-                                        eprintln!("Theme reloaded manually");
-                                    }
+                                        glib::Propagation::Proceed
+                                    });
+                                    hist_box.add_controller(hist_key_ctl);
+                                }
+                                command::Command::ClearHistory => {
+                                    history_mgr_cmd.borrow_mut().clear();
+                                    eprintln!("History cleared");
+                                }
+                                command::Command::DeleteHistory(url) => {
+                                    history_mgr_cmd.borrow_mut().delete(&url);
+                                    eprintln!("Deleted {} from history", url);
+                                }
+                                command::Command::ReloadTheme => {
+                                    tm_cmd.borrow_mut().load();
+                                    tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
+                                    tm_cmd.borrow().apply_webkit_css(&wv_for_cmd);
+                                    eprintln!("Theme reloaded manually");
                                 }
                             }
                         }
                         if let Some(bar) = cmd_overlay_c.borrow_mut().take() {
                             bar.unparent();
                         }
-                        if let Some(w) = wv_for_cmd.upgrade() {
-                            w.grab_focus();
-                        }
+                        wv_for_cmd.grab_focus();
                     });
 
                     // ---- Key navigation ----
@@ -632,7 +616,7 @@ fn build_window(
                     let entry_key_ctl = EventControllerKey::new();
                     entry.add_controller(entry_key_ctl.clone());
                     let cmd_overlay_esc = cmd_overlay_clone.clone();
-                    let wv_weak_esc = wv_weak.clone();
+                    let wv_weak_esc = browser_ref.clone();
 
                     entry_key_ctl.connect_key_pressed(move |_, k, _, _| {
                         match k {
@@ -640,9 +624,7 @@ fn build_window(
                                 if let Some(bar) = cmd_overlay_esc.borrow_mut().take() {
                                     bar.unparent();
                                 }
-                                if let Some(w) = wv_weak_esc.upgrade() {
-                                    w.grab_focus();
-                                }
+                                wv_weak_esc.grab_focus();
                                 return glib::Propagation::Stop;
                             }
                             gdk::Key::Up => {
@@ -763,34 +745,24 @@ fn build_window(
                     return glib::Propagation::Stop;
                 }
                 "find" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        find_overlay_clone.borrow_mut().activate(&overlay_clone, &wv);
-                    }
+                    find_overlay_clone.borrow_mut().activate(&overlay_clone, &browser_ref);
                     return glib::Propagation::Stop;
                 }
                 "reload" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        wv.reload();
-                    }
+                    browser_ref.reload();
                     return glib::Propagation::Stop;
                 }
                 "duplicate" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        let url = wv.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
-                        let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), Some(&url));
-                    }
+                    let url = browser_ref.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                    let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), Some(&url));
                     return glib::Propagation::Stop;
                 }
                 "back" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        if wv.can_go_back() { wv.go_back(); }
-                    }
+                    if browser_ref.can_go_back() { browser_ref.go_back(); }
                     return glib::Propagation::Stop;
                 }
                 "forward" => {
-                    if let Some(wv) = wv_weak.upgrade() {
-                        if wv.can_go_forward() { wv.go_forward(); }
-                    }
+                    if browser_ref.can_go_forward() { browser_ref.go_forward(); }
                     return glib::Propagation::Stop;
                 }
                 _ => {}

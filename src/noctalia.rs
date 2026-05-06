@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use gtk4::{self, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
-use gtk4::prelude::{RootExt, FileMonitorExt};
+use gtk4::{self};
+use gtk4::prelude::{FileMonitorExt, FileExt};
 
 /// Convert a 6-char hex colour like "#1e1e1e" into an rgba() string with the given opacity.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
