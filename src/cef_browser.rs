@@ -15,7 +15,7 @@ pub struct CefBrowserWrapper {
 }
 
 impl CefBrowserWrapper {
-    pub fn new(_parent_window: &gdk::Surface, url: &str, _is_offscreen: bool) -> Result<Self, String> {
+    pub fn new(_parent_window: Option<&gdk::Surface>, url: &str, _is_offscreen: bool) -> Result<Self, String> {
         let box_widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
         box_widget.set_hexpand(true);
         box_widget.set_vexpand(true);

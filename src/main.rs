@@ -149,16 +149,15 @@ fn build_window(
 
     // Create CEF browser wrapper (placeholder until full integration)
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
-    let surface = window.surface().expect("Window must have a surface");
     let browser = cef_browser::CefBrowserWrapper::new(
-        &surface,
+        None,
         &url,
         false,
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create CEF browser: {}", e);
         // Fallback: create with about:blank
         cef_browser::CefBrowserWrapper::new(
-            &surface,
+            None,
             "about:blank",
             false,
         ).expect("Fallback browser creation failed")
