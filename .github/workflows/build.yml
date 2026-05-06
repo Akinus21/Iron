@@ -61,7 +61,7 @@ jobs:
         id: check_release
         run: |
           set -o pipefail
-          cargo check --release 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee build.log
+          cargo check --release 2>&1 | tee build.log
         shell: bash
 
       - name: Build (release)
@@ -69,7 +69,7 @@ jobs:
         id: build_release
         run: |
           set -o pipefail
-          CARGO_BUILD_JOBS=2 cargo build --release 2>&1 | tee -a build.log
+          cargo build --release 2>&1 | tee -a build.log
         shell: bash
 
       - name: Build (debug, PRs only)
@@ -126,6 +126,11 @@ jobs:
           git config --global user.email "iron-bot@akinus21.com"
           git config --global user.name "Iron Bot"
           git commit -m "chore: bump version to ${VERSION}"
+        env:
+          GIT_AUTHOR_NAME: Iron Bot
+          GIT_AUTHOR_EMAIL: iron-bot@akinus21.com
+          GIT_COMMITTER_NAME: Iron Bot
+          GIT_COMMITTER_EMAIL: iron-bot@akinus21.com
 
       - name: Tag and create GitHub release with binary
         if: steps.build_release.outcome == 'success'
@@ -175,7 +180,7 @@ jobs:
       - name: Update homebrew tap
         if: steps.build_release.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
         run: |
           git config --global user.email "iron-bot@akinus21.com"
           git config --global user.name "Iron Bot"
@@ -187,53 +192,49 @@ jobs:
           TAP_REPO="Akinus21/homebrew-tap"
           TAP_DIR="/tmp/homebrew-tap"
 
-          if ! gh repo view "$TAP_REPO" >/dev/null 2>&1; then
-            echo "Creating homebrew-tap repo $TAP_REPO..."
-            gh repo create "$TAP_REPO" --public --description "Homebrew core formulas for Akinus21 projects"
-          fi
-
           if [ -d "$TAP_DIR" ]; then
             cd "$TAP_DIR"
             git pull origin main
           else
-            git clone "https://x-access-token:${GH_TOKEN}@github.com/${TAP_REPO}.git" "$TAP_DIR"
+            git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" "$TAP_DIR"
             cd "$TAP_DIR"
           fi
 
           mkdir -p Formula
 
-          printf 'class Iron < Formula\n' > Formula/iron.rb
-          printf '  desc "GTK4 keyboard-driven web browser for BlueAK"\n' >> Formula/iron.rb
-          printf '  homepage "https://github.com/Akinus21/Iron"\n' >> Formula/iron.rb
-          printf '  version "%s"\n' "${NEW_TAG#v}" >> Formula/iron.rb
-          printf '  url "%s"\n' "${BINARY_URL}" >> Formula/iron.rb
-          printf '  sha256 "%s"\n' "${SHA256}" >> Formula/iron.rb
-          printf '  depends_on "gtk4"\n' >> Formula/iron.rb
-          printf '  depends_on "libadwaita"\n' >> Formula/iron.rb
-          printf '  depends_on "webkitgtk"\n' >> Formula/iron.rb
-          printf '\n' >> Formula/iron.rb
-          printf '  def install\n' >> Formula/iron.rb
-          printf '    bin.install "iron"\n' >> Formula/iron.rb
-          printf '\n' >> Formula/iron.rb
-          printf '    (share/"applications").mkpath\n' >> Formula/iron.rb
-          printf '    (share/"applications"/"org.blueak.iron.desktop").write <<~DESKTOP\n' >> Formula/iron.rb
-          printf '[Desktop Entry]\n' >> Formula/iron.rb
-          printf 'Type=Application\n' >> Formula/iron.rb
-          printf 'Name=Iron\n' >> Formula/iron.rb
-          printf 'Comment=GTK4 keyboard-driven web browser for BlueAK\n' >> Formula/iron.rb
-          printf 'Exec=iron %%u\n' >> Formula/iron.rb
-          printf 'Icon=org.blueak.iron\n' >> Formula/iron.rb
-          printf 'Categories=Network;WebBrowser;\n' >> Formula/iron.rb
-          printf 'MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;\n' >> Formula/iron.rb
-          printf 'StartupNotify=true\n' >> Formula/iron.rb
-          printf 'Terminal=false\n' >> Formula/iron.rb
-          printf 'DESKTOP\n' >> Formula/iron.rb
-          printf '  end\n' >> Formula/iron.rb
-          printf '\n' >> Formula/iron.rb
-          printf '  test do\n' >> Formula/iron.rb
-          printf '    assert_match "iron", shell_output("#{bin}/iron --version 2>&1 || true")\n' >> Formula/iron.rb
-          printf '  end\n' >> Formula/iron.rb
-          printf 'end\n' >> Formula/iron.rb
+          cat > Formula/iron.rb <<EOF
+class Iron < Formula
+  desc "GTK4 keyboard-driven web browser for BlueAK"
+  homepage "https://github.com/Akinus21/Iron"
+  version "${NEW_TAG#v}"
+  url "${BINARY_URL}"
+  sha256 "${SHA256}"
+  depends_on "gtk4"
+  depends_on "libadwaita"
+  depends_on "webkitgtk"
+
+  def install
+    bin.install "iron"
+    (share/"applications").mkpath
+    (share/"applications"/"org.blueak.iron.desktop").write <<~DESKTOP
+      [Desktop Entry]
+      Type=Application
+      Name=Iron
+      Comment=GTK4 keyboard-driven web browser for BlueAK
+      Exec=iron %u
+      Icon=org.blueak.iron
+      Categories=Network;WebBrowser;
+      MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+      StartupNotify=true
+      Terminal=false
+    DESKTOP
+  end
+
+  test do
+    assert_match "iron", shell_output("#{bin}/iron --version 2>&1 || true")
+  end
+end
+EOF
 
           git add Formula/iron.rb
           git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
@@ -242,12 +243,12 @@ jobs:
       - name: Notify webhook on failure
         if: failure() && github.ref == 'refs/heads/main'
         env:
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          WEBHOOK_HMAC_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
         run: |
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHA="${{ github.sha }}"
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
-          ERRORS=$(cat build.log 2>/dev/null | jq -Rs . || echo '""')
+          ERRORS=$(tail -n 200 build.log | jq -Rs .)
 
           PAYLOAD=$(jq -cn \
             --arg run_url "$RUN_URL" \
@@ -259,7 +260,7 @@ jobs:
             '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors}')
 
           SIG=$(printf '%s' "$PAYLOAD" | \
-            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_HMAC_SECRET" | \
             awk '{print "sha256="$2}')
 
           curl -fsSL -X POST \
@@ -272,22 +273,23 @@ jobs:
       - name: Notify webhook on success
         if: steps.build_release.outcome == 'success'
         env:
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          WEBHOOK_HMAC_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
         run: |
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           SHA="${{ github.sha }}"
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
 
           PAYLOAD=$(jq -cn \
+            --arg event "build_success" \
             --arg run_url "$RUN_URL" \
             --arg sha "$SHA" \
             --arg commit_msg "$COMMIT_MSG" \
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
-            '{event:"build_success",run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor}')
+            '{event:$event,run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor}')
 
           SIG=$(printf '%s' "$PAYLOAD" | \
-            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_HMAC_SECRET" | \
             awk '{print "sha256="$2}')
 
           curl -fsSL -X POST \
