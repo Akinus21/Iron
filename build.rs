@@ -1,28 +1,19 @@
 //! Build script for CEF (Chromium Embedded Framework) integration
 //! 
 //! This script:
-//! 1. Downloads CEF binary distribution if not present
-//! 2. Sets up library paths for linking
-//! 3. Copies CEF resources to output directory
+//! 1. Sets up library paths for linking
+//! 2. Copies CEF resources to output directory
 
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-const CEF_VERSION_STABLE: &str = "147.1.0+147.0.10";
-const CEF_VERSION_NIGHTLY: &str = "147.1.0+147.0.10"; // Would be updated dynamically
 
 fn main() {
     println!("cargo:rerun-if-env-changed=CEF_TRACK");
     println!("cargo:rerun-if-env-changed=CEF_DIR");
     
     let cef_track = env::var("CEF_TRACK").unwrap_or_else(|_| "stable".to_string());
-    let cef_version = if cef_track == "nightly" {
-        CEF_VERSION_NIGHTLY
-    } else {
-        CEF_VERSION_STABLE
-    };
+    let _cef_track = cef_track; // Reserved for future nightly track support
     
     // Check if CEF_DIR is set (CI will set this)
     if let Ok(cef_dir) = env::var("CEF_DIR") {
@@ -60,11 +51,14 @@ fn setup_cef_paths(cef_path: &Path) {
     
     // Copy CEF resources to target directory
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let target_dir = out_dir
+    let target_base = out_dir
         .parent()
         .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .unwrap_or(&PathBuf::from("target"));
+        .and_then(|p| p.parent());
+    
+    let target_dir = target_base
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("target"));
     
     let release_dir = cef_path.join("Release");
     
@@ -80,13 +74,13 @@ fn setup_cef_paths(cef_path: &Path) {
     };
     
     // Copy essential CEF files
-    copy_file(&release_dir.join("libcef.so"), target_dir);
-    copy_file(&cef_path.join("icudtl.dat"), target_dir);
-    copy_file(&cef_path.join("chrome_100_percent.pak"), target_dir);
-    copy_file(&cef_path.join("chrome_200_percent.pak"), target_dir);
-    copy_file(&cef_path.join("resources.pak"), target_dir);
-    copy_file(&cef_path.join("snapshot_blob.bin"), target_dir);
-    copy_file(&cef_path.join("v8_context_snapshot.bin"), target_dir);
+    copy_file(&release_dir.join("libcef.so"), &target_dir);
+    copy_file(&cef_path.join("icudtl.dat"), &target_dir);
+    copy_file(&cef_path.join("chrome_100_percent.pak"), &target_dir);
+    copy_file(&cef_path.join("chrome_200_percent.pak"), &target_dir);
+    copy_file(&cef_path.join("resources.pak"), &target_dir);
+    copy_file(&cef_path.join("snapshot_blob.bin"), &target_dir);
+    copy_file(&cef_path.join("v8_context_snapshot.bin"), &target_dir);
     
     if let Ok(entries) = fs::read_dir(cef_path.join("locales")) {
         let locales_dir = target_dir.join("locales");
