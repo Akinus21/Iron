@@ -6,6 +6,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, gdk, glib};
 use std::cell::RefCell;
 use std::rc::Rc;
+use glib::object::WeakRef;
 
 /// CEF Browser wrapper that integrates with GTK4
 #[derive(Clone)]
@@ -23,6 +24,8 @@ pub struct CefBrowserWrapper {
     can_go_forward: Rc<RefCell<bool>>,
     /// Window handle (X11)
     window_handle: u64,
+    /// Weak reference for downgrading
+    weak_self: WeakRef<Widget>,
 }
 
 impl CefBrowserWrapper {
@@ -56,14 +59,18 @@ impl CefBrowserWrapper {
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
         
+        let widget = box_widget.upcast();
+        let weak_self = widget.downcast::<Widget>().ok().map(|w| w.downgrade()).unwrap_or_else(WeakRef::new);
+        
         Ok(Self {
-            widget: box_widget.upcast(),
+            widget,
             url: Rc::new(RefCell::new(url_str)),
             title: Rc::new(RefCell::new(title_str)),
             is_loading: Rc::new(RefCell::new(false)),
             can_go_back: Rc::new(RefCell::new(false)),
             can_go_forward: Rc::new(RefCell::new(false)),
             window_handle: 0,
+            weak_self,
         })
     }
     
@@ -151,6 +158,17 @@ impl CefBrowserWrapper {
     /// Stop finding
     pub fn stop_finding(&self) {
         // TODO: CEF stop_finding API
+    }
+
+    /// Search for next match (used by find overlay)
+    pub fn search_next(&self) {
+        // TODO: CEF search next implementation
+        eprintln!("search_next called");
+    }
+
+    /// Downgrade to a weak reference
+    pub fn downgrade(&self) -> WeakRef<Widget> {
+        self.weak_self.clone()
     }
 }
 

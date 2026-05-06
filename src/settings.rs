@@ -53,7 +53,7 @@ pub fn show_settings_overlay(
     cef_row.set_margin_top(8);
     
     let cef_track_list = gtk4::StringList::new(&["Stable (Recommended)", "Nightly (Latest)"]);
-    let cef_track_combo = gtk4::DropDown::new(Some(&cef_track_list), None::<&gtk4::Expression>);
+    let cef_track_combo = gtk4::DropDown::new(Some(cef_track_list.clone()), None::<&gtk4::Expression>);
     cef_track_combo.set_hexpand(true);
     cef_track_combo.set_selected(if config.borrow().cef_track == crate::config::CefTrack::Nightly { 1 } else { 0 });
     

@@ -118,7 +118,7 @@ struct OverlayState {
 fn build_window(
     app: &adw::Application,
     cfg: Rc<RefCell<Config>>,
-    _session_mgr: Rc<RefCell<SessionManager>>,
+    session_mgr: Rc<RefCell<SessionManager>>,
     history_mgr: Rc<RefCell<HistoryManager>>,
     initial_url: Option<&str>,
 ) -> adw::ApplicationWindow {
@@ -150,14 +150,14 @@ fn build_window(
     let url = initial_url.unwrap_or(&cfg.borrow().home_page);
     let surface = window.surface().expect("Window must have a surface");
     let browser = cef_browser::CefBrowserWrapper::new(
-        surface,
+        &surface,
         url,
         false, // off-screen rendering disabled for now
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create CEF browser: {}", e);
         // Fallback: create with about:blank
         cef_browser::CefBrowserWrapper::new(
-            surface,
+            &surface,
             "about:blank",
             false,
         ).expect("Fallback browser creation failed")

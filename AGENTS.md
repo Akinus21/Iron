@@ -1,136 +1,181 @@
-## Project: Iron Browser
-Iron is a custom GTK4 web browser being built for the BlueAK Linux distribution, written in Rust. The name is a deliberate play on the metal browser naming tradition (Chrome, Titanium) and a nod to Rust — iron rusts.
-Core tech stack:
+# Iron – Rust‑based Chromium‑GTK Browser  
+**Agent Instructions**
 
-## Language: Rust
-GUI framework: GTK4 via gtk4 (gtk-rs) + relm4
-Rendering engine: WebKit via webkit-rs (GTK4 flavor)
-Reference/upstream: antoyo/titanium on GitHub (GTK3-era, needs significant modernization — treat as architectural reference, not a direct fork)
+---
 
-## Base Project Start:
-This project starts by cloning titanium browser from:
-https://github.com/antoyo/titanium.git
-The dev repo is https://github.com/Akinus21/Iron.git
+## 📖 Overview  
 
-## Theming:
+**Iron** is a lightweight web browser built in Rust that embeds the Chromium Embedded Framework (CEF) inside a GTK4 UI. It provides:
 
-BlueAK uses the Noctalia shell/theme system
-Noctalia targets GTK4 with adw-gtk-theme (libadwaita-compatible stylesheet) as its GTK layer
-All custom UI widgets must use standard GTK4 widget classes and adwaita CSS conventions so Noctalia's color scheme cascades automatically
-No hardcoded colors anywhere — use GTK theme variables throughout
-Noctalia exposes a colors.json token set that regenerates on theme change; Iron should consume these tokens natively for seamless sync
+- Full‑screen and windowed browsing with CEF rendering.  
+- Smart‑card (CAC) support via PKCS#11.  
+- Persistent session handling (cookies, cache, history).  
+- Search‑engine registry, fuzzy command palette, hint‑mode navigation, and download manager.  
+- Customizable key‑bindings and theming (via `noctalia`).  
 
-## Context:
+All heavy lifting (CEF integration, GTK4 UI) is handled in Rust; the binary is distributed via a Homebrew tap (`Akinus21/homebrew-tap`).
 
-Gabriel is a Rust developer with an active homelab running Ubuntu on a Hetzner Server. He utilizes OpenCode inside of a Docker Container on this server to do much of his developing.
-His devices (Surface laptop, Desktop PC, Handheld Gaming Console, and any future devices) run BlueAK which has a base image of a Fedora/atomic desktop from the Silverblue project.
-Most other BlueAK projects are already in Rust, so consistency is a priority
-Keyboard-driven UX (qutebrowser/Vimperator-style) is a desired design direction inherited from Titanium
-The browser needs to feel native to the BlueAK/Noctalia desktop — not a port, not an afterthought
+---
 
-## Building
+## 🏗️ Build System  
 
-**IMPORTANT: Do NOT install Rust locally.** GitHub Actions handles all building automatically. The CI workflow builds the binary and reports any errors back to you.
+| Item | Value |
+|------|-------|
+| **Language** | Rust |
+| **Build command** | `cargo build --release` |
+| **Resulting binary** | `target/release/iron` |
+| **Version source** | `Cargo.toml` |
+| **Homebrew tap** | `Akinus21/homebrew-tap` |
+| **CI** | GitHub Actions (no local Rust install required) |
 
-If you need to verify code changes without building:
-1. Review the code logic manually
-2. Check for syntax errors by reading the files
-3. Push to GitHub and wait for the build results
+**Important:** Do **not** install Rust locally. Let the CI pipeline compile the binary and report any errors. If you need a quick syntax check, just run `cargo check` locally (it only needs the Rust toolchain, not the full CEF build).
 
-## Git Push Workflow
+---
 
-Since gh CLI is not authenticated, use SSH directly:
+## 🔐 Authentication & Secrets  
+
+| Secret | Location / How to set |
+|--------|----------------------|
+| **SSH key for Git** | `/home/akinus/.ssh/github` (used via `GIT_SSH_COMMAND`) |
+| **Project secrets** | `/home/akinus/dockge-stacks/dev-stack/.secrets` |
+| **GitHub webhook secret** | Set with `gh secret set WEBHOOK_SECRET --body "<value>"` (currently **NOT FOUND**) |
+| **Webhook URL** | `https://webhook.akinus21.com/webhook/iron-build` (set with `gh secret set WEBHOOK_URL`) |
+| **Webhook endpoint (runtime)** | `https://webhook.akinus21.com/webhook/iron-build` |
+
+> **Note:** The CI workflow reads the above secrets automatically. Ensure they exist before triggering a build.
+
+---
+
+## 📦 Release & Homebrew  
+
+When a new version is tagged (e.g., `v1.2.3`), the CI will:
+
+1. Build `iron` with `cargo build --release`.  
+2. Upload the binary to the Homebrew tap (`Akinus21/homebrew-tap`).  
+3. Publish a GitHub Release containing the checksum and release notes.
+
+**Manual Homebrew update (if needed):**
 
 ```bash
-cd /home/opencode/projects/Iron
-git add -A
-git commit -m "<description>"
-GIT_SSH_COMMAND="ssh -i /config/.ssh/github -o StrictHostKeyChecking=no" git push origin main
+brew tap Akinus21/homebrew-tap
+brew install iron
+brew upgrade iron   # after a new release is published
 ```
 
-**IMPORTANT: Always push to GitHub after making and verifying changes.**
+---
 
-## Documentation Updates
+## 🔄 Git Push Workflow  
 
-**IMPORTANT: Update README.md when adding new features or changing existing features.**
+Because the `gh` CLI is not authenticated on the runner, push via SSH directly:
 
-The README should reflect:
-- New commands added
-- Changed command behavior
-- Updated installation instructions
-- New use cases or examples
+```bash
+cd /home/akinus/dockge-stacks/dev-stack/projects/Iron
+git add -A
+git commit -m "<description>"
+GIT_SSH_COMMAND="ssh -i /home/akinus/.ssh/github -o StrictHostKeyChecking=no" \
+    git push origin main
+```
 
-## Phase 1 — Audit & Strip
-Before writing new code, understand what Titanium gives you and what has to go.
-Keep (as architectural reference):
+> **Always** push after making changes; the CI will automatically build and report status.
 
-- Keyboard-driven command/hint system design
-- URL bar + mode switching concepts
-- Configuration file approach
+---
 
-Rip out or replace entirely:
+## 📂 Project Structure  
 
-- GTK3 → GTK4 (widgets, signals, event model all changed)
-- Any reliance on glib/gtk crates pre-gtk4-rs
-- The WebKit bindings — titanium uses an old webkit2gtk that predates the GTK4 flavor
-- Any hardcoded colors, themes, or CSS that isn't adwaita-compatible
+```
+Iron/
+├── Cargo.toml                 # Crate metadata, version, dependencies
+├── build.rs                   # Build script – sets up CEF library paths, copies resources
+├── AGENTS.md                  # ← This file
+├── src/
+│   ├── main.rs                # Entry point – wires modules together
+│   ├── cac.rs                 # CAC / smart‑card status helper (PKCS#11)
+│   ├── cef_browser.rs        # GTK4 widget wrapper around CEF
+│   ├── cef_init.rs            # Global CEF lifecycle & config
+│   ├── command.rs             # `Command` enum – all user‑triggered actions
+│   ├── config.rs              # Serializable config (key bindings, modes, etc.)
+│   ├── download.rs            # Download manager & notification handling
+│   ├── find.rs                # UI overlay for “find in page”
+│   ├── fuzzy.rs               # Lightweight fuzzy matching for command/history
+│   ├── hints.rs               # JavaScript hint overlay injected into pages
+│   ├── history.rs             # SQLite‑backed browsing history manager
+│   ├── noctalia.rs            # Theme manager (hex → rgba conversion, CSS handling)
+│   ├── search.rs              # Search‑engine registry & URL builder
+│   ├── session.rs             # Persistent session (cache, cookies, incognito)
+│   ├── settings.rs            # Settings overlay UI
+│   └── ... (additional modules) 
+├── resources/                 # CEF binaries & assets (populated by CI)
+└── .github/
+    └── workflows/ci.yml       # GitHub Actions CI definition
+```
 
-## Phase 2 — New Foundation
-Rebuild the skeleton with the modern stack before porting any features.
-Cargo.toml targets:
+### Key Files Explained  
 
-- gtk4 (gtk-rs ecosystem)
-- relm4 + relm4-components for the app architecture
-- webkit6 (the GTK4 WebKit crate — formerly webkit2gtk-5.0)
-- serde + toml or ron for config
-- adw (libadwaita bindings) for window chrome
+| File | Purpose |
+|------|---------|
+| **build.rs** | Runs before compilation; reads `CEF_TRACK` & `CEF_DIR` env vars, configures linker flags, copies CEF resources into the output directory. |
+| **src/cef_init.rs** | Holds global `CEF_INITIALIZED` flag, reference counting, and `CefConfig` struct (track, cache path, log level, etc.). |
+| **src/cef_browser.rs** | Provides `CefBrowserWrapper` – a GTK4 `Widget` that embeds the CEF browser, exposing URL, title, and loading state. |
+| **src/config.rs** | Defines `Config`, `KeyBinding`, `Mode`, and `CefTrack` (stable/nightly). Serialized to/from `~/.config/iron/config.toml`. |
+| **src/command.rs** | Central enum for all commands the UI can invoke (open URL, navigation, settings, CAC status, search engine management, etc.). |
+| **src/search.rs** | `SearchEngine` struct + registry handling; builds final URLs from query strings. |
+| **src/hints.rs** | JavaScript module injected into pages to render hint overlays for keyboard navigation. |
+| **src/fuzzy.rs** | Scoring algorithm used by the command palette and history filter. |
+| **src/history.rs** | SQLite manager storing `HistoryItem`s under `~/.local/share/iron/history.sqlite`. |
+| **src/session.rs** | Manages per‑profile data directories, incognito mode, and site‑data clearing. |
+| **src/noctalia.rs** | Theme utilities – hex‑to‑rgba conversion, CSS provider setup, and `ThemeManager` struct. |
+| **src/settings.rs** | Builds the full‑window settings overlay (key‑binding editor, theme picker, etc.). |
+| **src/find.rs** | UI overlay for “find in page” functionality, with entry widget and match counter. |
+| **src/download.rs** | Simple download manager exposing progress, notifications, and error handling. |
 
-Structural goals:
+---
 
-- ApplicationWindow wrapping an adw::ToolbarView or adw::NavigationView
-- A proper relm4 Component for the browser tab/webview
-- A relm4 Component for the command bar (the vim-style input layer)
-- Overlays (command bar, settings, find-in-page) live inside gtk4::Overlay, not modal windows
+## 🛠️ Development Conventions  
 
-## Phase 3 — Noctalia Integration ✅ (Complete)
-This is what makes Iron feel native rather than just functional.
+| Area | Convention |
+|------|------------|
+| **Code style** | Follow `rustfmt` defaults. Use `cargo clippy` for linting. |
+| **Error handling** | Propagate errors with `Result<T, anyhow::Error>` where appropriate; UI‑level errors should surface as GTK notifications. |
+| **Logging** | Use `log` crate (`env_logger` in CI). Respect `CefConfig.log_level`. |
+| **Configuration** | Store user‑editable settings in `~/.config/iron/config.toml`. Keep defaults in `Config::default()`. |
+| **Secrets** | Never commit `.secrets` or any private key. Access them via environment variables injected by CI. |
+| **Testing** | Unit tests live in `src/*_test.rs` modules; run with `cargo test`. UI integration tests are out‑of‑scope for CI. |
+| **Documentation** | Public structs/enums should have `///` doc comments. Keep `README.md` up‑to‑date with usage examples and install instructions. |
+| **Version bump** | Update `Cargo.toml` version **before** tagging a release. CI will read this version for Homebrew packaging. |
+| **Branch policy** | All work happens on feature branches; merge to `main` via PRs. CI must pass before merge. |
+| **Commit messages** | Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). |
 
-### Token source
-Noctalia stores theme files at:
-`~/.config/noctalia/colorschemes/<Name>/<Name>.json`
+---
 
-Each file has `dark` and `light` variants with these keys:
-`mPrimary`, `mOnPrimary`, `mSecondary`, `mOnSecondary`, `mTertiary`, `mOnTertiary`,
-`mError`, `mOnError`, `mSurface`, `mOnSurface`, `mHover`, `mOnHover`,
-`mSurfaceVariant`, `mOnSurfaceVariant`, `mOutline`, `mShadow`
+## 📡 Webhook Integration  
 
-### Architecture
-- `src/noctalia.rs` → `ThemeManager` struct
-  - `load()` — scans `~/.config/noctalia/colorschemes/`, picks first theme, parses JSON, generates CSS
-  - `apply_webkit_css()` — injects a `UserStyleSheet` into the WebView's `UserContentManager` for cohesive page rendering
-  - `start_watch()` — uses `gio::FileMonitor` on the theme directory; on `ChangesDoneHint` event, reloads the theme and re-applies the WebKit stylesheet (no polling)
-- GTK chrome theming is handled automatically by Noctalia's `adw-gtk-theme` stylesheet — Iron just uses standard adwaita widget classes
-- WebKit user stylesheet: `body, .content, main` get `background-color`/`color` from surface tokens; `code, pre, textarea, input, select` get surface_variant backgrounds
+The project is wired to a custom webhook endpoint that triggers a remote build pipeline:
 
-### Key decisions
-- **No `notify` crate** — uses `gio::FileMonitor` (GLib-native, no threads, callback on main context)
-- **GTK CSS provider dropped** — Noctalia's GTK template handles the GTK chrome cascade; Iron only needs the WebKit user stylesheet for web page cohesion
-- **Dark mode** — detected via `GTK_THEME` env var containing "dark"; selects the appropriate variant from the theme JSON
+- **Endpoint:** `https://webhook.akinus21.com/webhook/iron-build`  
+- **Secret:** `WEBHOOK_SECRET` (must be set in the repo’s GitHub secrets).  
 
-## Phase 4 — Core Browser Features
-Port and modernize Titanium's killer features in priority order:
+When a push to `main` occurs, GitHub sends a POST to the above URL. The remote service pulls the repo, runs the CI build, and reports status back to the GitHub Checks API.
 
-- Hint/link navigation — the f key overlay that labels links for keyboard selection
-- Command mode — vim-style :open, :tabopen, :back, :forward, etc.
-- Keybinding layer — fully configurable, loaded from a config file at startup
-- Tab management — adw::TabBar + adw::TabView give you this almost for free
-- Download manager — WebKit's download signals wired to a sidebar or notification
-- History & bookmarks — SQLite via rusqlite, keep it simple
+---
 
-## Phase 5 — BlueAK Polish
-The things that make it feel like a first-class BlueAK citizen:
+## 📦 Release Checklist  
 
-- Ship a .desktop file referencing the correct icon theme name
-- Follow the BlueAK/Silverblue packaging conventions (likely a Flatpak or rpm-ostree layer)
-- Register as a default browser handler via xdg-mime
-- Respect the system gtk-application-prefer-dark-theme setting automatically (libadwaita handles this if you use adw::Application)
+1. **Update version** in `Cargo.toml`.  
+2. **Run local tests:** `cargo test`.  
+3. **Commit & push** (use SSH workflow).  
+4. Verify **GitHub Actions** succeeded.  
+5. **Tag** the commit: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then push tags.  
+6. CI will automatically publish the Homebrew formula update.  
+7. **Update README** with any new command‑line flags or UI changes.  
+
+---
+
+## 🙋‍♀️ Support & Contributions  
+
+- **Issues:** Open on the GitHub repo (`Akinus21/Iron`).  
+- **Pull Requests:** Follow the branch policy and include a short description of the change.  
+- **Contact:** For secret‑related problems, reach out to the repository owner (Akinus21) via the internal Slack channel `#iron-dev`.  
+
+--- 
+
+*End of AGENTS.md*
