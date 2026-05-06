@@ -202,13 +202,13 @@ jobs:
 
           mkdir -p Formula
 
-          cat > Formula/iron.rb <<-EOF
+          cat > Formula/iron.rb <<'EOF'
 class Iron < Formula
   desc "GTK4 keyboard-driven web browser for BlueAK"
   homepage "https://github.com/Akinus21/Iron"
-  version "${NEW_TAG#v}"
-  url "${BINARY_URL}"
-  sha256 "${SHA256}"
+  version "#{ENV['NEW_TAG']}"
+  url "#{ENV['BINARY_URL']}"
+  sha256 "#{ENV['SHA256']}"
   depends_on "gtk4"
   depends_on "libadwaita"
   depends_on "webkitgtk"
