@@ -147,14 +147,12 @@ fn build_window(
     }
 
     // Create CEF browser wrapper (placeholder until full integration)
-    let cfg_ref = cfg.borrow();
-    let url = initial_url.unwrap_or(&cfg_ref.home_page);
-    drop(cfg_ref);
+    let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
     let surface = window.surface().expect("Window must have a surface");
     let browser = cef_browser::CefBrowserWrapper::new(
         &surface,
-        url,
-        false, // off-screen rendering disabled for now
+        &url,
+        false,
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create CEF browser: {}", e);
         // Fallback: create with about:blank
@@ -166,13 +164,12 @@ fn build_window(
     });
 
     // ---- History tracking (CEF version) ----
-    let browser_hist = browser.clone();
     let hist_mgr_clone = history_mgr.clone();
     
     // Note: CEF doesn't have direct load_changed signals like WebKitGTK
     // We'll track history on URL changes via client handler callbacks
     // For now, add initial URL to history
-    hist_mgr_clone.borrow_mut().add(url, Some("Loading..."));
+    hist_mgr_clone.borrow_mut().add(&url, Some("Loading..."));
 
     // Add CEF browser widget to overlay
     overlay.set_child(Some(&browser.widget));
