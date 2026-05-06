@@ -1023,7 +1023,4 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
 }
 
 // Note: CEF configuration is handled in cef_init.rs
-/// Spoofs Chrome's UA so SPAs like claude.ai don't block us, and enables
-/// JavaScript, WebGL, and media features that most sites depend on.
-// Note: CEF configuration is handled in cef_init.rs
-// CEF uses Chrome/131 UA by default, JavaScript/WebGL/media enabled by default
+// CEF uses Chrome UA by default, JavaScript/WebGL/media enabled by default
