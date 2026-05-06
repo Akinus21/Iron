@@ -129,11 +129,6 @@ impl FindOverlay {
             entry.grab_focus();
         }
     }
-                    }
-                }
-            }
-        }
-    }
 
     pub fn search_previous(&self) {
         // Similar to search_next but backwards
