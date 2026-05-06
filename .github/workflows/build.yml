@@ -207,7 +207,7 @@ jobs:
           sed -e "s|{{VERSION}}|${IRON_VERSION}|g" \
               -e "s|{{URL}}|${BINARY_URL}|g" \
               -e "s|{{SHA256}}|${SHA256}|g" \
-              .github/workflows/iron_formula.tpl > Formula/iron.rb
+              "$GITHUB_WORKSPACE/.github/workflows/iron_formula.tpl" > Formula/iron.rb
 
           git add Formula/iron.rb
           git commit -m "Update iron to ${NEW_TAG}" || echo "No changes to commit"
