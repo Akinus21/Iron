@@ -42,7 +42,7 @@ impl ThemeManager {
         }
     }
 
-    pub fn load(&mut self) {
+pub fn load(&mut self) {
         let theme_path = find_active_theme();
         self.theme_path = theme_path;
 
@@ -50,6 +50,8 @@ impl ThemeManager {
             Some(c) => c,
             None => return,
         };
+
+        eprintln!("Noctalia: load() content.len={} path={:?}", content.len(), self.theme_path);
 
         let tokens = match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(v) => v,
@@ -61,10 +63,14 @@ impl ThemeManager {
 
         let dark = is_dark_preferred();
         let variant = if dark { "dark" } else { "light" };
+        eprintln!("Noctalia: variant={} dark={}", variant, dark);
 
         let t = match tokens.get(variant) {
             Some(v) => v,
-            None => return,
+            None => {
+                eprintln!("Noctalia: no '{}' variant in colors.json, keys={:?}", variant, tokens.keys().collect::<Vec<_>>());
+                return;
+            }
         };
 
         let primary = t.get("mPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#3584e4");
@@ -239,10 +245,10 @@ pub fn start_watch(
 
         let _provider = provider.clone();
         monitor.connect_changed(move |_monitor, child, _other, event_type| {
-            eprintln!("Noctalia: file changed event: {:?} -> {:?}", event_type, child.path());
+            eprintln!("Noctalia: dir changed event: {:?} child={:?}", event_type, child.path());
             if let Some(path) = child.path() {
                 if path.file_name().map(|n| n == colors_file_name).unwrap_or(false) {
-                    eprintln!("Noctalia: colors.json changed, reloading...");
+                    eprintln!("Noctalia: colors.json changed detected!");
                     tm.borrow_mut().load();
                     tm.borrow().apply_gtk_css(&_provider);
                     eprintln!("Noctalia: theme reloaded");
