@@ -46,7 +46,15 @@ jobs:
           CEF_URL="https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION}_linux64.tar.bz2"
           
           echo "Downloading CEF ${CEF_VERSION}..."
-          curl -L --fail --retry 3 -o cef.tar.bz2 "${CEF_URL}"
+          curl -L --fail --retry 3 --connect-timeout 30 -o cef.tar.bz2 "${CEF_URL}"
+          
+          if [ ! -f cef.tar.bz2 ] || [ ! -s cef.tar.bz2 ]; then
+            echo "ERROR: CEF download failed or file is empty"
+            exit 1
+          fi
+          
+          # Verify it's a valid bzip2 file
+          bzip2 -t cef.tar.bz2 || { echo "ERROR: Downloaded file is not valid bzip2"; exit 1; }
           
           # Extract to /opt/cef
           sudo mkdir -p /opt/cef
