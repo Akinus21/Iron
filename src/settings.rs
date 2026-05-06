@@ -128,6 +128,42 @@ pub fn show_settings_overlay(
     home_row.append(&save_home_btn);
     content.append(&home_row);
 
+    // Section: Default Search Engine
+    let search_title = Label::new(Some("Default Search Engine"));
+    search_title.add_css_class("title-2");
+    search_title.set_halign(Align::Start);
+    content.append(&search_title);
+
+    let search_desc = Label::new(Some("Choose which search engine is used for the :search command"));
+    search_desc.add_css_class("caption");
+    search_desc.set_halign(Align::Start);
+    content.append(&search_desc);
+
+    let engines = &config.borrow().search.engines;
+    let engine_names: Vec<String> = engines.iter().map(|e| e.name.clone()).collect();
+    let engine_name_strs: Vec<&str> = engine_names.iter().map(|s| s.as_str()).collect();
+    let current_default = config.borrow().search.default.clone();
+
+    let search_list = gtk4::StringList::new(&engine_name_strs);
+    let search_combo = gtk4::DropDown::new(Some(search_list.clone()), None::<&gtk4::Expression>);
+    search_combo.set_hexpand(true);
+    search_combo.set_margin_top(8);
+
+    let default_idx = engines.iter().position(|e| e.name.eq_ignore_ascii_case(&current_default)).unwrap_or(0);
+    search_combo.set_selected(default_idx as u32);
+
+    let config_search = config.clone();
+    search_combo.connect_selected_item_notify(move |combo| {
+        let idx = combo.selected() as usize;
+        let mut cfg = config_search.borrow_mut();
+        if let Some(engine) = cfg.search.engines.get(idx) {
+            cfg.search.default = engine.name.clone();
+            let _ = cfg.save();
+        }
+    });
+
+    content.append(&search_combo);
+
     // Section: Current keybindings
     let kb_title = Label::new(Some("Key Bindings"));
     kb_title.add_css_class("title-2");
@@ -214,8 +250,16 @@ pub fn show_settings_overlay(
     let esc_hint = Label::new(Some("Press Escape to close settings"));
     esc_hint.add_css_class("caption");
     esc_hint.add_css_class("command-help");
-    esc_hint.set_margin_bottom(12);
+    esc_hint.set_margin_bottom(4);
     full.append(&esc_hint);
+
+    let iron_version = env!("CARGO_PKG_VERSION");
+    let chromium_version = "147";
+    let version_label = Label::new(Some(&format!("Iron {} · Chromium {}", iron_version, chromium_version)));
+    version_label.add_css_class("caption");
+    version_label.add_css_class("command-help");
+    version_label.set_margin_bottom(12);
+    full.append(&version_label);
 
     overlay.add_overlay(&full);
     full

@@ -392,7 +392,7 @@ fn build_window(
 
                     full_overlay.append(&columns);
 
-                    let esc_hint = Label::new(Some("↑/↓ navigate · Tab commit · Enter execute · Esc close"));
+                    let esc_hint = Label::new(Some("↑/↓ navigate · Enter/Tab populate · Enter on populated command execute · Esc close"));
                     esc_hint.add_css_class("caption");
                     esc_hint.add_css_class("command-help");
                     esc_hint.set_margin_bottom(12);
@@ -627,6 +627,47 @@ fn build_window(
                                 }
                                 wv_weak_esc.grab_focus();
                                 return glib::Propagation::Stop;
+                            }
+                            gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::ISO_Enter => {
+                                let st = key_state.borrow();
+                                let navigated = match st.active {
+                                    OverlaySection::Command => st.cmd_navigated && st.selected_cmd >= 0,
+                                    OverlaySection::History => st.hist_navigated && st.selected_hist >= 0,
+                                };
+                                if navigated {
+                                    let action = match st.active {
+                                        OverlaySection::Command => {
+                                            cmd_name_at_index(&key_cmd_list, st.selected_cmd).map(|name| {
+                                                if command::is_url_command(&name) {
+                                                    format!("{} ", name)
+                                                } else {
+                                                    name
+                                                }
+                                            })
+                                        }
+                                        OverlaySection::History => {
+                                            hist_url_at_index(&key_hist_list, st.selected_hist).map(|url| {
+                                                let text = key_entry.text().to_string();
+                                                if let Some(pos) = text.find(' ') {
+                                                    format!("{} {}", &text[..pos], url)
+                                                } else {
+                                                    url
+                                                }
+                                            })
+                                        }
+                                        _ => None,
+                                    };
+                                    drop(st);
+                                    if let Some(new_text) = action {
+                                        key_entry.set_text(&new_text);
+                                        key_entry.set_position(-1);
+                                        key_state.borrow_mut().cmd_navigated = false;
+                                        key_state.borrow_mut().hist_navigated = false;
+                                    }
+                                    return glib::Propagation::Stop;
+                                }
+                                drop(st);
+                                glib::Propagation::Proceed
                             }
                             gdk::Key::Up => {
                                 let mut st = key_state.borrow_mut();
