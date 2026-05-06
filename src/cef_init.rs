@@ -12,7 +12,7 @@ static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// CEF configuration
 #[derive(Debug, Clone)]
 pub struct CefConfig {
-    pub track: String,  // "stable" or "nightly"
+    pub track: String,
     pub cache_path: PathBuf,
     pub log_level: String,
     pub enable_window_sleep: bool,

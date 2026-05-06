@@ -22,17 +22,8 @@ impl DownloadManager {
         DownloadManager { items: Vec::new() }
     }
 
-    /// Attach download handler to CEF browser
-    /// 
-    /// Note: Full CEF download implementation requires CefDownloadHandler
-    /// This is a placeholder for now
     pub fn attach(_browser: &CefBrowserWrapper, _mgr: Rc<RefCell<DownloadManager>>) {
-        // TODO: When CEF is fully integrated:
-        // - Implement CefDownloadHandler trait
-        // - Set handler via CefClient
-        // - Handle OnBeforeDownload, OnDownloadUpdated, OnDownloadStateChanged
-        
-        eprintln!("Download handler attached (placeholder - full implementation pending CEF integration)");
+        eprintln!("Download handler attached (placeholder)");
     }
 
     pub fn recent(&self, limit: usize) -> Vec<&DownloadItem> {

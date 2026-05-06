@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 mod cac;
 mod cef_browser;
 mod cef_init;
