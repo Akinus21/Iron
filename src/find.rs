@@ -1,4 +1,5 @@
 use gtk4::{Align, Box as GtkBox, Button, Entry, Label, Orientation};
+use gtk4::prelude::{WidgetExt, EditableExt, EntryExt, BoxExt, ButtonExt};
 use crate::cef_browser::CefBrowserWrapper;
 
 const MAX_MATCH_COUNT: u32 = 1000;
@@ -123,16 +124,11 @@ impl FindOverlay {
     }
 
     pub fn search_next(&self) {
+        // TODO: Implement CEF search next
         if let Some(entry) = &self.entry {
-            let text = entry.text().to_string();
-            if !text.is_empty() {
-                // In a real CEF implementation, this would call find_next()
-                // For now, just re-search
-                if let Some(container) = &self.container {
-                    if let Some(child) = container.first_child() {
-                        if let Some(entry) = child.downcast_ref::<Entry>() {
-                            entry.grab_focus();
-                        }
+            entry.grab_focus();
+        }
+    }
                     }
                 }
             }

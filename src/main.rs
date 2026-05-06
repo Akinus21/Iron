@@ -148,18 +148,19 @@ fn build_window(
 
     // Create CEF browser wrapper (placeholder until full integration)
     let url = initial_url.unwrap_or(&cfg.borrow().home_page);
+    let surface = window.surface().expect("Window must have a surface");
     let browser = cef_browser::CefBrowserWrapper::new(
-        window.surface().as_ref(),
+        surface,
         url,
         false, // off-screen rendering disabled for now
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create CEF browser: {}", e);
-        // Fallback: create empty box
+        // Fallback: create with about:blank
         cef_browser::CefBrowserWrapper::new(
-            window.surface().as_ref(),
+            surface,
             "about:blank",
             false,
-        ).unwrap()
+        ).expect("Fallback browser creation failed")
     });
 
     // ---- History tracking (CEF version) ----
@@ -209,7 +210,7 @@ fn build_window(
 
     let hints_clone = hints.clone();
     let cmd_overlay_clone = cmd_overlay.clone();
-    let wv_weak = webview.downgrade();
+    let wv_weak = browser.downgrade();
     let cfg_clone = cfg.clone();
     let app_clone = app.clone();
     let find_overlay_clone = find_overlay.clone();
@@ -801,7 +802,7 @@ fn build_window(
     window.add_controller(key_ctl);
 
     window.present();
-    ThemeManager::start_watch(tm_watch, &webview, &noctalia_provider_watch);
+    ThemeManager::start_watch(tm_watch, &browser, &noctalia_provider_watch);
     window
 }
 

@@ -6,14 +6,6 @@ use gtk4::prelude::*;
 use gtk4::{Widget, gdk, glib};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::ffi::CString;
-
-/// Global registry of CEF browsers by window handle
-static BROWSER_REGISTRY: Lazy<Arc<RefCell<HashMap<u64, CefBrowserWrapper>>>> = 
-    Lazy::new(|| Arc::new(RefCell::new(HashMap::new())));
 
 /// CEF Browser wrapper that integrates with GTK4
 #[derive(Clone)]

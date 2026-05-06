@@ -1,9 +1,9 @@
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gtk4::{self, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
-use gtk4::prelude::{RootExt, StyleContextExt};
+use gtk4::prelude::{RootExt, StyleContextExt, FileExt};
 
 /// Convert a 6-char hex colour like "#1e1e1e" into an rgba() string with the given opacity.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
@@ -190,7 +190,7 @@ impl ThemeManager {
         }
     }
 
-    pub fn apply_webkit_css(&self, webview: &crate::cef_browser::CefBrowserWrapper) {
+    pub fn apply_webkit_css(&self, _webview: &crate::cef_browser::CefBrowserWrapper) {
         if self.webkit_css.is_empty() {
             return;
         }
@@ -224,33 +224,28 @@ impl ThemeManager {
             return;
         };
 
-        let provider = provider.clone();
-        let webview_weak = webview.downgrade();
-        monitor.connect_changed(move |_monitor, child, _other, event_type| {
-            match event_type {
-                gio::FileMonitorEvent::ChangesDoneHint
-                | gio::FileMonitorEvent::Created
-                | gio::FileMonitorEvent::Renamed
-                | gio::FileMonitorEvent::AttributeChanged => {}
-                _ => return,
-            }
+    let _provider = provider.clone();
+    let _wv = _webview.clone();
+    monitor.connect_changed(move |_monitor, child, _other, event_type| {
+        match event_type {
+            gio::FileMonitorEvent::ChangesDoneHint
+            | gio::FileMonitorEvent::Created
+            | gio::FileMonitorEvent::Renamed
+            | gio::FileMonitorEvent::AttributeChanged => {}
+            _ => return,
+        }
 
-            if let Some(child_path) = child.path() {
-                eprintln!("Noctalia: {:?} on {:?}", event_type, child_path);
-                let expected = theme_path.as_ref().map(|p| p.as_path());
-                if Some(child_path.as_path()) == expected {
-                    eprintln!("Noctalia: theme file changed, reloading...");
-                    tm.borrow_mut().reload(theme_path.as_deref());
-                    if let Some(wv) = webview_weak.upgrade() {
-                        let tm_ref = tm.borrow();
-                        tm_ref.apply_gtk_css(&provider);
-                        tm_ref.apply_webkit_css(&wv);
-                        eprintln!("Noctalia: theme reloaded and applied");
-                    }
-                }
+        if let Some(child_path) = child.path() {
+            let expected = theme_path.as_ref().map(|p| p.as_path());
+            if Some(child_path.as_path()) == expected {
+                eprintln!("Noctalia: theme file changed, reloading...");
+                tm.borrow_mut().reload(theme_path.as_deref());
+                tm.borrow().apply_gtk_css(&_provider);
+                eprintln!("Noctalia: theme reloaded and applied");
             }
-        });
-    }
+        }
+    });
+}
 
     fn reload(&mut self, expected_path: Option<&Path>) {
         if let Some(path) = expected_path {
