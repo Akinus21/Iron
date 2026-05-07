@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::cef_client::{self, IronClient, SharedClientState};
+use cef::ImplBrowser;
 
 #[derive(Clone)]
 pub struct CefBrowserWrapper {
@@ -96,9 +97,9 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                if let Ok(pixbuf) = gdk::pixbuf::Pixbuf::from_bytes(
+                if let Ok(pixbuf) = gio::Pixbuf::from_bytes(
                     &glib::Bytes::from(&rgba_buffer),
-                    gdk::pixbuf::Colorspace::Rgb,
+                    gio::PixbufColorspace::Rgb,
                     true,
                     8,
                     width,
@@ -112,10 +113,10 @@ impl CefBrowserWrapper {
         };
 
         let render_callback_rc = Rc::new(RefCell::new(render_callback));
-        crate::cef_client::set_render_callback(Box::new(move |buffer: &[u8], width: i32, height: i32| {
+        crate::cef_client::set_render_callback(Some(Box::new(move |buffer: &[u8], width: i32, height: i32| {
             let mut cb = render_callback_rc.borrow_mut();
             cb(buffer, width, height);
-        }));
+        })));
 
         let mut client = IronClient::new(client_state.clone());
 
@@ -126,17 +127,17 @@ impl CefBrowserWrapper {
             window_info.set_as_windowless(0);
         } else if let Some(surface) = parent_window {
             let win_id = get_window_handle(surface);
-            window_info.set_as_child(win_id, cef::Rect::default());
+            window_info.set_as_child(win_id, &cef::Rect::default());
         }
 
-        let mut browser_settings = cef::BrowserSettings::default();
-        browser_settings.windowless_rendering_enabled = if is_offscreen || parent_window.is_none() { 1 } else { 0 };
+        let browser_settings = cef::BrowserSettings::default();
 
         let cef_url = cef::CefString::from(url_str.as_str());
 
+        let client_ptr: *mut IronClient = &mut client;
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(&mut client),
+            Some(unsafe { &mut *(client_ptr as *mut dyn ImplClient) }),
             Some(&cef_url),
             Some(&browser_settings),
             None,
@@ -252,8 +253,9 @@ impl CefBrowserWrapper {
         self.widget.add_controller(scroll_controller);
 
         let browser_clone = self.browser.clone();
-        let focus_controller = EventControllerKey::new();
-        focus_controller.connect_enter(move |_, _, _| {
+        let has_focus_clone = self.has_focus.clone();
+        let focus_controller = gtk4::EventControllerFocus::new();
+        focus_controller.connect_enter(move |_| {
             if let Some(browser) = browser_clone.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     host.set_focus(1);
@@ -262,7 +264,7 @@ impl CefBrowserWrapper {
             *has_focus_clone.borrow_mut() = true;
         });
 
-        focus_controller.connect_leave(move |_, _, _| {
+        focus_controller.connect_leave(move |_| {
             if let Some(browser) = browser_clone.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     host.set_focus(0);
@@ -422,22 +424,22 @@ fn convert_bgra_to_rgba(buffer: &[u8], width: usize, height: usize) -> Vec<u8> {
 
 fn build_cef_key_event(keyval: gdk::Key, keycode: u32, modifier: gdk::ModifierType, is_press: bool) -> cef::KeyEvent {
     let mut event = cef::KeyEvent::default();
-    
+
     if is_press {
-        event.event_type = cef::KeyEvent::KeyDown;
+        event.type_ = 1;
     } else {
-        event.event_type = cef::KeyEvent::KeyUp;
+        event.type_ = 2;
     }
-    
+
     event.modifiers = map_gdk_modifier(modifier);
     event.windows_key_code = keyval_to_windows_key_code(keyval);
     event.native_key_code = keycode as i32;
-    
+
     if let Some(c) = keyval.to_unicode() {
-        event.unmodified_character = Some(cef::CefString::from(&c.to_string()));
-        event.character = Some(cef::CefString::from(&c.to_string()));
+        event.unmodified_character = c as u16;
+        event.character = c as u16;
     }
-    
+
     event
 }
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{CefArgs, Settings, App};
+use cef::{Settings, App};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -41,10 +41,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
               config.track, config.cache_path, config.windowless_rendering);
 
     let args: Vec<String> = std::env::args().collect();
-    let mut cef_args = CefArgs::new();
-    for arg in &args {
-        cef_args.push(arg);
-    }
+    let mut cef_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     cef_args.push("--disable-gpu");
     cef_args.push("--disable-gpu-compositing");
     cef_args.push("--disable-extensions");
@@ -70,8 +67,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = cef::CefString::from(cache_path_str.as_ref());
 
+    let main_args = cef::MainArgs::new(&cef_args);
+
     let result = cef::initialize(
-        Some(cef_args.as_main_args()),
+        Some(&main_args),
         Some(&settings),
         None,
         std::ptr::null_mut(),

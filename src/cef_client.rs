@@ -6,9 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::atomic::AtomicUsize;
 
 use cef::{
-    Browser, Frame, CefString,
+    Browser, Frame, CefString, BeforeDownloadCallback, DownloadItem, DownloadItemCallback,
     PaintElementType, Rect, FocusSource, TransitionType,
-    BeforeDownloadCallback, DownloadCallback, DownloadItem,
     ImplClient, ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler,
     ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
@@ -44,6 +43,7 @@ pub fn set_render_callback(callback: Option<Box<dyn FnMut(&[u8], i32, i32) + Sen
     *RENDER_CALLBACK.lock().unwrap() = callback;
 }
 
+#[derive(Clone)]
 pub struct IronLifeSpanHandler {
     state: SharedClientState,
 }
@@ -54,6 +54,7 @@ impl IronLifeSpanHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronLoadHandler {
     state: SharedClientState,
 }
@@ -64,6 +65,7 @@ impl IronLoadHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronDisplayHandler {
     state: SharedClientState,
 }
@@ -74,6 +76,7 @@ impl IronDisplayHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronRenderHandler;
 
 impl IronRenderHandler {
@@ -88,6 +91,7 @@ impl Default for IronRenderHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronFocusHandler;
 
 impl IronFocusHandler {
@@ -102,6 +106,7 @@ impl Default for IronFocusHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronDownloadHandler;
 
 impl IronDownloadHandler {
@@ -116,6 +121,7 @@ impl Default for IronDownloadHandler {
     }
 }
 
+#[derive(Clone)]
 pub struct IronClient {
     state: SharedClientState,
 }
@@ -127,6 +133,10 @@ impl IronClient {
 }
 
 impl ImplLifeSpanHandler for IronLifeSpanHandler {
+    fn get_raw(&self) -> *mut _cef_life_span_handler_t {
+        unimplemented!()
+    }
+
     fn on_after_created(&self, _browser: Option<&mut Browser>) {
         eprintln!("[CEF] Browser created");
         BROWSER_CREATED.store(true, Ordering::SeqCst);
@@ -139,6 +149,10 @@ impl ImplLifeSpanHandler for IronLifeSpanHandler {
 }
 
 impl ImplLoadHandler for IronLoadHandler {
+    fn get_raw(&self) -> *mut _cef_load_handler_t {
+        unimplemented!()
+    }
+
     fn on_load_start(
         &self,
         _browser: Option<&mut Browser>,
@@ -163,17 +177,21 @@ impl ImplLoadHandler for IronLoadHandler {
     fn on_loading_state_change(
         &self,
         _browser: Option<&mut Browser>,
-        is_loading: bool,
-        can_go_back: bool,
-        can_go_forward: bool,
+        is_loading: i32,
+        can_go_back: i32,
+        can_go_forward: i32,
     ) {
         if let Some(cb) = self.state.borrow_mut().on_loading_state_change.as_ref() {
-            cb(is_loading, can_go_back, can_go_forward);
+            cb(is_loading != 0, can_go_back != 0, can_go_forward != 0);
         }
     }
 }
 
 impl ImplDisplayHandler for IronDisplayHandler {
+    fn get_raw(&self) -> *mut _cef_display_handler_t {
+        unimplemented!()
+    }
+
     fn on_title_change(
         &self,
         _browser: Option<&mut Browser>,
@@ -203,11 +221,15 @@ impl ImplDisplayHandler for IronDisplayHandler {
 }
 
 impl ImplRenderHandler for IronRenderHandler {
+    fn get_raw(&self) -> *mut _cef_render_handler_t {
+        unimplemented!()
+    }
+
     fn on_paint(
         &self,
         _browser: Option<&mut Browser>,
         _kind: PaintElementType,
-        _dirty_rects: &[Rect],
+        _dirty_rects: Option<&[Rect]>,
         buffer: Option<&[u8]>,
         width: i32,
         height: i32,
@@ -222,6 +244,10 @@ impl ImplRenderHandler for IronRenderHandler {
 }
 
 impl ImplFocusHandler for IronFocusHandler {
+    fn get_raw(&self) -> *mut _cef_focus_handler_t {
+        unimplemented!()
+    }
+
     fn on_set_focus(
         &self,
         _browser: Option<&mut Browser>,
@@ -232,28 +258,36 @@ impl ImplFocusHandler for IronFocusHandler {
 }
 
 impl ImplDownloadHandler for IronDownloadHandler {
+    fn get_raw(&self) -> *mut _cef_download_handler_t {
+        unimplemented!()
+    }
+
     fn on_before_download(
         &self,
         _browser: Option<&mut Browser>,
         _download_item: Option<&mut DownloadItem>,
         _suggested_name: Option<&CefString>,
-    ) -> BeforeDownloadCallback {
+        _callback: Option<&mut BeforeDownloadCallback>,
+    ) -> i32 {
         eprintln!("[CEF] Download requested");
-        let mut cb: BeforeDownloadCallback = unsafe { std::mem::zeroed() };
-        cb
+        0
     }
 
     fn on_download_updated(
         &self,
         _browser: Option<&mut Browser>,
         _download_item: Option<&mut DownloadItem>,
-        _callback: Option<&mut DownloadCallback>,
+        _callback: Option<&mut DownloadItemCallback>,
     ) {
         eprintln!("[CEF] Download updated");
     }
 }
 
 impl ImplClient for IronClient {
+    fn get_raw(&self) -> *mut _cef_client_t {
+        unimplemented!()
+    }
+
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
         None
     }
