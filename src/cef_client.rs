@@ -7,9 +7,11 @@ use std::sync::atomic::AtomicUsize;
 
 use cef::{
     Browser, Frame, CefString,
-    LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
+    ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler, ImplRenderHandler,
+    ImplFocusHandler, ImplDownloadHandler, ImplClient,
+    LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     Client, App,
 };
 
@@ -52,7 +54,79 @@ impl IronLifeSpanHandler {
     }
 }
 
-impl LifeSpanHandler for IronLifeSpanHandler {
+pub struct IronLoadHandler {
+    state: SharedClientState,
+}
+
+impl IronLoadHandler {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+pub struct IronDisplayHandler {
+    state: SharedClientState,
+}
+
+impl IronDisplayHandler {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+pub struct IronRenderHandler;
+
+impl IronRenderHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for IronRenderHandler {
+    fn default() -> Self {
+        Self
+    }
+}
+
+pub struct IronFocusHandler;
+
+impl IronFocusHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for IronFocusHandler {
+    fn default() -> Self {
+        Self
+    }
+}
+
+pub struct IronDownloadHandler;
+
+impl IronDownloadHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for IronDownloadHandler {
+    fn default() -> Self {
+        Self
+    }
+}
+
+pub struct IronClient {
+    state: SharedClientState,
+}
+
+impl IronClient {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+impl ImplLifeSpanHandler for IronLifeSpanHandler {
     fn on_after_created(&self, _browser: Option<&mut Browser>) {
         eprintln!("[CEF] Browser created");
         BROWSER_CREATED.store(true, Ordering::SeqCst);
@@ -64,17 +138,7 @@ impl LifeSpanHandler for IronLifeSpanHandler {
     }
 }
 
-pub struct IronLoadHandler {
-    state: SharedClientState,
-}
-
-impl IronLoadHandler {
-    pub fn new(state: SharedClientState) -> Self {
-        Self { state }
-    }
-}
-
-impl LoadHandler for IronLoadHandler {
+impl ImplLoadHandler for IronLoadHandler {
     fn on_load_start(
         &self,
         browser: Option<&mut Browser>,
@@ -127,17 +191,7 @@ impl LoadHandler for IronLoadHandler {
     }
 }
 
-pub struct IronDisplayHandler {
-    state: SharedClientState,
-}
-
-impl IronDisplayHandler {
-    pub fn new(state: SharedClientState) -> Self {
-        Self { state }
-    }
-}
-
-impl DisplayHandler for IronDisplayHandler {
+impl ImplDisplayHandler for IronDisplayHandler {
     fn on_title_change(
         &self,
         _browser: Option<&mut Browser>,
@@ -166,21 +220,7 @@ impl DisplayHandler for IronDisplayHandler {
     }
 }
 
-pub struct IronRenderHandler;
-
-impl IronRenderHandler {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for IronRenderHandler {
-    fn default() -> Self {
-        Self
-    }
-}
-
-impl RenderHandler for IronRenderHandler {
+impl ImplRenderHandler for IronRenderHandler {
     fn on_paint(
         &self,
         _browser: Option<&mut Browser>,
@@ -199,21 +239,7 @@ impl RenderHandler for IronRenderHandler {
     }
 }
 
-pub struct IronFocusHandler;
-
-impl IronFocusHandler {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for IronFocusHandler {
-    fn default() -> Self {
-        Self
-    }
-}
-
-impl FocusHandler for IronFocusHandler {
+impl ImplFocusHandler for IronFocusHandler {
     fn on_set_focus(
         &self,
         _browser: Option<&mut Browser>,
@@ -223,21 +249,7 @@ impl FocusHandler for IronFocusHandler {
     }
 }
 
-pub struct IronDownloadHandler;
-
-impl IronDownloadHandler {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for IronDownloadHandler {
-    fn default() -> Self {
-        Self
-    }
-}
-
-impl DownloadHandler for IronDownloadHandler {
+impl ImplDownloadHandler for IronDownloadHandler {
     fn on_before_download(
         &self,
         _browser: Option<&mut Browser>,
@@ -269,39 +281,29 @@ impl DownloadHandler for IronDownloadHandler {
     }
 }
 
-pub struct IronClient {
-    state: SharedClientState,
-}
-
-impl IronClient {
-    pub fn new(state: SharedClientState) -> Self {
-        Self { state }
-    }
-}
-
-impl Client for IronClient {
+impl ImplClient for IronClient {
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-        Some(IronLifeSpanHandler::new(self.state.clone()))
+        Some(cef::wrap_life_span_handler!(IronLifeSpanHandler::new(self.state.clone())))
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
-        Some(IronLoadHandler::new(self.state.clone()))
+        Some(cef::wrap_load_handler!(IronLoadHandler::new(self.state.clone())))
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
-        Some(IronDisplayHandler::new(self.state.clone()))
+        Some(cef::wrap_display_handler!(IronDisplayHandler::new(self.state.clone())))
     }
 
     fn render_handler(&self) -> Option<RenderHandler> {
-        Some(IronRenderHandler::new())
+        Some(cef::wrap_render_handler!(IronRenderHandler::new()))
     }
 
     fn focus_handler(&self) -> Option<FocusHandler> {
-        Some(IronFocusHandler::new())
+        Some(cef::wrap_focus_handler!(IronFocusHandler::new()))
     }
 
     fn download_handler(&self) -> Option<DownloadHandler> {
-        Some(IronDownloadHandler::new())
+        Some(cef::wrap_download_handler!(IronDownloadHandler::new()))
     }
 }
 

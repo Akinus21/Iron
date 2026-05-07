@@ -73,7 +73,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),
-        None::<&mut dyn App>,
+        None::<App>,
         std::ptr::null_mut(),
     );
 

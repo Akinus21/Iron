@@ -424,9 +424,9 @@ fn build_cef_key_event(keyval: gdk::Key, keycode: u32, modifier: gdk::ModifierTy
     let mut event = cef::KeyEvent::default();
     
     if is_press {
-        event.event_type = cef::KeyEventKind::KeyDown;
+        event.event_type = cef::KeyEvent::KeyDown;
     } else {
-        event.event_type = cef::KeyEventKind::KeyUp;
+        event.event_type = cef::KeyEvent::KeyUp;
     }
     
     event.modifiers = map_gdk_modifier(modifier);
