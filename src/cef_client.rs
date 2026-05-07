@@ -5,13 +5,12 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::atomic::AtomicUsize;
 
-use cef::Client;
-use cef::App;
-use cef::{Browser, Frame, CefString};
 use cef::{
+    Browser, Frame, CefString,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
+    Client, App,
 };
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
@@ -43,224 +42,266 @@ pub fn set_render_callback(callback: Option<Box<dyn FnMut(&[u8], i32, i32) + Sen
     *RENDER_CALLBACK.lock().unwrap() = callback;
 }
 
-fn get_render_callback_mut() -> Option<std::sync::MutexGuard<'static, Option<RenderCallback>>> {
-    RENDER_CALLBACK.lock().ok()
+pub struct IronLifeSpanHandler {
+    state: SharedClientState,
 }
 
-cef::wrap_life_span_handler! {
-    pub struct IronLifeSpanHandler {
-        state: SharedClientState,
-    }
-
-    impl LifeSpanHandler {
-        fn on_after_created(&self, _browser: Option<&mut Browser>) {
-            eprintln!("[CEF] Browser created");
-            BROWSER_CREATED.store(true, Ordering::SeqCst);
-        }
-
-        fn on_before_close(&self, _browser: Option<&mut Browser>) {
-            eprintln!("[CEF] Browser closing");
-            BROWSER_CREATED.store(false, Ordering::SeqCst);
-        }
+impl IronLifeSpanHandler {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
     }
 }
 
-cef::wrap_load_handler! {
-    pub struct IronLoadHandler {
-        state: SharedClientState,
+impl LifeSpanHandler for IronLifeSpanHandler {
+    fn on_after_created(&self, _browser: Option<&mut Browser>) {
+        eprintln!("[CEF] Browser created");
+        BROWSER_CREATED.store(true, Ordering::SeqCst);
     }
 
-    impl LoadHandler {
-        fn on_load_start(
-            &self,
-            browser: Option<&mut Browser>,
-            _frame: Option<&mut Frame>,
-            _transition_type: TransitionType,
-        ) {
-            if let Some(browser) = browser {
-                if let Some(frame) = browser.main_frame() {
+    fn on_before_close(&self, _browser: Option<&mut Browser>) {
+        eprintln!("[CEF] Browser closing");
+        BROWSER_CREATED.store(false, Ordering::SeqCst);
+    }
+}
+
+pub struct IronLoadHandler {
+    state: SharedClientState,
+}
+
+impl IronLoadHandler {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+impl LoadHandler for IronLoadHandler {
+    fn on_load_start(
+        &self,
+        browser: Option<&mut Browser>,
+        _frame: Option<&mut Frame>,
+        _transition_type: TransitionType,
+    ) {
+        if let Some(browser) = browser {
+            if let Some(frame) = browser.main_frame() {
+                if let Some(url) = frame.url() {
+                    let url_str = url.to_string();
+                    eprintln!("[CEF] Page load started: {}", url_str);
+                }
+            }
+        }
+    }
+
+    fn on_load_end(
+        &self,
+        browser: Option<&mut Browser>,
+        frame: Option<&mut Frame>,
+        _http_status_code: i32,
+    ) {
+        if let Some(cb) = self.state.borrow_mut().on_page_load_end.as_ref() {
+            cb();
+        }
+
+        if let Some(browser) = browser {
+            if let Some(frame) = frame {
+                if frame.is_main() != 0 {
                     if let Some(url) = frame.url() {
                         let url_str = url.to_string();
-                        eprintln!("[CEF] Page load started: {}", url_str);
+                        let title = browser.get_title().map(|t| t.to_string()).unwrap_or_default();
+                        eprintln!("[CEF] Page loaded: {} - {}", url_str, title);
                     }
                 }
             }
         }
+    }
 
-        fn on_load_end(
-            &self,
-            browser: Option<&mut Browser>,
-            frame: Option<&mut Frame>,
-            _http_status_code: i32,
-        ) {
-            if let Some(cb) = self.state.borrow_mut().on_page_load_end.as_ref() {
-                cb();
-            }
+    fn on_loading_state_change(
+        &self,
+        _browser: Option<&mut Browser>,
+        is_loading: bool,
+        can_go_back: bool,
+        can_go_forward: bool,
+    ) {
+        if let Some(cb) = self.state.borrow_mut().on_loading_state_change.as_ref() {
+            cb(is_loading, can_go_back, can_go_forward);
+        }
+    }
+}
 
-            if let Some(browser) = browser {
-                if let Some(frame) = frame {
-                    if frame.is_main() != 0 {
-                        if let Some(url) = frame.url() {
-                            let url_str = url.to_string();
-                            let title = browser.get_title().map(|t| t.to_string()).unwrap_or_default();
-                            eprintln!("[CEF] Page loaded: {} - {}", url_str, title);
-                        }
-                    }
-                }
+pub struct IronDisplayHandler {
+    state: SharedClientState,
+}
+
+impl IronDisplayHandler {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+impl DisplayHandler for IronDisplayHandler {
+    fn on_title_change(
+        &self,
+        _browser: Option<&mut Browser>,
+        title: Option<&CefString>,
+    ) {
+        if let Some(t) = title {
+            let title_str = t.to_string();
+            if let Some(cb) = self.state.borrow_mut().on_title_change.as_ref() {
+                cb(&title_str);
             }
         }
+    }
 
-        fn on_loading_state_change(
-            &self,
-            _browser: Option<&mut Browser>,
-            is_loading: bool,
-            can_go_back: bool,
-            can_go_forward: bool,
-        ) {
-            if let Some(cb) = self.state.borrow_mut().on_loading_state_change.as_ref() {
-                cb(is_loading, can_go_back, can_go_forward);
+    fn on_address_change(
+        &self,
+        _browser: Option<&mut Browser>,
+        _frame: Option<&mut Frame>,
+        url: Option<&CefString>,
+    ) {
+        if let Some(u) = url {
+            let url_str = u.to_string();
+            if let Some(cb) = self.state.borrow_mut().on_url_change.as_ref() {
+                cb(&url_str);
             }
         }
     }
 }
 
-cef::wrap_display_handler! {
-    pub struct IronDisplayHandler {
-        state: SharedClientState,
-    }
+pub struct IronRenderHandler;
 
-    impl DisplayHandler {
-        fn on_title_change(
-            &self,
-            _browser: Option<&mut Browser>,
-            title: Option<&CefString>,
-        ) {
-            if let Some(t) = title {
-                let title_str = t.to_string();
-                if let Some(cb) = self.state.borrow_mut().on_title_change.as_ref() {
-                    cb(&title_str);
-                }
-            }
-        }
-
-        fn on_address_change(
-            &self,
-            _browser: Option<&mut Browser>,
-            _frame: Option<&mut Frame>,
-            url: Option<&CefString>,
-        ) {
-            if let Some(u) = url {
-                let url_str = u.to_string();
-                if let Some(cb) = self.state.borrow_mut().on_url_change.as_ref() {
-                    cb(&url_str);
-                }
-            }
-        }
+impl IronRenderHandler {
+    pub fn new() -> Self {
+        Self
     }
 }
 
-cef::wrap_render_handler! {
-    pub struct IronRenderHandler;
+impl Default for IronRenderHandler {
+    fn default() -> Self {
+        Self
+    }
+}
 
-    impl RenderHandler {
-        fn on_paint(
-            &self,
-            _browser: Option<&mut Browser>,
-            _kind: PaintElementType,
-            _dirty_rects: &[Rect],
-            buffer: Option<&[u8]>,
-            width: i32,
-            height: i32,
-        ) {
-            let Some(buffer) = buffer else { return };
-            if let Ok(guard) = RENDER_CALLBACK.lock() {
-                if let Some(ref mut callback) = *guard {
-                    callback(buffer, width, height);
-                }
+impl RenderHandler for IronRenderHandler {
+    fn on_paint(
+        &self,
+        _browser: Option<&mut Browser>,
+        _kind: PaintElementType,
+        _dirty_rects: &[Rect],
+        buffer: Option<&[u8]>,
+        width: i32,
+        height: i32,
+    ) {
+        let Some(buffer) = buffer else { return };
+        if let Ok(guard) = RENDER_CALLBACK.lock() {
+            if let Some(ref mut callback) = *guard {
+                callback(buffer, width, height);
             }
         }
     }
 }
 
-cef::wrap_focus_handler! {
-    pub struct IronFocusHandler;
+pub struct IronFocusHandler;
 
-    impl FocusHandler {
-        fn on_set_focus(
-            &self,
-            _browser: Option<&mut Browser>,
-            _source: FocusSource,
-        ) -> i32 {
-            0
-        }
+impl IronFocusHandler {
+    pub fn new() -> Self {
+        Self
     }
 }
 
-cef::wrap_download_handler! {
-    pub struct IronDownloadHandler;
+impl Default for IronFocusHandler {
+    fn default() -> Self {
+        Self
+    }
+}
 
-    impl DownloadHandler {
-        fn on_before_download(
-            &self,
-            _browser: Option<&mut Browser>,
-            _download_item: Option<&mut DownloadItem>,
-            _suggested_name: Option<&CefString>,
-        ) -> BeforeDownloadCallback {
-            eprintln!("[CEF] Download requested");
-            BeforeDownloadCallback::default()
-        }
+impl FocusHandler for IronFocusHandler {
+    fn on_set_focus(
+        &self,
+        _browser: Option<&mut Browser>,
+        _source: FocusSource,
+    ) -> i32 {
+        0
+    }
+}
 
-        fn on_download_updated(
-            &self,
-            _browser: Option<&mut Browser>,
-            download_item: Option<&mut DownloadItem>,
-            _callback: Option<&mut DownloadCallback>,
-        ) {
-            if let Some(item) = download_item {
-                let is_done = item.is_done() != 0;
-                let percent = item.percent_complete();
-                let speed = item.current_speed();
-                let url = item.url().map(|s| s.to_string()).unwrap_or_default();
+pub struct IronDownloadHandler;
 
-                if is_done {
-                    eprintln!("[CEF] Download complete: {}", url);
-                } else {
-                    eprintln!("[CEF] Download progress: {}% at {} bytes/sec", percent, speed);
-                }
+impl IronDownloadHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for IronDownloadHandler {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl DownloadHandler for IronDownloadHandler {
+    fn on_before_download(
+        &self,
+        _browser: Option<&mut Browser>,
+        _download_item: Option<&mut DownloadItem>,
+        _suggested_name: Option<&CefString>,
+    ) -> BeforeDownloadCallback {
+        eprintln!("[CEF] Download requested");
+        BeforeDownloadCallback::default()
+    }
+
+    fn on_download_updated(
+        &self,
+        _browser: Option<&mut Browser>,
+        download_item: Option<&mut DownloadItem>,
+        _callback: Option<&mut DownloadCallback>,
+    ) {
+        if let Some(item) = download_item {
+            let is_done = item.is_done() != 0;
+            let percent = item.percent_complete();
+            let speed = item.current_speed();
+            let url = item.url().map(|s| s.to_string()).unwrap_or_default();
+
+            if is_done {
+                eprintln!("[CEF] Download complete: {}", url);
+            } else {
+                eprintln!("[CEF] Download progress: {}% at {} bytes/sec", percent, speed);
             }
         }
     }
 }
 
-cef::wrap_client! {
-    pub struct IronClient {
-        state: SharedClientState,
+pub struct IronClient {
+    state: SharedClientState,
+}
+
+impl IronClient {
+    pub fn new(state: SharedClientState) -> Self {
+        Self { state }
+    }
+}
+
+impl Client for IronClient {
+    fn life_span_handler(&self) -> Option<LifeSpanHandler> {
+        Some(IronLifeSpanHandler::new(self.state.clone()))
     }
 
-    impl Client {
-        fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-            Some(IronLifeSpanHandler::new(self.state.clone()))
-        }
+    fn load_handler(&self) -> Option<LoadHandler> {
+        Some(IronLoadHandler::new(self.state.clone()))
+    }
 
-        fn load_handler(&self) -> Option<LoadHandler> {
-            Some(IronLoadHandler::new(self.state.clone()))
-        }
+    fn display_handler(&self) -> Option<DisplayHandler> {
+        Some(IronDisplayHandler::new(self.state.clone()))
+    }
 
-        fn display_handler(&self) -> Option<DisplayHandler> {
-            Some(IronDisplayHandler::new(self.state.clone()))
-        }
+    fn render_handler(&self) -> Option<RenderHandler> {
+        Some(IronRenderHandler::new())
+    }
 
-        fn render_handler(&self) -> Option<RenderHandler> {
-            Some(IronRenderHandler::new())
-        }
+    fn focus_handler(&self) -> Option<FocusHandler> {
+        Some(IronFocusHandler::new())
+    }
 
-        fn focus_handler(&self) -> Option<FocusHandler> {
-            Some(IronFocusHandler::new())
-        }
-
-        fn download_handler(&self) -> Option<DownloadHandler> {
-            Some(IronDownloadHandler::new())
-        }
+    fn download_handler(&self) -> Option<DownloadHandler> {
+        Some(IronDownloadHandler::new())
     }
 }
 

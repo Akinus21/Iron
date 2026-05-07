@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefApp, CefArgs, Settings};
+use cef::{CefArgs, Settings, App};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -70,11 +70,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = Some(cef::CefString::from(cache_path_str.as_ref()));
 
-    let app = App;
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),
-        Some(&mut app.clone()),
+        None::<&mut dyn App>,
         std::ptr::null_mut(),
     );
 
