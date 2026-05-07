@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::App;
-use cef::WrapApp;
+use cef::{App, CefApp, CefArgs, Settings};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -41,8 +40,8 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     eprintln!("[CEF] Initializing (track={}, cache={:?}, osr={})",
               config.track, config.cache_path, config.windowless_rendering);
 
-        let args: Vec<String> = std::env::args().collect();
-    let mut cef_args = cef::args::Args::new();
+    let args: Vec<String> = std::env::args().collect();
+    let mut cef_args = CefArgs::new();
     for arg in &args {
         cef_args.push(arg);
     }
@@ -63,7 +62,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         cef_args.push("--enable-gpu");
     }
 
-    let mut settings = cef::Settings::default();
+    let mut settings = Settings::default();
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
@@ -71,20 +70,15 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = Some(cef::CefString::from(cache_path_str.as_ref()));
 
-match config.log_level.as_str() {
-        _ => {}
-    }
-
-    let app = IronApp::new();
+    let app = App;
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),
-        Some(&mut app),
+        Some(&mut app.clone()),
         std::ptr::null_mut(),
     );
 
     if result != 0 {
-        // CEF subprocess — re-launch via CEF and exit
         return Err("CEF subprocess handler".to_string());
     }
 
@@ -116,14 +110,6 @@ pub fn do_message_loop_work() {
     if CEF_INITIALIZED.load(Ordering::SeqCst) {
         cef::do_message_loop_work();
     }
-}
-
-cef::wrap_app! {
-    struct IronApp {
-        _private: (),
-    }
-
-    impl App {}
 }
 
 pub fn get_cef_flags() -> Vec<String> {

@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 use cef::Client;
 use cef::App;
@@ -14,6 +15,7 @@ use cef::{
 };
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
+static PAGE_LOAD_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub struct IronClientState {
     pub on_title_change: Option<Box<dyn Fn(&str)>>,
@@ -41,36 +43,8 @@ pub fn set_render_callback(callback: Option<Box<dyn FnMut(&[u8], i32, i32) + Sen
     *RENDER_CALLBACK.lock().unwrap() = callback;
 }
 
-cef::wrap_client! {
-    pub struct IronClient {
-        state: SharedClientState,
-    }
-
-    impl Client {
-        fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-            Some(IronLifeSpanHandler::new(self.state.clone()))
-        }
-
-        fn load_handler(&self) -> Option<LoadHandler> {
-            Some(IronLoadHandler::new(self.state.clone()))
-        }
-
-        fn display_handler(&self) -> Option<DisplayHandler> {
-            Some(IronDisplayHandler::new(self.state.clone()))
-        }
-
-        fn render_handler(&self) -> Option<RenderHandler> {
-            Some(IronRenderHandler::new())
-        }
-
-        fn focus_handler(&self) -> Option<FocusHandler> {
-            Some(IronFocusHandler::new())
-        }
-
-        fn download_handler(&self) -> Option<DownloadHandler> {
-            Some(IronDownloadHandler::new())
-        }
-    }
+fn get_render_callback_mut() -> Option<std::sync::MutexGuard<'static, Option<RenderCallback>>> {
+    RENDER_CALLBACK.lock().ok()
 }
 
 cef::wrap_life_span_handler! {
@@ -90,10 +64,6 @@ cef::wrap_life_span_handler! {
         }
     }
 }
-
-use std::sync::atomic::AtomicUsize;
-
-static PAGE_LOAD_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 cef::wrap_load_handler! {
     pub struct IronLoadHandler {
@@ -203,9 +173,10 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(buffer) = buffer else { return };
-            let guard = RENDER_CALLBACK.lock().unwrap();
-            if let Some(ref mut callback) = *guard {
-                callback(buffer, width, height);
+            if let Ok(guard) = RENDER_CALLBACK.lock() {
+                if let Some(ref mut callback) = *guard {
+                    callback(buffer, width, height);
+                }
             }
         }
     }
@@ -257,6 +228,38 @@ cef::wrap_download_handler! {
                     eprintln!("[CEF] Download progress: {}% at {} bytes/sec", percent, speed);
                 }
             }
+        }
+    }
+}
+
+cef::wrap_client! {
+    pub struct IronClient {
+        state: SharedClientState,
+    }
+
+    impl Client {
+        fn life_span_handler(&self) -> Option<LifeSpanHandler> {
+            Some(IronLifeSpanHandler::new(self.state.clone()))
+        }
+
+        fn load_handler(&self) -> Option<LoadHandler> {
+            Some(IronLoadHandler::new(self.state.clone()))
+        }
+
+        fn display_handler(&self) -> Option<DisplayHandler> {
+            Some(IronDisplayHandler::new(self.state.clone()))
+        }
+
+        fn render_handler(&self) -> Option<RenderHandler> {
+            Some(IronRenderHandler::new())
+        }
+
+        fn focus_handler(&self) -> Option<FocusHandler> {
+            Some(IronFocusHandler::new())
+        }
+
+        fn download_handler(&self) -> Option<DownloadHandler> {
+            Some(IronDownloadHandler::new())
         }
     }
 }

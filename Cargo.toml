@@ -21,5 +21,6 @@ cef = "147.1"
 x11 = "2.21"
 once_cell = "1.19"
 
-[build-dependencies]
-# download-cef removed - cef-dll-sys handles CEF download automatically
+[features]
+default = []
+cef-stub = []
