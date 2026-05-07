@@ -13,16 +13,16 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CEF_TRACK");
     println!("cargo:rerun-if-env-changed=CEF_DIR");
     
-    let cef_track = env::var("CEF_TRACK").unwrap_or_else(|_| "stable".to_string());
+    let _cef_track = env::var("CEF_TRACK").unwrap_or_else(|_| "stable".to_string());
     let cef_dir = if let Ok(dir) = env::var("CEF_DIR") {
         PathBuf::from(&dir)
     } else {
-        // Use download-cef to download CEF - use exact version from index
+        // Use download-cef to download CEF - use linux64 target
         let cef_version = "147.0.10+gd58e84d+chromium-147.0.7727.118";
         let download_dir = std::env::temp_dir().join("cef-download");
         let _ = std::fs::create_dir_all(&download_dir);
         let result = download_cef::download_target_archive(
-            "x86_64-unknown-linux-gnu",
+            "linux64",
             cef_version,
             &download_dir,
             true,
