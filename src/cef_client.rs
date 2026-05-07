@@ -4,6 +4,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use cef::Client;
+use cef::App;
+use cef::{Browser, Frame, CefString};
+use cef::{
+    LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
+    PaintElementType, Rect, FocusSource, TransitionType,
+    BeforeDownloadCallback, DownloadCallback, DownloadItem,
+};
+
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 
 pub struct IronClientState {
@@ -38,27 +47,27 @@ cef::wrap_client! {
     }
 
     impl Client {
-        fn life_span_handler(&self) -> Option<cef::LifeSpanHandler> {
+        fn life_span_handler(&self) -> Option<LifeSpanHandler> {
             Some(IronLifeSpanHandler::new(self.state.clone()))
         }
 
-        fn load_handler(&self) -> Option<cef::LoadHandler> {
+        fn load_handler(&self) -> Option<LoadHandler> {
             Some(IronLoadHandler::new(self.state.clone()))
         }
 
-        fn display_handler(&self) -> Option<cef::DisplayHandler> {
+        fn display_handler(&self) -> Option<DisplayHandler> {
             Some(IronDisplayHandler::new(self.state.clone()))
         }
 
-        fn render_handler(&self) -> Option<cef::RenderHandler> {
+        fn render_handler(&self) -> Option<RenderHandler> {
             Some(IronRenderHandler::new())
         }
 
-        fn focus_handler(&self) -> Option<cef::FocusHandler> {
+        fn focus_handler(&self) -> Option<FocusHandler> {
             Some(IronFocusHandler::new())
         }
 
-        fn download_handler(&self) -> Option<cef::DownloadHandler> {
+        fn download_handler(&self) -> Option<DownloadHandler> {
             Some(IronDownloadHandler::new())
         }
     }
@@ -70,12 +79,12 @@ cef::wrap_life_span_handler! {
     }
 
     impl LifeSpanHandler {
-        fn on_after_created(&self, _browser: Option<&mut cef::Browser>) {
+        fn on_after_created(&self, _browser: Option<&mut Browser>) {
             eprintln!("[CEF] Browser created");
             BROWSER_CREATED.store(true, Ordering::SeqCst);
         }
 
-        fn on_before_close(&self, _browser: Option<&mut cef::Browser>) {
+        fn on_before_close(&self, _browser: Option<&mut Browser>) {
             eprintln!("[CEF] Browser closing");
             BROWSER_CREATED.store(false, Ordering::SeqCst);
         }
@@ -94,9 +103,9 @@ cef::wrap_load_handler! {
     impl LoadHandler {
         fn on_load_start(
             &self,
-            browser: Option<&mut cef::Browser>,
-            _frame: Option<&mut cef::Frame>,
-            _transition_type: cef::TransitionType,
+            browser: Option<&mut Browser>,
+            _frame: Option<&mut Frame>,
+            _transition_type: TransitionType,
         ) {
             if let Some(browser) = browser {
                 if let Some(frame) = browser.main_frame() {
@@ -110,14 +119,14 @@ cef::wrap_load_handler! {
 
         fn on_load_end(
             &self,
-            browser: Option<&mut cef::Browser>,
-            frame: Option<&mut cef::Frame>,
+            browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
             _http_status_code: i32,
         ) {
             if let Some(cb) = self.state.borrow_mut().on_page_load_end.as_ref() {
                 cb();
             }
-            
+
             if let Some(browser) = browser {
                 if let Some(frame) = frame {
                     if frame.is_main() != 0 {
@@ -133,7 +142,7 @@ cef::wrap_load_handler! {
 
         fn on_loading_state_change(
             &self,
-            _browser: Option<&mut cef::Browser>,
+            _browser: Option<&mut Browser>,
             is_loading: bool,
             can_go_back: bool,
             can_go_forward: bool,
@@ -153,8 +162,8 @@ cef::wrap_display_handler! {
     impl DisplayHandler {
         fn on_title_change(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            title: Option<&cef::CefString>,
+            _browser: Option<&mut Browser>,
+            title: Option<&CefString>,
         ) {
             if let Some(t) = title {
                 let title_str = t.to_string();
@@ -166,9 +175,9 @@ cef::wrap_display_handler! {
 
         fn on_address_change(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            _frame: Option<&mut cef::Frame>,
-            url: Option<&cef::CefString>,
+            _browser: Option<&mut Browser>,
+            _frame: Option<&mut Frame>,
+            url: Option<&CefString>,
         ) {
             if let Some(u) = url {
                 let url_str = u.to_string();
@@ -186,9 +195,9 @@ cef::wrap_render_handler! {
     impl RenderHandler {
         fn on_paint(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            _kind: cef::PaintElementType,
-            _dirty_rects: &[cef::Rect],
+            _browser: Option<&mut Browser>,
+            _kind: PaintElementType,
+            _dirty_rects: &[Rect],
             buffer: Option<&[u8]>,
             width: i32,
             height: i32,
@@ -207,8 +216,8 @@ cef::wrap_focus_handler! {
     impl FocusHandler {
         fn on_set_focus(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            _source: cef::FocusSource,
+            _browser: Option<&mut Browser>,
+            _source: FocusSource,
         ) -> i32 {
             0
         }
@@ -221,26 +230,26 @@ cef::wrap_download_handler! {
     impl DownloadHandler {
         fn on_before_download(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            _download_item: Option<&mut cef::DownloadItem>,
-            _suggested_name: Option<&cef::CefString>,
-        ) -> cef::BeforeDownloadCallback {
+            _browser: Option<&mut Browser>,
+            _download_item: Option<&mut DownloadItem>,
+            _suggested_name: Option<&CefString>,
+        ) -> BeforeDownloadCallback {
             eprintln!("[CEF] Download requested");
-            cef::BeforeDownloadCallback::default()
+            BeforeDownloadCallback::default()
         }
 
         fn on_download_updated(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            download_item: Option<&mut cef::DownloadItem>,
-            _callback: Option<&mut cef::DownloadCallback>,
+            _browser: Option<&mut Browser>,
+            download_item: Option<&mut DownloadItem>,
+            _callback: Option<&mut DownloadCallback>,
         ) {
             if let Some(item) = download_item {
                 let is_done = item.is_done() != 0;
                 let percent = item.percent_complete();
                 let speed = item.current_speed();
                 let url = item.url().map(|s| s.to_string()).unwrap_or_default();
-                
+
                 if is_done {
                     eprintln!("[CEF] Download complete: {}", url);
                 } else {

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use cef::App;
+
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -76,7 +78,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         _ => { settings.log_severity = cef::sys::LOGSEVERITY_DISABLE; }
     }
 
-    let mut app = IronApp::new();
+    let mut app = IronApp { _private: () };
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),
@@ -120,7 +122,9 @@ pub fn do_message_loop_work() {
 }
 
 cef::wrap_app! {
-    struct IronApp;
+    struct IronApp {
+        _private: (),
+    }
 
     impl App {}
 }
