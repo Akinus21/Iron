@@ -42,7 +42,7 @@ impl ThemeManager {
         }
     }
 
-pub fn load(&mut self) {
+    pub fn load(&mut self) {
         let theme_path = find_active_theme();
         self.theme_path = theme_path;
 
@@ -68,7 +68,8 @@ pub fn load(&mut self) {
         let t = match tokens.get(variant) {
             Some(v) => v,
             None => {
-                eprintln!("Noctalia: no '{}' variant in colors.json, keys={:?}", variant, tokens.keys().collect::<Vec<_>>());
+                let keys: Vec<&String> = tokens.as_object().map(|o| o.keys().collect()).unwrap_or_default();
+                eprintln!("Noctalia: no '{}' variant in colors.json, keys={:?}", variant, keys);
                 return;
             }
         };
@@ -215,7 +216,7 @@ pub fn load(&mut self) {
         eprintln!("Noctalia: Would inject WebKit CSS ({} chars)", self.webkit_css.len());
     }
 
-pub fn start_watch(
+    pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
         _webview: &crate::cef_browser::CefBrowserWrapper,
         provider: &gtk4::CssProvider,
