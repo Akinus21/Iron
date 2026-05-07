@@ -5,8 +5,9 @@ use std::rc::Rc;
 use gtk4::{self};
 use gtk4::prelude::{FileMonitorExt, FileExt};
 
-/// Convert a hex colour to an rgba() string with the given opacity.
-/// Handles 6-char ("#RRGGBB") and 8-char ("#RRGGBBAA") formats.
+/// Convert a hex colour to a GTK-compatible rgba() or 6-char hex string.
+/// Handles 6-char ("#RRGGBB"), 8-char QML ("#AARRGGBB"), and 8-char CSS ("#RRGGBBAA") formats.
+/// QML stores colors as #AARRGGBB (alpha-first), so 8-char hex is always treated as QML format.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
     let t = hex.trim().trim_start_matches('#');
     if t.len() == 6 {
@@ -14,17 +15,29 @@ fn hex_to_rgba(hex: &str, alpha: f64) -> String {
             return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha);
         }
     } else if t.len() == 8 {
-        if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
+        // QML color format: #AARRGGBB (alpha comes first)
+        if let (Ok(a), Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&t[0..2], 16),
             u8::from_str_radix(&t[2..4], 16),
             u8::from_str_radix(&t[4..6], 16),
             u8::from_str_radix(&t[6..8], 16),
         ) {
-            let alpha_from_hex = a as f64 / 255.0;
-            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha_from_hex);
+            let final_alpha = (a as f64 / 255.0) * alpha;
+            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, final_alpha);
         }
     }
     hex.to_string()
+}
+
+/// Sanitize a hex color from Noctalia for GTK CSS.
+/// Converts QML 8-char #AARRGGBB to rgba(), passes through 6-char #RRGGBB as-is.
+fn css_color(hex: &str) -> String {
+    let t = hex.trim().trim_start_matches('#');
+    if t.len() == 8 {
+        hex_to_rgba(hex, 1.0)
+    } else {
+        hex.trim().to_string()
+    }
 }
 
 pub struct ThemeManager {
@@ -63,15 +76,16 @@ impl ThemeManager {
 
         let dark = is_dark_preferred();
 
-        let primary = tokens.get("mPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#3584e4");
-        let on_primary = tokens.get("mOnPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
-        let surface = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
-        let on_surface = tokens.get("mOnSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
-        let surface_variant = tokens.get("mSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#2a2a2a");
-        let on_surface_variant = tokens.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0");
-        let error = tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24");
+        let primary = css_color(tokens.get("mPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#3584e4"));
+        let on_primary = css_color(tokens.get("mOnPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff"));
+        let surface = css_color(tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e"));
+        let on_surface = css_color(tokens.get("mOnSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff"));
+        let surface_variant = css_color(tokens.get("mSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#2a2a2a"));
+        let on_surface_variant = css_color(tokens.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0"));
+        let error_color = css_color(tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24"));
 
-        let surface_rgba = hex_to_rgba(surface, 0.88);
+        let surface_raw = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
+        let surface_rgba = hex_to_rgba(surface_raw, 0.88);
 
         self.gtk_css = format!(
             "window {{\n\
@@ -89,8 +103,8 @@ impl ThemeManager {
              --sidebar-bg-color: {surface_variant};\n\
              --popover-bg-color: {surface_variant};\n\
              --popover-fg-color: {on_surface_variant};\n\
-             --error-color: {error};\n\
-             --destructive-color: {error};\n\
+             --error-color: {error_color};\n\
+             --destructive-color: {error_color};\n\
              }}\n\
              * {{\n\
              transition: background-color 300ms ease-in-out,\n\
@@ -168,7 +182,7 @@ impl ThemeManager {
             surface_rgba = surface_rgba,
             surface_variant = surface_variant,
             on_surface_variant = on_surface_variant,
-            error = error,
+            error_color = error_color,
         );
 
         // Only set color-scheme as a *hint* to pages that support it.
@@ -219,9 +233,8 @@ impl ThemeManager {
         };
         // Noctalia Shell stores active colors in colors.json in ~/.config/noctalia/
         let noctalia_dir = config_dir.join("noctalia");
-        let colors_file_name = "colors.json";
 
-        eprintln!("Noctalia: watching dir={:?} for {}", noctalia_dir, colors_file_name);
+        eprintln!("Noctalia: watching dir={:?} for colors.json", noctalia_dir);
         if !noctalia_dir.exists() {
             eprintln!("Noctalia: noctalia config dir does not exist");
             return;
@@ -234,37 +247,20 @@ impl ThemeManager {
         };
 
         let _provider = provider.clone();
-        monitor.connect_changed(move |_monitor, child, _other, event_type| {
-            eprintln!("Noctalia: dir changed event: {:?} child={:?}", event_type, child.path());
-            if let Some(path) = child.path() {
-                if path.file_name().map(|n| n == colors_file_name).unwrap_or(false) {
-                    eprintln!("Noctalia: colors.json changed detected!");
-                    tm.borrow_mut().load();
-                    tm.borrow().apply_gtk_css(&_provider);
-                    eprintln!("Noctalia: theme reloaded");
-                }
+        let is_colors_json = |f: &gio::File| -> bool {
+            f.path().as_ref()
+                .and_then(|p| p.file_name().map(|n| n == "colors.json"))
+                .unwrap_or(false)
+        };
+        monitor.connect_changed(move |_monitor, child, other, event_type| {
+            let child_match = is_colors_json(child);
+            let other_match = other.map(|o| is_colors_json(o)).unwrap_or(false);
+            if child_match || other_match {
+                eprintln!("Noctalia: colors.json changed (event={:?})!", event_type);
+                tm.borrow_mut().load();
+                tm.borrow().apply_gtk_css(&_provider);
             }
         });
-    }
-
-    fn reload(&mut self, expected_path: Option<&Path>) {
-        eprintln!("Noctalia: reload called with path={:?}", expected_path);
-        if let Some(path) = expected_path {
-            let stored_path = self.theme_path.as_deref().unwrap_or(Path::new(""));
-            eprintln!("Noctalia: stored_path={:?}, expected={:?}", stored_path, path);
-            if path == stored_path {
-                if read_file(path).is_some() {
-                    self.load();
-                    eprintln!("Noctalia: theme reloaded from {:?}", path);
-                } else {
-                    eprintln!("Noctalia: theme file {:?} missing, skipping reload", path);
-                }
-            } else {
-                eprintln!("Noctalia: path mismatch, not reloading");
-            }
-        } else {
-            eprintln!("Noctalia: no expected_path, not reloading");
-        }
     }
 }
 
