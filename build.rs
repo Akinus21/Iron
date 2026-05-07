@@ -1,9 +1,10 @@
 //! Build script for CEF (Chromium Embedded Framework) integration
 //! 
 //! This script:
-//! 1. Downloads CEF using download-cef crate
-//! 2. Sets up library paths for linking
-//! 3. Copies CEF resources to output directory
+//! 1. Sets up CEF library paths for linking
+//! 2. Copies CEF resources to output directory
+//!
+//! CEF is expected to be downloaded by cef-dll-sys or provided via CEF_DIR env var.
 
 use std::env;
 use std::fs;
@@ -13,24 +14,42 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CEF_TRACK");
     println!("cargo:rerun-if-env-changed=CEF_DIR");
     
-    let _cef_track = env::var("CEF_TRACK").unwrap_or_else(|_| "stable".to_string());
     let cef_dir = if let Ok(dir) = env::var("CEF_DIR") {
         PathBuf::from(&dir)
     } else {
-        // Use download-cef to download CEF - use linux64 target
-        let cef_version = "147.0.10+gd58e84d+chromium-147.0.7727.118";
-        let download_dir = std::env::temp_dir().join("cef-download");
-        let _ = std::fs::create_dir_all(&download_dir);
-        let result = download_cef::download_target_archive(
-            "linux64",
-            cef_version,
-            &download_dir,
-            true,
-        );
-        match result {
-            Ok(dir) => dir,
-            Err(e) => {
-                eprintln!("Failed to download CEF: {}", e);
+        // CEF should have been downloaded by cef-dll-sys build script
+        // Check common locations
+        let candidates = [
+            PathBuf::from("/tmp/cef-download"),
+            PathBuf::from("/tmp/cef"),
+            std::env::temp_dir().join("cef-download"),
+            std::env::temp_dir().join("cef"),
+        ];
+        
+        let mut found = None;
+        for candidate in &candidates {
+            if candidate.exists() && candidate.join("Release").exists() {
+                found = Some(candidate.clone());
+                break;
+            }
+            // Check subdirectories
+            if let Ok(entries) = fs::read_dir(candidate) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.join("Release").exists() {
+                        found = Some(path);
+                        break;
+                    }
+                }
+            }
+            if found.is_some() { break; }
+        }
+        
+        match found {
+            Some(dir) => dir,
+            None => {
+                eprintln!("CEF not found. Please set CEF_DIR environment variable.");
+                eprintln!("CEF is typically downloaded by cef-dll-sys during its build.");
                 std::process::exit(1);
             }
         }
