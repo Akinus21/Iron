@@ -170,8 +170,7 @@ impl ImplLoadHandler for IronLoadHandler {
                 if frame.is_main() != 0 {
                     if let Some(url) = frame.url() {
                         let url_str = url.to_string();
-                        let title = browser.title();
-                        eprintln!("[CEF] Page loaded: {} - {}", url_str, title.to_string());
+                        eprintln!("[CEF] Page loaded: {}", url_str);
                     }
                 }
             }
@@ -257,27 +256,16 @@ impl ImplDownloadHandler for IronDownloadHandler {
         _suggested_name: Option<&CefString>,
     ) -> BeforeDownloadCallback {
         eprintln!("[CEF] Download requested");
-        BeforeDownloadCallback::new(0, std::ptr::null_mut())
+        BeforeDownloadCallback::default()
     }
 
     fn on_download_updated(
         &self,
         _browser: Option<&mut Browser>,
-        download_item: Option<&mut DownloadItem>,
+        _download_item: Option<&mut DownloadItem>,
         _callback: Option<&mut DownloadCallback>,
     ) {
-        if let Some(item) = download_item {
-            let is_done = item.is_done() != 0;
-            let percent = item.percent_complete();
-            let speed = item.current_speed();
-            let url = item.url();
-
-            if is_done {
-                eprintln!("[CEF] Download complete: {}", url.to_string());
-            } else {
-                eprintln!("[CEF] Download progress: {}% at {} bytes/sec", percent, speed);
-            }
-        }
+        eprintln!("[CEF] Download updated");
     }
 }
 
