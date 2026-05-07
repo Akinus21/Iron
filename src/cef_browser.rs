@@ -96,9 +96,9 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                if let Ok(pixbuf) = gdk::Pixbuf::from_bytes(
+                if let Ok(pixbuf) = gdk::pixbuf::Pixbuf::from_bytes(
                     &glib::Bytes::from(&rgba_buffer),
-                    gdk::Colorspace::Rgb,
+                    gdk::pixbuf::Colorspace::Rgb,
                     true,
                     8,
                     width,

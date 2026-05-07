@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, Arc};
 
 use cef::Client;
 use cef::App;
@@ -13,6 +12,8 @@ use cef::{
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
 };
+
+static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 
@@ -34,15 +35,12 @@ pub fn create_shared_state() -> SharedClientState {
     }))
 }
 
-type RenderCallback = Arc<Mutex<Option<Box<dyn FnMut(&[u8], i32, i32)>>>;
+type RenderCallback = Option<Box<dyn FnMut(&[u8], i32, i32)>>;
 
-static RENDER_CALLBACK: Mutex<Option<RenderCallback>> = Mutex::new(None);
+static RENDER_CALLBACK: std::cell::RefCell<Option<RenderCallback>> = std::cell::RefCell::new(None);
 
-pub fn set_render_callback(callback: Box<dyn FnMut(&[u8], i32, i32)>) {
-    if let Ok(mut guard) = RENDER_CALLBACK.lock() {
-        let wrapped = Arc::new(Mutex::new(Some(callback)));
-        *guard = Some(wrapped);
-    }
+pub fn set_render_callback(callback: RenderCallback) {
+    *RENDER_CALLBACK.borrow_mut() = Some(callback);
 }
 
 cef::wrap_client! {
@@ -207,14 +205,8 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(buffer) = buffer else { return };
-            if let Ok(guard) = RENDER_CALLBACK.lock() {
-                if let Some(ref callback_arc) = *guard {
-                    if let Ok(mut cb_guard) = callback_arc.lock() {
-                        if let Some(ref mut callback) = *cb_guard {
-                            callback(buffer, width, height);
-                        }
-                    }
-                }
+            if let Some(ref mut callback) = *RENDER_CALLBACK.borrow_mut() {
+                callback(buffer, width, height);
             }
         }
     }

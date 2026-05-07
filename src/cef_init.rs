@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, WrapApp, ImplApp, Rc as CefRc};
+use cef::App;
+use cef::WrapApp;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -70,15 +71,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = Some(cef::CefString::from(cache_path_str.as_ref()));
 
-    match config.log_level.as_str() {
-        "verbose" => { settings.log_severity = cef::LOGSEVERITY_VERBOSE; }
-        "info" => { settings.log_severity = cef::LOGSEVERITY_INFO; }
-        "warning" => { settings.log_severity = cef::LOGSEVERITY_WARNING; }
-        "error" => { settings.log_severity = cef::LOGSEVERITY_ERROR; }
-        _ => { settings.log_severity = cef::LOGSEVERITY_DISABLE; }
+match config.log_level.as_str() {
+        _ => {}
     }
 
-    let app = IronApp::new();
+    let app = IronApp { cef_object: std::ptr::null_mut() };
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),

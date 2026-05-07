@@ -34,7 +34,7 @@ use gtk4::{
 };
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
 
-fn main() -> impl std::process::ExitCode {
+fn main() {
     let app = adw::Application::new(
         Some("org.blueak.iron"),
         gio::ApplicationFlags::HANDLES_OPEN,
@@ -85,8 +85,6 @@ fn main() -> impl std::process::ExitCode {
     let exit_code = app.run();
 
     cef_init::shutdown_cef();
-
-    exit_code
 }
 
 const ALL_COMMANDS: [(&str, &str); 18] = [
