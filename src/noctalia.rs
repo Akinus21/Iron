@@ -249,6 +249,7 @@ impl ThemeManager {
         };
 
         let _provider = provider.clone();
+        let tm_clone = tm.clone();
         let is_colors_json = |f: &gio::File| -> bool {
             f.path().as_ref()
                 .and_then(|p| p.file_name().map(|n| n == "colors.json"))
@@ -264,7 +265,7 @@ impl ThemeManager {
             }
         });
 
-        tm.borrow_mut()._monitor = Some(monitor);
+        tm_clone.borrow_mut()._monitor = Some(monitor);
     }
 }
 
