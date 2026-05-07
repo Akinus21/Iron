@@ -34,7 +34,7 @@ use gtk4::{
 };
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
 
-fn main() {
+fn main() -> impl std::process::ExitCode {
     let app = adw::Application::new(
         Some("org.blueak.iron"),
         gio::ApplicationFlags::HANDLES_OPEN,
@@ -89,8 +89,7 @@ fn main() {
     exit_code
 }
 
-const ALL_COMMANDS: [(&str, &str); 18] = [
-    ("duplicate", "Duplicate current window"),
+const ALL_COMMANDS
     ("copy-address", "Copy current page URL"),
     ("downloads", "Show recent downloads"),
     ("find", "Find text in page"),

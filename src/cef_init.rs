@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, WrapApp, ImplApp};
+use cef::{App, WrapApp, ImplApp, Rc as CefRc};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -40,26 +40,26 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     eprintln!("[CEF] Initializing (track={}, cache={:?}, osr={})",
               config.track, config.cache_path, config.windowless_rendering);
 
-    let args: Vec<String> = std::env::args().collect();
+        let args: Vec<String> = std::env::args().collect();
     let mut cef_args = cef::args::Args::new();
     for arg in &args {
-        cef_args.append(arg);
+        cef_args.push(arg);
     }
-    cef_args.append("--disable-gpu");
-    cef_args.append("--disable-gpu-compositing");
-    cef_args.append("--disable-extensions");
-    cef_args.append("--disable-background-networking");
-    cef_args.append("--disable-background-timer-throttling");
-    cef_args.append("--disable-backgrounding-occluded-windows");
-    cef_args.append("--disable-renderer-backgrounding");
-    cef_args.append("--disable-dev-shm-usage");
-    cef_args.append("--enable-features=AutomaticTabDiscarding");
-    cef_args.append("--disable-component-update");
-    cef_args.append("--disable-default-apps");
+    cef_args.push("--disable-gpu");
+    cef_args.push("--disable-gpu-compositing");
+    cef_args.push("--disable-extensions");
+    cef_args.push("--disable-background-networking");
+    cef_args.push("--disable-background-timer-throttling");
+    cef_args.push("--disable-backgrounding-occluded-windows");
+    cef_args.push("--disable-renderer-backgrounding");
+    cef_args.push("--disable-dev-shm-usage");
+    cef_args.push("--enable-features=AutomaticTabDiscarding");
+    cef_args.push("--disable-component-update");
+    cef_args.push("--disable-default-apps");
 
     if config.windowless_rendering {
-        cef_args.append("--off-screen-rendering-enabled");
-        cef_args.append("--enable-gpu");
+        cef_args.push("--off-screen-rendering-enabled");
+        cef_args.push("--enable-gpu");
     }
 
     let mut settings = cef::Settings::default();
@@ -67,8 +67,8 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
 
-    let cache_path_str = config.cache_path.to_string_lossy().to_string();
-    settings.cache_path = Some(cef::CefString::from(&cache_path_str));
+    let cache_path_str = config.cache_path.to_string_lossy();
+    settings.cache_path = Some(cef::CefString::from(cache_path_str.as_ref()));
 
     match config.log_level.as_str() {
         "verbose" => { settings.log_severity = cef::LOGSEVERITY_VERBOSE; }
@@ -78,7 +78,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         _ => { settings.log_severity = cef::LOGSEVERITY_DISABLE; }
     }
 
-    let mut app = IronApp { _private: () };
+    let app = IronApp::new();
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),
