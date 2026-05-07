@@ -10,9 +10,9 @@ use cef::{
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
     ImplClient, ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler,
-    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler, ImplDownloadItem, ImplBrowser,
+    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
-    Client, App,
+    Client,
 };
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
@@ -141,40 +141,23 @@ impl ImplLifeSpanHandler for IronLifeSpanHandler {
 impl ImplLoadHandler for IronLoadHandler {
     fn on_load_start(
         &self,
-        browser: Option<&mut Browser>,
+        _browser: Option<&mut Browser>,
         _frame: Option<&mut Frame>,
         _transition_type: TransitionType,
     ) {
-        if let Some(browser) = browser {
-            if let Some(frame) = browser.main_frame() {
-                if let Some(url) = frame.url() {
-                    let url_str = url.to_string();
-                    eprintln!("[CEF] Page load started: {}", url_str);
-                }
-            }
-        }
+        eprintln!("[CEF] Page load started");
     }
 
     fn on_load_end(
         &self,
-        browser: Option<&mut Browser>,
-        frame: Option<&mut Frame>,
+        _browser: Option<&mut Browser>,
+        _frame: Option<&mut Frame>,
         _http_status_code: i32,
     ) {
         if let Some(cb) = self.state.borrow_mut().on_page_load_end.as_ref() {
             cb();
         }
-
-        if let Some(browser) = browser {
-            if let Some(frame) = frame {
-                if frame.is_main() != 0 {
-                    if let Some(url) = frame.url() {
-                        let url_str = url.to_string();
-                        eprintln!("[CEF] Page loaded: {}", url_str);
-                    }
-                }
-            }
-        }
+        eprintln!("[CEF] Page loaded");
     }
 
     fn on_loading_state_change(
@@ -256,7 +239,8 @@ impl ImplDownloadHandler for IronDownloadHandler {
         _suggested_name: Option<&CefString>,
     ) -> BeforeDownloadCallback {
         eprintln!("[CEF] Download requested");
-        BeforeDownloadCallback::default()
+        let mut cb: BeforeDownloadCallback = unsafe { std::mem::zeroed() };
+        cb
     }
 
     fn on_download_updated(
