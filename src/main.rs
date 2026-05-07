@@ -89,7 +89,8 @@ fn main() -> impl std::process::ExitCode {
     exit_code
 }
 
-const ALL_COMMANDS
+const ALL_COMMANDS: [(&str, &str); 18] = [
+    ("duplicate", "Duplicate current window"),
     ("copy-address", "Copy current page URL"),
     ("downloads", "Show recent downloads"),
     ("find", "Find text in page"),
