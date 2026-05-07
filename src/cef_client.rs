@@ -231,7 +231,7 @@ impl ImplRenderHandler for IronRenderHandler {
         height: i32,
     ) {
         let Some(buffer) = buffer else { return };
-        if let Ok(guard) = RENDER_CALLBACK.lock() {
+        if let Ok(mut guard) = RENDER_CALLBACK.lock() {
             if let Some(ref mut callback) = *guard {
                 callback(buffer, width, height);
             }
