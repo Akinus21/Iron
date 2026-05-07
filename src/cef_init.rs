@@ -68,7 +68,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.multi_threaded_message_loop = 0;
 
     let cache_path_str = config.cache_path.to_string_lossy();
-    settings.cache_path = Some(cef::CefString::from(cache_path_str.as_ref()));
+    settings.cache_path = cef::CefString::from(cache_path_str.as_ref());
 
     let result = cef::initialize(
         Some(cef_args.as_main_args()),

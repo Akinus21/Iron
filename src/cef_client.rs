@@ -10,7 +10,7 @@ use cef::{
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
     ImplClient, ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler,
-    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler,
+    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler, ImplDownloadItem,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     Client, App,
 };
