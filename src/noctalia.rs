@@ -62,25 +62,14 @@ impl ThemeManager {
         };
 
         let dark = is_dark_preferred();
-        let variant = if dark { "dark" } else { "light" };
-        eprintln!("Noctalia: variant={} dark={}", variant, dark);
 
-        let t = match tokens.get(variant) {
-            Some(v) => v,
-            None => {
-                let keys: Vec<&String> = tokens.as_object().map(|o| o.keys().collect()).unwrap_or_default();
-                eprintln!("Noctalia: no '{}' variant in colors.json, keys={:?}", variant, keys);
-                return;
-            }
-        };
-
-        let primary = t.get("mPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#3584e4");
-        let on_primary = t.get("mOnPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
-        let surface = t.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
-        let on_surface = t.get("mOnSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
-        let surface_variant = t.get("mSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#2a2a2a");
-        let on_surface_variant = t.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0");
-        let error = t.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24");
+        let primary = tokens.get("mPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#3584e4");
+        let on_primary = tokens.get("mOnPrimary").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
+        let surface = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
+        let on_surface = tokens.get("mOnSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#ffffff");
+        let surface_variant = tokens.get("mSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#2a2a2a");
+        let on_surface_variant = tokens.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0");
+        let error = tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24");
 
         let surface_rgba = hex_to_rgba(surface, 0.88);
 
