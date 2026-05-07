@@ -122,7 +122,7 @@ pub fn do_message_loop_work() {
 cef::wrap_app! {
     struct IronApp;
 
-    impl App for IronApp {}
+    impl App {}
 }
 
 pub fn get_cef_flags() -> Vec<String> {

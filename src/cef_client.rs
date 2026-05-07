@@ -27,7 +27,7 @@ cef::wrap_client! {
         state: SharedClientState,
     }
 
-    impl Client for IronClient {
+    impl Client {
         fn life_span_handler(&self) -> Option<cef::LifeSpanHandler> {
             Some(IronLifeSpanHandler::new(self.state.clone()))
         }
@@ -55,7 +55,7 @@ cef::wrap_life_span_handler! {
         state: SharedClientState,
     }
 
-    impl LifeSpanHandler for IronLifeSpanHandler {
+    impl LifeSpanHandler {
         fn on_after_created(&self, _browser: Option<&mut cef::Browser>) {
             eprintln!("[CEF] Browser created");
             BROWSER_CREATED.store(true, Ordering::SeqCst);
@@ -73,7 +73,7 @@ cef::wrap_load_handler! {
         state: SharedClientState,
     }
 
-    impl LoadHandler for IronLoadHandler {
+    impl LoadHandler {
         fn on_load_end(
             &self,
             _browser: Option<&mut cef::Browser>,
@@ -104,7 +104,7 @@ cef::wrap_display_handler! {
         state: SharedClientState,
     }
 
-    impl DisplayHandler for IronDisplayHandler {
+    impl DisplayHandler {
         fn on_title_change(
             &self,
             _browser: Option<&mut cef::Browser>,
@@ -137,7 +137,7 @@ cef::wrap_display_handler! {
 cef::wrap_render_handler! {
     pub struct IronRenderHandler;
 
-    impl RenderHandler for IronRenderHandler {
+    impl RenderHandler {
         fn on_paint(
             &self,
             _browser: Option<&mut cef::Browser>,
@@ -148,8 +148,6 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(_buffer) = buffer else { return };
-            // TODO: Render buffer to GTK4 GLArea texture
-            // This will be implemented in Phase 3 when we set up OSR painting
             let _ = (width, height);
         }
     }
@@ -158,7 +156,7 @@ cef::wrap_render_handler! {
 cef::wrap_focus_handler! {
     pub struct IronFocusHandler;
 
-    impl FocusHandler for IronFocusHandler {
+    impl FocusHandler {
         fn on_set_focus(
             &self,
             _browser: Option<&mut cef::Browser>,
