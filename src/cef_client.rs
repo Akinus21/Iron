@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use cef::Client;
 use cef::App;
@@ -35,10 +36,12 @@ pub fn create_shared_state() -> SharedClientState {
 
 type RenderCallback = Rc<RefCell<dyn FnMut(&[u8], i32, i32)>>;
 
-static RENDER_CALLBACK: RefCell<Option<RenderCallback>> = RefCell::new(None);
+static RENDER_CALLBACK: Mutex<Option<RenderCallback>> = Mutex::new(None);
 
 pub fn set_render_callback(callback: RenderCallback) {
-    *RENDER_CALLBACK.borrow_mut() = Some(callback);
+    if let Ok(mut guard) = RENDER_CALLBACK.lock() {
+        *guard = Some(callback);
+    }
 }
 
 cef::wrap_client! {
@@ -203,8 +206,10 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(buffer) = buffer else { return };
-            if let Some(ref mut callback) = *RENDER_CALLBACK.borrow_mut() {
-                callback(buffer, width, height);
+            if let Ok(mut guard) = RENDER_CALLBACK.lock() {
+                if let Some(ref mut callback) = *guard {
+                    callback(buffer, width, height);
+                }
             }
         }
     }

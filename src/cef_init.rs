@@ -71,11 +71,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.cache_path = Some(cef::CefString::from(&cache_path_str));
 
     match config.log_level.as_str() {
-        "verbose" => { settings.log_severity = cef::sys::LOGSEVERITY_VERBOSE; }
-        "info" => { settings.log_severity = cef::sys::LOGSEVERITY_INFO; }
-        "warning" => { settings.log_severity = cef::sys::LOGSEVERITY_WARNING; }
-        "error" => { settings.log_severity = cef::sys::LOGSEVERITY_ERROR; }
-        _ => { settings.log_severity = cef::sys::LOGSEVERITY_DISABLE; }
+        "verbose" => { settings.log_severity = cef::LOGSEVERITY_VERBOSE; }
+        "info" => { settings.log_severity = cef::LOGSEVERITY_INFO; }
+        "warning" => { settings.log_severity = cef::LOGSEVERITY_WARNING; }
+        "error" => { settings.log_severity = cef::LOGSEVERITY_ERROR; }
+        _ => { settings.log_severity = cef::LOGSEVERITY_DISABLE; }
     }
 
     let mut app = IronApp { _private: () };
