@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::App;
+use cef::{App, WrapApp, ImplApp};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);

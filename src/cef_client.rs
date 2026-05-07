@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 use cef::Client;
 use cef::App;
@@ -34,13 +34,13 @@ pub fn create_shared_state() -> SharedClientState {
     }))
 }
 
-type RenderCallback = Rc<RefCell<dyn FnMut(&[u8], i32, i32)>>;
+type RenderCallback = Arc<Mutex<Option<Box<dyn FnMut(&[u8], i32, i32)>>>;
 
 static RENDER_CALLBACK: Mutex<Option<RenderCallback>> = Mutex::new(None);
 
-pub fn set_render_callback(callback: RenderCallback) {
+pub fn set_render_callback(callback: Box<dyn FnMut(&[u8], i32, i32)>) {
     if let Ok(mut guard) = RENDER_CALLBACK.lock() {
-        *guard = Some(callback);
+        *guard = Some(Arc::new(Mutex::new(Some(callback)));
     }
 }
 
@@ -206,9 +206,13 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(buffer) = buffer else { return };
-            if let Ok(mut guard) = RENDER_CALLBACK.lock() {
-                if let Some(ref mut callback) = *guard {
-                    callback(buffer, width, height);
+            if let Ok(guard) = RENDER_CALLBACK.lock() {
+                if let Some(ref callback_arc) = *guard {
+                    if let Ok(mut cb_guard) = callback_arc.lock() {
+                        if let Some(ref mut callback) = *cb_guard {
+                            callback(buffer, width, height);
+                        }
+                    }
                 }
             }
         }

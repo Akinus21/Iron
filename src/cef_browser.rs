@@ -112,7 +112,10 @@ impl CefBrowserWrapper {
         };
 
         let render_callback_rc = Rc::new(RefCell::new(render_callback));
-        crate::cef_client::set_render_callback(render_callback_rc);
+        crate::cef_client::set_render_callback(Box::new(move |buffer: &[u8], width: i32, height: i32| {
+            let mut cb = render_callback_rc.borrow_mut();
+            cb(buffer, width, height);
+        }));
 
         let mut client = IronClient::new(client_state.clone());
 
