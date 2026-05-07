@@ -39,9 +39,9 @@ type RenderCallback = Arc<Mutex<Option<Box<dyn FnMut(&[u8], i32, i32)>>>;
 static RENDER_CALLBACK: Mutex<Option<RenderCallback>> = Mutex::new(None);
 
 pub fn set_render_callback(callback: Box<dyn FnMut(&[u8], i32, i32)>) {
-    if let Ok(guard) = RENDER_CALLBACK.lock() {
-        let mut g = guard;
-        *g = Some(Arc::new(Mutex::new(Some(callback)));
+    if let Ok(mut guard) = RENDER_CALLBACK.lock() {
+        let wrapped = Arc::new(Mutex::new(Some(callback)));
+        *guard = Some(wrapped);
     }
 }
 
