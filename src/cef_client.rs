@@ -1,3 +1,5 @@
+#![cfg(not(feature = "cef-stub"))]
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};

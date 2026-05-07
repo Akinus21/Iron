@@ -1,8 +1,9 @@
 //! Build script for CEF (Chromium Embedded Framework) integration
 //! 
 //! This script:
-//! 1. Sets up library paths for linking
-//! 2. Copies CEF resources to output directory
+//! 1. Downloads CEF using download-cef crate
+//! 2. Sets up library paths for linking
+//! 3. Copies CEF resources to output directory
 
 use std::env;
 use std::fs;
@@ -13,35 +14,16 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CEF_DIR");
     
     let cef_track = env::var("CEF_TRACK").unwrap_or_else(|_| "stable".to_string());
-    let _cef_track = cef_track; // Reserved for future nightly track support
+    let cef_dir = if let Ok(dir) = env::var("CEF_DIR") {
+        PathBuf::from(&dir)
+    } else {
+        // Use download-cef to download CEF
+        let cef_version = "147.1.0+147.0.10";
+        let download_dir = download_cef::download_cef(cef_version, "linux64").expect("Failed to download CEF");
+        download_dir
+    };
     
-    // Check if CEF_DIR is set (CI will set this)
-    if let Ok(cef_dir) = env::var("CEF_DIR") {
-        let cef_path = PathBuf::from(&cef_dir);
-        if cef_path.exists() {
-            setup_cef_paths(&cef_path);
-            return;
-        }
-    }
-    
-    // For local development, try common CEF locations
-    let common_locations = vec![
-        PathBuf::from("/opt/cef"),
-        PathBuf::from("/usr/local/cef"),
-        PathBuf::from(env::var("HOME").unwrap_or_default()).join(".local/cef"),
-    ];
-    
-    for location in &common_locations {
-        if location.exists() {
-            setup_cef_paths(location);
-            return;
-        }
-    }
-    
-    // CEF not found - warn and continue (will fail at runtime)
-    println!("cargo:warning=CEF binary distribution not found. Build will succeed but runtime will fail.");
-    println!("cargo:warning=Set CEF_DIR environment variable or install CEF to /opt/cef");
-    println!("cargo:warning=Download CEF from: https://cef-builds.spotifycdn.com/index.html");
+    setup_cef_paths(&cef_dir);
 }
 
 fn setup_cef_paths(cef_path: &Path) {
@@ -96,7 +78,6 @@ fn setup_cef_paths(cef_path: &Path) {
         let dst = target_dir.join("chrome-sandbox");
         if !dst.exists() {
             let _ = fs::copy(&chrome_sandbox, &dst);
-            // Note: SUID bit would need to be set post-install
         }
     }
 }
