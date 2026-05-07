@@ -9,8 +9,8 @@ use cef::{
     Browser, Frame, CefString,
     PaintElementType, Rect, FocusSource, TransitionType,
     BeforeDownloadCallback, DownloadCallback, DownloadItem,
-    ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler, ImplRenderHandler,
-    ImplFocusHandler, ImplDownloadHandler, ImplClient,
+    ImplClient, ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler,
+    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     Client, App,
 };
@@ -283,27 +283,27 @@ impl ImplDownloadHandler for IronDownloadHandler {
 
 impl ImplClient for IronClient {
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-        Some(cef::wrap_life_span_handler!(IronLifeSpanHandler::new(self.state.clone())))
+        None
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
-        Some(cef::wrap_load_handler!(IronLoadHandler::new(self.state.clone())))
+        None
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
-        Some(cef::wrap_display_handler!(IronDisplayHandler::new(self.state.clone())))
+        None
     }
 
     fn render_handler(&self) -> Option<RenderHandler> {
-        Some(cef::wrap_render_handler!(IronRenderHandler::new()))
+        None
     }
 
     fn focus_handler(&self) -> Option<FocusHandler> {
-        Some(cef::wrap_focus_handler!(IronFocusHandler::new()))
+        None
     }
 
     fn download_handler(&self) -> Option<DownloadHandler> {
-        Some(cef::wrap_download_handler!(IronDownloadHandler::new()))
+        None
     }
 }
 
