@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Widget, gdk, glib};
+use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, GestureClick, EventControllerScroll};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -8,13 +8,17 @@ use crate::cef_client::{self, IronClient, SharedClientState};
 #[derive(Clone)]
 pub struct CefBrowserWrapper {
     pub widget: Widget,
+    pub client_state: SharedClientState,
     browser: Rc<RefCell<Option<cef::Browser>>>,
-    client_state: SharedClientState,
     url: Rc<RefCell<String>>,
     title: Rc<RefCell<String>>,
     is_loading: Rc<RefCell<bool>>,
     can_go_back: Rc<RefCell<bool>>,
     can_go_forward: Rc<RefCell<bool>>,
+    has_focus: Rc<RefCell<bool>>,
+    paint_buffer: Rc<RefCell<Option<Vec<u8>>>>,
+    buffer_width: Rc<RefCell<i32>>,
+    buffer_height: Rc<RefCell<i32>>,
 }
 
 impl CefBrowserWrapper {
@@ -25,15 +29,15 @@ impl CefBrowserWrapper {
     ) -> Result<Self, String> {
         let client_state = cef_client::create_shared_state();
 
-        let container = gtk4::Picture::new();
-        container.set_hexpand(true);
-        container.set_vexpand(true);
+        let picture = gtk4::Picture::new();
+        picture.set_hexpand(true);
+        picture.set_vexpand(true);
 
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
 
         let wrapper = Self {
-            widget: container.upcast(),
+            widget: picture.upcast(),
             browser: Rc::new(RefCell::new(None)),
             client_state: client_state.clone(),
             url: Rc::new(RefCell::new(url_str.clone())),
@@ -41,6 +45,10 @@ impl CefBrowserWrapper {
             is_loading: Rc::new(RefCell::new(true)),
             can_go_back: Rc::new(RefCell::new(false)),
             can_go_forward: Rc::new(RefCell::new(false)),
+            has_focus: Rc::new(RefCell::new(false)),
+            paint_buffer: Rc::new(RefCell::new(None)),
+            buffer_width: Rc::new(RefCell::new(0)),
+            buffer_height: Rc::new(RefCell::new(0)),
         };
 
         let is_loading_clone = wrapper.is_loading.clone();
@@ -65,10 +73,46 @@ impl CefBrowserWrapper {
             *url_clone2.borrow_mut() = u.to_string();
         }));
 
+        client_state.borrow_mut().on_loading_state_change = Some(Box::new(move |loading, back, forward| {
+            *is_loading_clone.borrow_mut() = loading;
+            *can_go_back_clone.borrow_mut() = back;
+            *can_go_forward_clone.borrow_mut() = forward;
+        }));
+
         if !crate::cef_init::is_cef_initialized() {
             eprintln!("[CEF] CEF not initialized, showing placeholder");
             return Ok(wrapper);
         }
+
+        let picture_clone = wrapper.widget.downcast_ref::<gtk4::Picture>().unwrap().clone();
+        let paint_buffer_clone = wrapper.paint_buffer.clone();
+        let buffer_width_clone = wrapper.buffer_width.clone();
+        let buffer_height_clone = wrapper.buffer_height.clone();
+
+        let render_callback = move |buffer: &[u8], width: i32, height: i32| {
+            *paint_buffer_clone.borrow_mut() = Some(buffer.to_vec());
+            *buffer_width_clone.borrow_mut() = width;
+            *buffer_height_clone.borrow_mut() = height;
+
+            if width > 0 && height > 0 {
+                let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
+                if let Ok(pixbuf) = gdk::Pixbuf::from_bytes(
+                    &glib::Bytes::from(&rgba_buffer),
+                    gdk::Colorspace::Rgb,
+                    true,
+                    8,
+                    width,
+                    height,
+                    width * 4,
+                ) {
+                    let texture = gdk::Texture::for_pixbuf(&pixbuf);
+                    picture_clone.set_paintable(Some(&texture));
+                }
+            }
+        };
+
+        let render_callback_rc = Rc::new(RefCell::new(render_callback));
+        crate::cef_client::set_render_callback(render_callback_rc);
 
         let mut client = IronClient::new(client_state.clone());
 
@@ -102,7 +146,129 @@ impl CefBrowserWrapper {
         }
 
         eprintln!("[CEF] Browser creation initiated for {}", url_str);
+
+        wrapper.setup_input_controllers();
+
         Ok(wrapper)
+    }
+
+    fn setup_input_controllers(&self) {
+        let browser_clone = self.browser.clone();
+        let has_focus_clone = self.has_focus.clone();
+
+        let key_controller = EventControllerKey::new();
+        key_controller.connect_key_pressed(move |_, keyval, keycode, modifier| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let cef_event = build_cef_key_event(keyval, keycode, modifier, true);
+                    host.send_key_event(Some(&cef_event));
+                }
+            }
+            glib::Propagation::Stop
+        });
+
+        key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let cef_event = build_cef_key_event(keyval, keycode, modifier, false);
+                    host.send_key_event(Some(&cef_event));
+                }
+            }
+            glib::Propagation::Stop
+        });
+
+        self.widget.add_controller(key_controller);
+
+        let browser_clone = self.browser.clone();
+        let has_focus_clone = self.has_focus.clone();
+
+        let motion_controller = EventControllerMotion::new();
+        motion_controller.connect_motion(move |_, x, y| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let cef_event = build_cef_mouse_move_event(x as i32, y as i32, 0);
+                    host.send_mouse_event(Some(&cef_event), 0, false);
+                }
+            }
+        });
+
+        self.widget.add_controller(motion_controller);
+
+        let browser_clone = self.browser.clone();
+        let click_controller = GestureClick::new();
+        click_controller.connect_pressed(move |gesture, _, x, y| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let button = gesture.current_button();
+                    let cef_button = match button {
+                        1 => 0,
+                        2 => 1,
+                        3 => 2,
+                        _ => 0,
+                    };
+                    let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
+                    host.send_mouse_event(Some(&cef_event), cef_button, true);
+                }
+            }
+        });
+
+        click_controller.connect_released(move |gesture, _, x, y| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let button = gesture.current_button();
+                    let cef_button = match button {
+                        1 => 0,
+                        2 => 1,
+                        3 => 2,
+                        _ => 0,
+                    };
+                    let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
+                    host.send_mouse_event(Some(&cef_event), cef_button, false);
+                }
+            }
+        });
+
+        self.widget.add_controller(click_controller);
+
+        let browser_clone = self.browser.clone();
+        let scroll_controller = EventControllerScroll::new(
+            gtk4::EventControllerScrollFlags::BOTH_AXES
+        );
+        scroll_controller.connect_scroll(move |_, dx, dy| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    let delta_x = (dx * 100.0) as i32;
+                    let delta_y = (dy * 100.0) as i32;
+                    let cef_event = build_cef_mouse_event(0, 0, 0);
+                    host.send_mouse_wheel(Some(&cef_event), delta_x, delta_y);
+                }
+            }
+            glib::Propagation::Stop
+        });
+
+        self.widget.add_controller(scroll_controller);
+
+        let browser_clone = self.browser.clone();
+        let focus_controller = EventControllerKey::new();
+        focus_controller.connect_enter(move |_, _, _| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    host.set_focus(1);
+                }
+            }
+            *has_focus_clone.borrow_mut() = true;
+        });
+
+        focus_controller.connect_leave(move |_, _, _| {
+            if let Some(browser) = browser_clone.borrow().as_ref() {
+                if let Some(host) = browser.host() {
+                    host.set_focus(0);
+                }
+            }
+            *has_focus_clone.borrow_mut() = false;
+        });
+
+        self.widget.add_controller(focus_controller);
     }
 
     pub fn load_uri(&self, url: &str) {
@@ -236,11 +402,115 @@ impl CefBrowserWrapper {
     }
 }
 
+fn convert_bgra_to_rgba(buffer: &[u8], width: usize, height: usize) -> Vec<u8> {
+    let mut rgba = Vec::with_capacity(width * height * 4);
+    for y in 0..height {
+        for x in 0..width {
+            let src_idx = (y * width + x) * 4;
+            let b = buffer[src_idx];
+            let g = buffer[src_idx + 1];
+            let r = buffer[src_idx + 2];
+            let a = buffer[src_idx + 3];
+            rgba.extend_from_slice(&[r, g, b, a]);
+        }
+    }
+    rgba
+}
+
+fn build_cef_key_event(keyval: gdk::Key, keycode: u32, modifier: gdk::ModifierType, is_press: bool) -> cef::KeyEvent {
+    let mut event = cef::KeyEvent::default();
+    
+    if is_press {
+        event.event_type = cef::KeyEventKind::KeyDown;
+    } else {
+        event.event_type = cef::KeyEventKind::KeyUp;
+    }
+    
+    event.modifiers = map_gdk_modifier(modifier);
+    event.windows_key_code = keyval_to_windows_key_code(keyval);
+    event.native_key_code = keycode as i32;
+    
+    if let Some(c) = keyval.to_unicode() {
+        event.unmodified_character = Some(cef::CefString::from(&c.to_string()));
+        event.character = Some(cef::CefString::from(&c.to_string()));
+    }
+    
+    event
+}
+
+fn build_cef_mouse_event(x: i32, y: i32, button: i32) -> cef::MouseEvent {
+    let mut event = cef::MouseEvent::default();
+    event.x = x;
+    event.y = y;
+    event.modifiers = if button == 0 { 0 } else { 1 << button };
+    event
+}
+
+fn build_cef_mouse_move_event(x: i32, y: i32, modifiers: u32) -> cef::MouseEvent {
+    let mut event = cef::MouseEvent::default();
+    event.x = x;
+    event.y = y;
+    event.modifiers = modifiers;
+    event
+}
+
+fn map_gdk_modifier(modifier: gdk::ModifierType) -> u32 {
+    let mut cef_mod = 0u32;
+    if modifier.contains(gdk::ModifierType::CONTROL_MASK) {
+        cef_mod |= 1;
+    }
+    if modifier.contains(gdk::ModifierType::SHIFT_MASK) {
+        cef_mod |= 2;
+    }
+    if modifier.contains(gdk::ModifierType::ALT_MASK) {
+        cef_mod |= 4;
+    }
+    if modifier.contains(gdk::ModifierType::SUPER_MASK) {
+        cef_mod |= 8;
+    }
+    cef_mod
+}
+
+fn keyval_to_windows_key_code(keyval: gdk::Key) -> i32 {
+    match keyval {
+        gdk::Key::Return | gdk::Key::KP_Enter => 13,
+        gdk::Key::Tab => 9,
+        gdk::Key::Escape => 27,
+        gdk::Key::BackSpace => 8,
+        gdk::Key::Delete => 46,
+        gdk::Key::Insert => 45,
+        gdk::Key::Home => 36,
+        gdk::Key::End => 35,
+        gdk::Key::Page_Up => 33,
+        gdk::Key::Page_Down => 34,
+        gdk::Key::Left => 37,
+        gdk::Key::Up => 38,
+        gdk::Key::Right => 39,
+        gdk::Key::Down => 40,
+        gdk::Key::F1 => 112,
+        gdk::Key::F2 => 113,
+        gdk::Key::F3 => 114,
+        gdk::Key::F4 => 115,
+        gdk::Key::F5 => 116,
+        gdk::Key::F6 => 117,
+        gdk::Key::F7 => 118,
+        gdk::Key::F8 => 119,
+        gdk::Key::F9 => 120,
+        gdk::Key::F10 => 121,
+        gdk::Key::F11 => 122,
+        gdk::Key::F12 => 123,
+        _ => {
+            if let Some(c) = keyval.to_unicode() {
+                c as i32
+            } else {
+                0
+            }
+        }
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn get_window_handle(surface: &gdk::Surface) -> u64 {
-    // On X11: return the X11 window ID for native embedding
-    // On Wayland: return 0 to force OSR (off-screen rendering)
-    // OSR works everywhere and avoids X11/Wayland display issues
     let _ = surface;
     0
 }

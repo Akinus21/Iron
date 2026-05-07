@@ -24,6 +24,14 @@ pub fn create_shared_state() -> SharedClientState {
     }))
 }
 
+type RenderCallback = Rc<RefCell<dyn FnMut(&[u8], i32, i32)>>;
+
+static RENDER_CALLBACK: RefCell<Option<RenderCallback>> = RefCell::new(None);
+
+pub fn set_render_callback(callback: RenderCallback) {
+    *RENDER_CALLBACK.borrow_mut() = Some(callback);
+}
+
 cef::wrap_client! {
     pub struct IronClient {
         state: SharedClientState,
@@ -49,6 +57,10 @@ cef::wrap_client! {
         fn focus_handler(&self) -> Option<cef::FocusHandler> {
             Some(IronFocusHandler::new())
         }
+
+        fn download_handler(&self) -> Option<cef::DownloadHandler> {
+            Some(IronDownloadHandler::new())
+        }
     }
 }
 
@@ -70,20 +82,52 @@ cef::wrap_life_span_handler! {
     }
 }
 
+use std::sync::atomic::AtomicUsize;
+
+static PAGE_LOAD_COUNT: AtomicUsize = AtomicUsize::new(0);
+
 cef::wrap_load_handler! {
     pub struct IronLoadHandler {
         state: SharedClientState,
     }
 
     impl LoadHandler {
+        fn on_load_start(
+            &self,
+            browser: Option<&mut cef::Browser>,
+            _frame: Option<&mut cef::Frame>,
+            _transition_type: cef::TransitionType,
+        ) {
+            if let Some(browser) = browser {
+                if let Some(frame) = browser.main_frame() {
+                    if let Some(url) = frame.url() {
+                        let url_str = url.to_string();
+                        eprintln!("[CEF] Page load started: {}", url_str);
+                    }
+                }
+            }
+        }
+
         fn on_load_end(
             &self,
-            _browser: Option<&mut cef::Browser>,
-            _frame: Option<&mut cef::Frame>,
+            browser: Option<&mut cef::Browser>,
+            frame: Option<&mut cef::Frame>,
             _http_status_code: i32,
         ) {
             if let Some(cb) = self.state.borrow_mut().on_page_load_end.as_ref() {
                 cb();
+            }
+            
+            if let Some(browser) = browser {
+                if let Some(frame) = frame {
+                    if frame.is_main() != 0 {
+                        if let Some(url) = frame.url() {
+                            let url_str = url.to_string();
+                            let title = browser.get_title().map(|t| t.to_string()).unwrap_or_default();
+                            eprintln!("[CEF] Page loaded: {} - {}", url_str, title);
+                        }
+                    }
+                }
             }
         }
 
@@ -149,8 +193,10 @@ cef::wrap_render_handler! {
             width: i32,
             height: i32,
         ) {
-            let Some(_buffer) = buffer else { return };
-            let _ = (width, height);
+            let Some(buffer) = buffer else { return };
+            if let Some(ref mut callback) = *RENDER_CALLBACK.borrow_mut() {
+                callback(buffer, width, height);
+            }
         }
     }
 }
@@ -165,6 +211,42 @@ cef::wrap_focus_handler! {
             _source: cef::FocusSource,
         ) -> i32 {
             0
+        }
+    }
+}
+
+cef::wrap_download_handler! {
+    pub struct IronDownloadHandler;
+
+    impl DownloadHandler {
+        fn on_before_download(
+            &self,
+            _browser: Option<&mut cef::Browser>,
+            _download_item: Option<&mut cef::DownloadItem>,
+            _suggested_name: Option<&cef::CefString>,
+        ) -> cef::BeforeDownloadCallback {
+            eprintln!("[CEF] Download requested");
+            cef::BeforeDownloadCallback::default()
+        }
+
+        fn on_download_updated(
+            &self,
+            _browser: Option<&mut cef::Browser>,
+            download_item: Option<&mut cef::DownloadItem>,
+            _callback: Option<&mut cef::DownloadCallback>,
+        ) {
+            if let Some(item) = download_item {
+                let is_done = item.is_done() != 0;
+                let percent = item.percent_complete();
+                let speed = item.current_speed();
+                let url = item.url().map(|s| s.to_string()).unwrap_or_default();
+                
+                if is_done {
+                    eprintln!("[CEF] Download complete: {}", url);
+                } else {
+                    eprintln!("[CEF] Download progress: {}% at {} bytes/sec", percent, speed);
+                }
+            }
         }
     }
 }

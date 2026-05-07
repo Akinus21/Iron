@@ -177,9 +177,13 @@ fn build_window(
     // ---- History tracking (CEF version) ----
     let hist_mgr_clone = history_mgr.clone();
     
-    // Note: CEF doesn't have direct load_changed signals like WebKitGTK
-    // We'll track history on URL changes via client handler callbacks
-    // For now, add initial URL to history
+    // Set up history tracking via client state callback
+    let client_state_for_history = browser.client_state.clone();
+    client_state_for_history.borrow_mut().on_url_change = Some(Box::new(move |url: &str| {
+        hist_mgr_clone.borrow_mut().add(url, None);
+    }));
+    
+    // Add initial URL to history
     hist_mgr_clone.borrow_mut().add(&url, Some("Loading..."));
 
     // Add CEF browser widget to overlay
