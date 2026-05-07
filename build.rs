@@ -22,7 +22,7 @@ fn main() {
         let download_dir = std::env::temp_dir().join("cef-download");
         let _ = std::fs::create_dir_all(&download_dir);
         let result = download_cef::download_target_archive(
-            "linux64",
+            "x86_64-unknown-linux-gnu",
             cef_version,
             &download_dir,
             true,
