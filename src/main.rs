@@ -173,16 +173,16 @@ fn build_window(
     });
 
     // ---- History tracking (CEF version) ----
-    let hist_mgr_clone = history_mgr.clone();
+    let hist_mgr_for_closure = history_mgr.clone();
     
     // Set up history tracking via client state callback
     let client_state_for_history = browser.client_state.clone();
     client_state_for_history.borrow_mut().on_url_change = Some(Box::new(move |url: &str| {
-        hist_mgr_clone.borrow_mut().add(url, None);
+        hist_mgr_for_closure.borrow_mut().add(url, None);
     }));
     
     // Add initial URL to history
-    hist_mgr_clone.borrow_mut().add(&url, Some("Loading..."));
+    history_mgr.borrow_mut().add(&url, Some("Loading..."));
 
     // Add CEF browser widget to overlay
     overlay.set_child(Some(&browser.widget));
@@ -667,7 +667,6 @@ fn build_window(
                                                 }
                                             })
                                         }
-                                        _ => None,
                                     };
                                     drop(st);
                                     if let Some(new_text) = action {
