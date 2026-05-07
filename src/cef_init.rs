@@ -75,7 +75,7 @@ match config.log_level.as_str() {
         _ => {}
     }
 
-    let app = IronApp { cef_object: std::ptr::null_mut() };
+    let app = IronApp::new();
     let result = cef::initialize(
         Some(cef_args.as_main_args()),
         Some(&settings),

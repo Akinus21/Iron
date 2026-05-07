@@ -15,8 +15,6 @@ use cef::{
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 
-static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
-
 pub struct IronClientState {
     pub on_title_change: Option<Box<dyn Fn(&str)>>,
     pub on_url_change: Option<Box<dyn Fn(&str)>>,
@@ -35,12 +33,12 @@ pub fn create_shared_state() -> SharedClientState {
     }))
 }
 
-type RenderCallback = Option<Box<dyn FnMut(&[u8], i32, i32)>>;
+type RenderCallback = Box<dyn FnMut(&[u8], i32, i32) + Send + Sync>;
 
-static RENDER_CALLBACK: std::cell::RefCell<Option<RenderCallback>> = std::cell::RefCell::new(None);
+static RENDER_CALLBACK: std::sync::Mutex<Option<RenderCallback>> = std::sync::Mutex::new(None);
 
-pub fn set_render_callback(callback: RenderCallback) {
-    *RENDER_CALLBACK.borrow_mut() = Some(callback);
+pub fn set_render_callback(callback: Option<Box<dyn FnMut(&[u8], i32, i32) + Send + Sync>>) {
+    *RENDER_CALLBACK.lock().unwrap() = callback;
 }
 
 cef::wrap_client! {
@@ -205,7 +203,8 @@ cef::wrap_render_handler! {
             height: i32,
         ) {
             let Some(buffer) = buffer else { return };
-            if let Some(ref mut callback) = *RENDER_CALLBACK.borrow_mut() {
+            let guard = RENDER_CALLBACK.lock().unwrap();
+            if let Some(ref mut callback) = *guard {
                 callback(buffer, width, height);
             }
         }
