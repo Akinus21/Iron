@@ -17,8 +17,8 @@ fn main() {
     let cef_dir = if let Ok(dir) = env::var("CEF_DIR") {
         PathBuf::from(&dir)
     } else {
-        // Use download-cef to download CEF - use actual version from CEF index
-        let cef_version = "147.0.10+gd58e84d+chromium-147.0.7727.118";
+        // Use download-cef to download CEF - match cef-dll-sys version
+        let cef_version = "147.1.0+147.0.10";
         let download_dir = std::env::temp_dir().join("cef-download");
         let _ = std::fs::create_dir_all(&download_dir);
         let result = download_cef::download_target_archive(
