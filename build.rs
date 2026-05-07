@@ -19,8 +19,21 @@ fn main() {
     } else {
         // Use download-cef to download CEF
         let cef_version = "147.1.0+147.0.10";
-        let download_dir = download_cef::download_cef(cef_version, "linux64").expect("Failed to download CEF");
-        download_dir
+        let download_dir = std::env::temp_dir().join("cef-download");
+        let _ = std::fs::create_dir_all(&download_dir);
+        let result = download_cef::download_target_archive(
+            "linux64",
+            cef_version,
+            &download_dir,
+            true,
+        );
+        match result {
+            Ok(dir) => dir,
+            Err(e) => {
+                eprintln!("Failed to download CEF: {}", e);
+                std::process::exit(1);
+            }
+        }
     };
     
     setup_cef_paths(&cef_dir);
