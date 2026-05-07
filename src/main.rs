@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports)]
 mod cac;
 mod cef_browser;
+mod cef_client;
 mod cef_init;
 mod command;
 mod config;
@@ -81,7 +82,11 @@ fn main() {
     });
     app.add_action(&open_folder_action);
 
-    app.run();
+    let exit_code = app.run();
+
+    cef_init::shutdown_cef();
+
+    exit_code
 }
 
 const ALL_COMMANDS: [(&str, &str); 18] = [
@@ -147,12 +152,18 @@ fn build_window(
         eprintln!("CEF initialization warning: {}", e);
     }
 
-    // Create CEF browser wrapper (placeholder until full integration)
+    // CEF message pump: tick CEF's event loop alongside GTK's
+    glib::source::timeout_add_local(std::time::Duration::from_millis(10), || {
+        cef_init::do_message_loop_work();
+        glib::ControlFlow::Continue
+    });
+
+    // Create CEF browser wrapper
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
     let browser = cef_browser::CefBrowserWrapper::new(
         None,
         &url,
-        false,
+        true, // Use OSR (off-screen rendering)
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create CEF browser: {}", e);
         // Fallback: create with about:blank

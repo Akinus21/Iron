@@ -212,18 +212,22 @@ impl ThemeManager {
         }
     }
 
-    pub fn apply_webkit_css(&self, _webview: &crate::cef_browser::CefBrowserWrapper) {
+    pub fn apply_webkit_css(&self, webview: &crate::cef_browser::CefBrowserWrapper) {
         if self.webkit_css.is_empty() {
             return;
         }
-        // TODO: Inject CSS into CEF via execute_javascript
-        // For now, just log that we would inject CSS
-        eprintln!("Noctalia: Would inject WebKit CSS ({} chars)", self.webkit_css.len());
+        let css = &self.webkit_css;
+        let escaped = css.replace('\\', "\\\\").replace('`', "\\`").replace('$', "\\$");
+        let js = format!(
+            "(function(){{ var s = document.createElement('style'); s.textContent = `{}`; document.head.appendChild(s); }})()",
+            escaped
+        );
+        webview.execute_javascript(&js);
     }
 
     pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
-        _webview: &crate::cef_browser::CefBrowserWrapper,
+        webview: &crate::cef_browser::CefBrowserWrapper,
         provider: &gtk4::CssProvider,
     ) {
         let config_dir = match dirs::config_dir() {
@@ -250,6 +254,7 @@ impl ThemeManager {
 
         let _provider = provider.clone();
         let tm_clone = tm.clone();
+        let wv_clone = webview.clone();
         let is_colors_json = |f: &gio::File| -> bool {
             f.path().as_ref()
                 .and_then(|p| p.file_name().map(|n| n == "colors.json"))
@@ -262,6 +267,7 @@ impl ThemeManager {
                 eprintln!("Noctalia: colors.json changed (event={:?})!", event_type);
                 tm.borrow_mut().load();
                 tm.borrow().apply_gtk_css(&_provider);
+                tm.borrow().apply_webkit_css(&wv_clone);
             }
         });
 

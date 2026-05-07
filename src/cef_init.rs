@@ -1,21 +1,16 @@
-//! CEF (Chromium Embedded Framework) initialization
-//! 
-//! This module handles CEF lifecycle management.
-
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-/// Global CEF initialization state
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-/// CEF configuration
 #[derive(Debug, Clone)]
 pub struct CefConfig {
     pub track: String,
     pub cache_path: PathBuf,
     pub log_level: String,
     pub enable_window_sleep: bool,
+    pub windowless_rendering: bool,
 }
 
 impl Default for CefConfig {
@@ -28,52 +23,108 @@ impl Default for CefConfig {
                 .join("cef"),
             log_level: "info".to_string(),
             enable_window_sleep: true,
+            windowless_rendering: true,
         }
     }
 }
 
-/// Initialize CEF before creating browsers
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     if CEF_INITIALIZED.load(Ordering::SeqCst) {
         return Ok(());
     }
-    
-    // Ensure cache directory exists
+
     let _ = std::fs::create_dir_all(&config.cache_path);
-    
-    // Log initialization
-    eprintln!("[CEF] Initializing (track={}, cache={:?})", 
-              config.track, config.cache_path);
-    
-    // Note: Actual CEF initialization requires FFI calls to CefInitialize
-    // This is a placeholder until full CEF FFI is implemented
-    
+
+    eprintln!("[CEF] Initializing (track={}, cache={:?}, osr={})",
+              config.track, config.cache_path, config.windowless_rendering);
+
+    let args: Vec<String> = std::env::args().collect();
+    let mut cef_args = cef::args::Args::new();
+    for arg in &args {
+        cef_args.append(arg);
+    }
+    cef_args.append("--disable-gpu");
+    cef_args.append("--disable-gpu-compositing");
+    cef_args.append("--disable-extensions");
+    cef_args.append("--disable-background-networking");
+    cef_args.append("--disable-background-timer-throttling");
+    cef_args.append("--disable-backgrounding-occluded-windows");
+    cef_args.append("--disable-renderer-backgrounding");
+    cef_args.append("--disable-dev-shm-usage");
+    cef_args.append("--enable-features=AutomaticTabDiscarding");
+    cef_args.append("--disable-component-update");
+    cef_args.append("--disable-default-apps");
+
+    if config.windowless_rendering {
+        cef_args.append("--off-screen-rendering-enabled");
+        cef_args.append("--enable-gpu");
+    }
+
+    let mut settings = cef::Settings::default();
+    settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
+    settings.external_message_pump = 1;
+    settings.multi_threaded_message_loop = 0;
+
+    let cache_path_str = config.cache_path.to_string_lossy().to_string();
+    settings.cache_path = Some(cef::CefString::from(&cache_path_str));
+
+    match config.log_level.as_str() {
+        "verbose" => { settings.log_severity = cef::sys::LOGSEVERITY_VERBOSE; }
+        "info" => { settings.log_severity = cef::sys::LOGSEVERITY_INFO; }
+        "warning" => { settings.log_severity = cef::sys::LOGSEVERITY_WARNING; }
+        "error" => { settings.log_severity = cef::sys::LOGSEVERITY_ERROR; }
+        _ => { settings.log_severity = cef::sys::LOGSEVERITY_DISABLE; }
+    }
+
+    let mut app = IronApp::new();
+    let result = cef::initialize(
+        Some(cef_args.as_main_args()),
+        Some(&settings),
+        Some(&mut app),
+        std::ptr::null_mut(),
+    );
+
+    if result != 0 {
+        // CEF subprocess — re-launch via CEF and exit
+        return Err("CEF subprocess handler".to_string());
+    }
+
     CEF_INIT_COUNT.fetch_add(1, Ordering::SeqCst);
     CEF_INITIALIZED.store(true, Ordering::SeqCst);
-    
+
+    eprintln!("[CEF] Initialized successfully");
     Ok(())
 }
 
-/// Shutdown CEF when application closes
 pub fn shutdown_cef() {
     if !CEF_INITIALIZED.load(Ordering::SeqCst) {
         return;
     }
-    
+
     let count = CEF_INIT_COUNT.fetch_sub(1, Ordering::SeqCst);
     if count == 1 {
         eprintln!("[CEF] Shutting down");
-        // Note: Actual CEF shutdown requires FFI call to CefShutdown
+        cef::shutdown();
         CEF_INITIALIZED.store(false, Ordering::SeqCst);
     }
 }
 
-/// Check if CEF is initialized
 pub fn is_cef_initialized() -> bool {
     CEF_INITIALIZED.load(Ordering::SeqCst)
 }
 
-/// Get CEF command-line flags for resource conservation
+pub fn do_message_loop_work() {
+    if CEF_INITIALIZED.load(Ordering::SeqCst) {
+        cef::do_message_loop_work();
+    }
+}
+
+cef::wrap_app! {
+    struct IronApp;
+
+    impl App for IronApp {}
+}
+
 pub fn get_cef_flags() -> Vec<String> {
     vec![
         "--disable-gpu".to_string(),
