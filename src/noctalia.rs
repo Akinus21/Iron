@@ -44,6 +44,7 @@ pub struct ThemeManager {
     gtk_css: String,
     webkit_css: String,
     theme_path: Option<PathBuf>,
+    _monitor: Option<gio::FileMonitor>,
 }
 
 impl ThemeManager {
@@ -52,6 +53,7 @@ impl ThemeManager {
             gtk_css: String::new(),
             webkit_css: String::new(),
             theme_path: None,
+            _monitor: None,
         }
     }
 
@@ -261,6 +263,8 @@ impl ThemeManager {
                 tm.borrow().apply_gtk_css(&_provider);
             }
         });
+
+        tm.borrow_mut()._monitor = Some(monitor);
     }
 }
 
