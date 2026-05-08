@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/cef
-          key: cef-143.6.0-linux-x64
+          key: cef-148.0.0-linux-x64
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
