@@ -12,7 +12,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CEF_VERSION: "147.1.0+147.0.10"
   CEF_DIR: ${{ github.workspace }}/cef
 
 jobs:
@@ -75,23 +74,23 @@ jobs:
         if: steps.cache-cef.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$CEF_DIR"
-          echo "Attempting to download CEF..."
-          CEF_ARCHIVE="cef_binary_${CEF_VERSION}_linux64_minimal"
-          echo "Archive name: $CEF_ARCHIVE"
-          echo "Download URL: https://cef-builds.spotifycdn.com/${CEF_ARCHIVE}.tar.bz2"
-          wget -v \
-            "https://cef-builds.spotifycdn.com/${CEF_ARCHIVE}.tar.bz2" \
-            -O /tmp/cef.tar.bz2 || {
-            echo "Trying alternative archive name..."
-            CEF_ARCHIVE2="cef_binary_${CEF_VERSION}_linux64"
-            wget -v \
-              "https://cef-builds.spotifycdn.com/${CEF_ARCHIVE2}.tar.bz2" \
-              -O /tmp/cef.tar.bz2
-          }
-          tar xjf /tmp/cef.tar.bz2 -C "$CEF_DIR" --strip-components=1 || {
-            echo "Extraction failed, listing contents of /tmp/"
-            ls -la /tmp/cef.tar.bz2 2>/dev/null || echo "File not found"
-          }
+          echo "Downloading CEF..."
+          # Try multiple known CEF version strings for cef 147.x
+          for VERSION in "147.1.0+147.0.10" "147.1.0+147.0.8" "147.1.0+147.0.4" "147.1.0+147.0.1"; do
+            ARCHIVE="cef_binary_${VERSION}_linux64_minimal.tar.bz2"
+            echo "Trying: $ARCHIVE"
+            if wget --spider "https://cef-builds.spotifycdn.com/$ARCHIVE" 2>/dev/null; then
+              echo "Found: $ARCHIVE"
+              wget -q "https://cef-builds.spotifycdn.com/$ARCHIVE" -O /tmp/cef.tar.bz2
+              if tar xjf /tmp/cef.tar.bz2 -C "$CEF_DIR" --strip-components=1 2>/dev/null; then
+                echo "Successfully extracted"
+                ls "$CEF_DIR"
+                exit 0
+              fi
+            fi
+          done
+          echo "All download attempts failed"
+          exit 1
 
       - name: Build CEF wrapper lib
         run: |
