@@ -134,10 +134,9 @@ impl CefBrowserWrapper {
 
         let cef_url = cef::CefString::from(url_str.as_str());
 
-        let client_ptr: *mut IronClient = &mut client;
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(unsafe { &mut *(client_ptr as *mut dyn ImplClient) }),
+            Some(&mut client),
             Some(&cef_url),
             Some(&browser_settings),
             None,
