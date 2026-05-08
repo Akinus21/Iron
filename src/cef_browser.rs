@@ -203,13 +203,13 @@ impl CefBrowserWrapper {
                 if let Some(host) = browser.host() {
                     let button = gesture.current_button();
                     let cef_button = match button {
-                        1 => 0,
-                        2 => 1,
-                        3 => 2,
-                        _ => 0,
+                        1 => cef::MouseButtonType::Left,
+                        2 => cef::MouseButtonType::Middle,
+                        3 => cef::MouseButtonType::Right,
+                        _ => cef::MouseButtonType::Left,
                     };
-                    let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef_button, true);
+                    let cef_event = build_cef_mouse_event(x as i32, y as i32, 0);
+                    host.send_mouse_click_event(Some(&cef_event), cef_button, false, 1);
                 }
             }
         });
@@ -219,13 +219,13 @@ impl CefBrowserWrapper {
                 if let Some(host) = browser.host() {
                     let button = gesture.current_button();
                     let cef_button = match button {
-                        1 => 0,
-                        2 => 1,
-                        3 => 2,
-                        _ => 0,
+                        1 => cef::MouseButtonType::Left,
+                        2 => cef::MouseButtonType::Middle,
+                        3 => cef::MouseButtonType::Right,
+                        _ => cef::MouseButtonType::Left,
                     };
-                    let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef_button, false);
+                    let cef_event = build_cef_mouse_event(x as i32, y as i32, 0);
+                    host.send_mouse_click_event(Some(&cef_event), cef_button, true, 1);
                 }
             }
         });
