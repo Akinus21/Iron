@@ -134,10 +134,9 @@ impl CefBrowserWrapper {
 
         let cef_url = cef::CefString::from(url_str.as_str());
 
-        let client_raw = client.get_raw();
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(unsafe { &mut *(client_raw as *mut _) }),
+            None,
             Some(&cef_url),
             Some(&browser_settings),
             None,
@@ -168,7 +167,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Stop
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
@@ -178,7 +176,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Stop
         });
 
         self.widget.add_controller(key_controller);
