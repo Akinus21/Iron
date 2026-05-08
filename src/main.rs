@@ -204,7 +204,7 @@ fn build_window(
     );
 
     let css_provider = CssProvider::new();
-    css_provider.load_from_string(
+    css_provider.load_from_data(
         ".command-overlay { padding: 24px; font-size: 13px; }\n\
          .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
          .command-row { padding: 4px 8px; }\n\

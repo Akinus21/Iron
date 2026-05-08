@@ -244,6 +244,7 @@ impl CefBrowserWrapper {
                     host.send_mouse_wheel_event(Some(&cef_event), delta_x, delta_y);
                 }
             }
+            glib::Propagation::Stop
         });
 
         self.widget.add_controller(scroll_controller);

@@ -208,7 +208,7 @@ impl ThemeManager {
 
     pub fn apply_gtk_css(&self, provider: &gtk4::CssProvider) {
         if !self.gtk_css.is_empty() {
-            provider.load_from_string(&self.gtk_css);
+            provider.load_from_data(&self.gtk_css);
         }
     }
 
