@@ -61,6 +61,7 @@ jobs:
             libxext-dev \
             mesa-common-dev \
             libegl1-mesa-dev \
+            libbz2-dev \
             jq
 
       - name: Cache CEF binaries
@@ -74,11 +75,23 @@ jobs:
         if: steps.cache-cef.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$CEF_DIR"
+          echo "Attempting to download CEF..."
           CEF_ARCHIVE="cef_binary_${CEF_VERSION}_linux64_minimal"
-          wget -q \
+          echo "Archive name: $CEF_ARCHIVE"
+          echo "Download URL: https://cef-builds.spotifycdn.com/${CEF_ARCHIVE}.tar.bz2"
+          wget -v \
             "https://cef-builds.spotifycdn.com/${CEF_ARCHIVE}.tar.bz2" \
-            -O /tmp/cef.tar.bz2
-          tar xjf /tmp/cef.tar.bz2 -C "$CEF_DIR" --strip-components=1
+            -O /tmp/cef.tar.bz2 || {
+            echo "Trying alternative archive name..."
+            CEF_ARCHIVE2="cef_binary_${CEF_VERSION}_linux64"
+            wget -v \
+              "https://cef-builds.spotifycdn.com/${CEF_ARCHIVE2}.tar.bz2" \
+              -O /tmp/cef.tar.bz2
+          }
+          tar xjf /tmp/cef.tar.bz2 -C "$CEF_DIR" --strip-components=1 || {
+            echo "Extraction failed, listing contents of /tmp/"
+            ls -la /tmp/cef.tar.bz2 2>/dev/null || echo "File not found"
+          }
 
       - name: Build CEF wrapper lib
         run: |

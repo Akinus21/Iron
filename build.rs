@@ -6,9 +6,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CEF_DIR");
     println!("cargo:rerun-if-env-changed=LD_LIBRARY_PATH");
 
-    let cef_dir = std::env::var("CEF_DIR")
-        .map(PathBuf::from)
-        .expect("CEF_DIR must be set — point it at your extracted CEF binary distribution");
+    let cef_dir = match std::env::var("CEF_DIR").map(PathBuf::from) {
+        Some(dir) => dir,
+        None => {
+            println!("cargo:warning=CEF_DIR not set, skipping CEF linking configuration");
+            return;
+        }
+    };
 
     let release_dir = cef_dir.join("Release");
     let wrapper_dir = cef_dir.join("build").join("libcef_dll_wrapper");
