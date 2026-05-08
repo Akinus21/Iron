@@ -168,7 +168,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Stop
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
@@ -178,7 +177,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Stop
         });
 
         self.widget.add_controller(key_controller);
@@ -191,7 +189,7 @@ impl CefBrowserWrapper {
             if let Some(browser) = browser_clone.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let cef_event = build_cef_mouse_move_event(x as i32, y as i32, 0);
-                    host.send_mouse_event(Some(&cef_event), 0, false);
+                    host.send_mouse_move_event(Some(&cef_event), 0);
                 }
             }
         });
@@ -211,7 +209,7 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_event(Some(&cef_event), cef_button, true);
+                    host.send_mouse_click_event(Some(&cef_event), cef_button, true);
                 }
             }
         });
@@ -227,7 +225,7 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_event(Some(&cef_event), cef_button, false);
+                    host.send_mouse_click_event(Some(&cef_event), cef_button, false);
                 }
             }
         });
@@ -247,7 +245,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_wheel_event(Some(&cef_event), delta_x, delta_y);
                 }
             }
-            glib::Propagation::Stop
         });
 
         self.widget.add_controller(scroll_controller);
