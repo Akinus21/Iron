@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::cef_client::{self, IronClient, SharedClientState};
-use cef::{ImplBrowser, ImplBrowserHost};
+use cef::{ImplBrowser, ImplBrowserHost, ImplFrame};
 
 #[derive(Clone)]
 pub struct CefBrowserWrapper {
@@ -244,7 +244,7 @@ impl CefBrowserWrapper {
                     let delta_x = (dx * 100.0) as i32;
                     let delta_y = (dy * 100.0) as i32;
                     let cef_event = build_cef_mouse_event(0, 0, 0);
-                    host.send_mouse_wheel(Some(&cef_event), delta_x, delta_y);
+                    host.send_mouse_wheel_event(Some(&cef_event), delta_x, delta_y);
                 }
             }
             glib::Propagation::Stop
