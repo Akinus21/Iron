@@ -208,7 +208,12 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef::MouseButtonType(cef_button), 0, 1);
+                    let mouse_button = match cef_button {
+                        0 => cef::MouseButtonType::LEFT,
+                        1 => cef::MouseButtonType::MIDDLE,
+                        _ => cef::MouseButtonType::RIGHT,
+                    };
+                    host.send_mouse_click_event(Some(&cef_event), mouse_button, 0, 1);
                 }
             }
         });
@@ -224,7 +229,12 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef::MouseButtonType(cef_button), 1, 1);
+                    let mouse_button = match cef_button {
+                        0 => cef::MouseButtonType::LEFT,
+                        1 => cef::MouseButtonType::MIDDLE,
+                        _ => cef::MouseButtonType::RIGHT,
+                    };
+                    host.send_mouse_click_event(Some(&cef_event), mouse_button, 1, 1);
                 }
             }
         });
@@ -423,9 +433,9 @@ fn build_cef_key_event(keyval: gdk::Key, keycode: u32, modifier: gdk::ModifierTy
     let mut event = cef::KeyEvent::default();
 
     if is_press {
-        event.type_ = cef::KEYEVENT_KEYDOWN;
+        event.type_ = cef::KeyEventType::KEYDOWN;
     } else {
-        event.type_ = cef::KEYEVENT_KEYUP;
+        event.type_ = cef::KeyEventType::KEYUP;
     }
 
     event.modifiers = map_gdk_modifier(modifier);
