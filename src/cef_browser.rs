@@ -136,7 +136,7 @@ impl CefBrowserWrapper {
 
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(&mut client as &mut dyn ImplClient),
+            Some(&mut client),
             Some(&cef_url),
             Some(&browser_settings),
             None,
