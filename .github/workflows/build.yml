@@ -12,7 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CEF_VERSION: "147.1.0+cef.2454"
+  CEF_VERSION: "147.1.0+147.0.10"
   CEF_DIR: ${{ github.workspace }}/cef
 
 jobs:
