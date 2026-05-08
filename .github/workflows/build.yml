@@ -12,7 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CEF_DIR: ${{ github.workspace }}/cef
+  CEF_PATH: ~/.local/share/cef
 
 jobs:
   build:
@@ -44,7 +44,6 @@ jobs:
             libnspr4-dev \
             libatk1.0-dev \
             libatk-bridge2.0-dev \
-            libcups2-dev \
             libdrm-dev \
             libdbus-1-dev \
             libxkbcommon-dev \
@@ -53,51 +52,22 @@ jobs:
             libxfixes-dev \
             libxrandr-dev \
             libgbm-dev \
-            libpango1.0-dev \
-            libcairo2-dev \
-            libasound2-dev \
             libx11-dev \
             libxext-dev \
-            mesa-common-dev \
             libegl1-mesa-dev \
-            libbz2-dev \
             jq
 
       - name: Cache CEF binaries
-        id: cache-cef
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/cef
-          key: cef-${{ env.CEF_VERSION }}-linux-x64
+          path: ~/.local/share/cef
+          key: cef-143.6.0-linux-x64
 
-      - name: Download and extract CEF
-        if: steps.cache-cef.outputs.cache-hit != 'true'
+      - name: Pre-download CEF binaries
         run: |
-          mkdir -p "$CEF_DIR"
-          echo "Downloading CEF..."
-          # Try multiple known CEF version strings for cef 147.x
-          for VERSION in "147.1.0+147.0.10" "147.1.0+147.0.8" "147.1.0+147.0.4" "147.1.0+147.0.1"; do
-            ARCHIVE="cef_binary_${VERSION}_linux64_minimal.tar.bz2"
-            echo "Trying: $ARCHIVE"
-            if wget --spider "https://cef-builds.spotifycdn.com/$ARCHIVE" 2>/dev/null; then
-              echo "Found: $ARCHIVE"
-              wget -q "https://cef-builds.spotifycdn.com/$ARCHIVE" -O /tmp/cef.tar.bz2
-              if tar xjf /tmp/cef.tar.bz2 -C "$CEF_DIR" --strip-components=1 2>/dev/null; then
-                echo "Successfully extracted"
-                ls "$CEF_DIR"
-                exit 0
-              fi
-            fi
-          done
-          echo "All download attempts failed"
-          exit 1
-
-      - name: Build CEF wrapper lib
-        run: |
-          cd "$CEF_DIR"
-          mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          make -j$(nproc) libcef_dll_wrapper
+          cargo run -p export-cef-dir -- --force ~/.local/share/cef
+        env:
+          CARGO_TERM_COLOR: always
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -109,10 +79,9 @@ jobs:
           restore-keys: cargo-
 
       - name: Check (release)
-        id: check_release
         env:
-          CEF_DIR: ${{ github.workspace }}/cef
-          LD_LIBRARY_PATH: ${{ github.workspace }}/cef/Release
+          CEF_PATH: ~/.local/share/cef
+          LD_LIBRARY_PATH: ~/.local/share/cef
         run: |
           set -o pipefail
           cargo check --release 2>&1 | tee build.log
@@ -122,8 +91,8 @@ jobs:
         if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         id: build_release
         env:
-          CEF_DIR: ${{ github.workspace }}/cef
-          LD_LIBRARY_PATH: ${{ github.workspace }}/cef/Release
+          CEF_PATH: ~/.local/share/cef
+          LD_LIBRARY_PATH: ~/.local/share/cef
         run: |
           set -o pipefail
           cargo build --release 2>&1 | tee -a build.log
@@ -132,8 +101,8 @@ jobs:
       - name: Build debug (PRs)
         if: success() && github.event_name == 'pull_request'
         env:
-          CEF_DIR: ${{ github.workspace }}/cef
-          LD_LIBRARY_PATH: ${{ github.workspace }}/cef/Release
+          CEF_PATH: ~/.local/share/cef
+          LD_LIBRARY_PATH: ~/.local/share/cef
         run: cargo build --verbose
 
       - name: Verify binary
