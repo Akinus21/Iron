@@ -57,17 +57,11 @@ jobs:
             libegl1-mesa-dev \
             jq
 
-      - name: Cache CEF binaries
+      - name: Cache CEF download
         uses: actions/cache@v4
         with:
           path: ~/.local/share/cef
           key: cef-143.6.0-linux-x64
-
-      - name: Pre-download CEF binaries
-        run: |
-          cargo run -p export-cef-dir -- --force ~/.local/share/cef
-        env:
-          CARGO_TERM_COLOR: always
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -79,6 +73,7 @@ jobs:
           restore-keys: cargo-
 
       - name: Check (release)
+        id: check_release
         env:
           CEF_PATH: ~/.local/share/cef
           LD_LIBRARY_PATH: ~/.local/share/cef
