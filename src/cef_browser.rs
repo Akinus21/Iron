@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::cef_client::{self, IronClient, SharedClientState};
-use cef::ImplBrowser;
+use cef::{ImplBrowser, ImplBrowserHost};
 
 #[derive(Clone)]
 pub struct CefBrowserWrapper {
@@ -426,9 +426,9 @@ fn build_cef_key_event(keyval: gdk::Key, keycode: u32, modifier: gdk::ModifierTy
     let mut event = cef::KeyEvent::default();
 
     if is_press {
-        event.type_ = 1;
+        event.type_ = cef::KEYEVENT_KEYDOWN;
     } else {
-        event.type_ = 2;
+        event.type_ = cef::KEYEVENT_KEYUP;
     }
 
     event.modifiers = map_gdk_modifier(modifier);

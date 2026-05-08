@@ -41,23 +41,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
               config.track, config.cache_path, config.windowless_rendering);
 
     let args: Vec<String> = std::env::args().collect();
-    let mut cef_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    cef_args.push("--disable-gpu");
-    cef_args.push("--disable-gpu-compositing");
-    cef_args.push("--disable-extensions");
-    cef_args.push("--disable-background-networking");
-    cef_args.push("--disable-background-timer-throttling");
-    cef_args.push("--disable-backgrounding-occluded-windows");
-    cef_args.push("--disable-renderer-backgrounding");
-    cef_args.push("--disable-dev-shm-usage");
-    cef_args.push("--enable-features=AutomaticTabDiscarding");
-    cef_args.push("--disable-component-update");
-    cef_args.push("--disable-default-apps");
-
-    if config.windowless_rendering {
-        cef_args.push("--off-screen-rendering-enabled");
-        cef_args.push("--enable-gpu");
-    }
+    let cef_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let _cef_arg_vec: Vec<cef::CefStringUtf16> = cef_args
+        .iter()
+        .map(|s| cef::CefString::from(*s).into())
+        .collect();
 
     let mut settings = Settings::default();
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
@@ -67,7 +55,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = cef::CefString::from(cache_path_str.as_ref());
 
-    let main_args = cef::MainArgs::new(&cef_args);
+    let main_args = cef::MainArgs::default();
 
     let result = cef::initialize(
         Some(&main_args),
