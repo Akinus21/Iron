@@ -209,7 +209,7 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef_button, 0, 1);
+                    host.send_mouse_click_event(Some(&cef_event), cef::MouseButtonType(cef_button), 0, 1);
                 }
             }
         });
@@ -225,7 +225,7 @@ impl CefBrowserWrapper {
                         _ => 0,
                     };
                     let cef_event = build_cef_mouse_event(x as i32, y as i32, cef_button);
-                    host.send_mouse_click_event(Some(&cef_event), cef_button, 1, 1);
+                    host.send_mouse_click_event(Some(&cef_event), cef::MouseButtonType(cef_button), 1, 1);
                 }
             }
         });
