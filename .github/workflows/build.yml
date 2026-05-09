@@ -62,8 +62,8 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      - name: Build (release)
-        run: cargo build --release 2>&1 | tee build.log
+- name: Build (release)
+      run: cargo build --release --no-default-features 2>&1 | tee build.log
 
       - name: Verify binary exists
         run: |
