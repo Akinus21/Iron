@@ -10,6 +10,10 @@ use cef::{
     PaintElementType, Rect, FocusSource, TransitionType,
     LifeSpanHandler, LoadHandler, DisplayHandler, RenderHandler, FocusHandler, DownloadHandler,
     Client,
+    ImplClient, ImplLifeSpanHandler, ImplLoadHandler, ImplDisplayHandler,
+    ImplRenderHandler, ImplFocusHandler, ImplDownloadHandler,
+    WrapClient, WrapLifeSpanHandler, WrapLoadHandler, WrapDisplayHandler,
+    WrapRenderHandler, WrapFocusHandler, WrapDownloadHandler,
 };
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
