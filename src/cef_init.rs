@@ -2,8 +2,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings, WrapApp};
-use cef::rc::Rc;
+use cef::{CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings, WrapApp};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
