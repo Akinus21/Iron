@@ -139,7 +139,7 @@ impl CefBrowserWrapper {
                         picture.set_paintable(Some(&texture));
                     }
                 }
-                glib::Continue(true)
+                glib::ControlFlow::Continue
             });
         }
 
