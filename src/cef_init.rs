@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, CommandLine, ImplApp, MainArgs, Settings, WrapApp};
+use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings, WrapApp};
 use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -98,7 +98,7 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 
 pub fn execute_subprocess() -> Option<i32> {
     let (_owned, _c_args, main_args) = build_main_args();
-    let mut app = App::new(IronApp {});
+    let mut app = App::new(IronApp::new());
     let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
@@ -175,7 +175,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
-    let mut app = App::new(IronApp {});
+    let mut app = App::new(IronApp::new());
 
     let result = cef::initialize(
         Some(&main_args),
