@@ -45,7 +45,10 @@ fn main() {
             .map(|s| cef::CefString::from(s.as_str()).into())
             .collect();
         let main_args = cef::MainArgs::default();
-        let _ = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+        let result = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+        if result >= 0 {
+            std::process::exit(result);
+        }
     }
 
     let app = adw::Application::new(
