@@ -85,7 +85,7 @@ fn main() {
     });
     app.add_action(&open_folder_action);
 
-    let exit_code = app.run();
+    let _exit_code = app.run();
 
     cef_init::shutdown_cef();
 }

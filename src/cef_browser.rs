@@ -3,6 +3,7 @@ use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, Gesture
 use gtk4::gdk_pixbuf::Pixbuf;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 #[cfg(not(feature = "cef-stub"))]
 use crate::cef_client::{self, IronClient, SharedClientState};
@@ -84,43 +85,43 @@ impl CefBrowserWrapper {
             return Ok(wrapper);
         }
 
-        let picture_clone = wrapper.widget.downcast_ref::<gtk4::Picture>().unwrap().clone();
-        let paint_buffer_clone = wrapper.paint_buffer.clone();
-        let buffer_width_clone = wrapper.buffer_width.clone();
-        let buffer_height_clone = wrapper.buffer_height.clone();
+        let picture = wrapper.widget.downcast_ref::<gtk4::Picture>().unwrap().clone();
+        let paint_buffer = wrapper.paint_buffer.clone();
+        let buffer_width = wrapper.buffer_width.clone();
+        let buffer_height = wrapper.buffer_height.clone();
 
-        let render_callback = move |buffer: &[u8], width: i32, height: i32| {
-            *paint_buffer_clone.borrow_mut() = Some(buffer.to_vec());
-            *buffer_width_clone.borrow_mut() = width;
-            *buffer_height_clone.borrow_mut() = height;
+        let render_callback: Arc<Mutex<Box<dyn FnMut(&[u8], i32, i32) + Send + Sync>>> =
+            Arc::new(Mutex::new(Box::new(move |buffer: &[u8], width: i32, height: i32| {
+                *paint_buffer.borrow_mut() = Some(buffer.to_vec());
+                *buffer_width.borrow_mut() = width;
+                *buffer_height.borrow_mut() = height;
 
-            if width > 0 && height > 0 {
-                let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                let bytes = glib::Bytes::from(rgba_buffer.as_slice());
-                let pixbuf = Pixbuf::from_bytes(
-                    &bytes,
-                    gtk4::gdk_pixbuf::Colorspace::Rgb,
-                    true,
-                    8,
-                    width,
-                    height,
-                    width * 4,
-                );
-                let texture = gdk::Texture::for_pixbuf(&pixbuf);
-                picture_clone.set_paintable(Some(&texture));
-            }
-        };
-
-        let render_callback_rc = Rc::new(RefCell::new(render_callback));
+                if width > 0 && height > 0 {
+                    let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
+                    let bytes = glib::Bytes::from(rgba_buffer.as_slice());
+                    let pixbuf = Pixbuf::from_bytes(
+                        &bytes,
+                        gtk4::gdk_pixbuf::Colorspace::Rgb,
+                        true,
+                        8,
+                        width,
+                        height,
+                        width * 4,
+                    );
+                    let texture = gdk::Texture::for_pixbuf(&pixbuf);
+                    picture.set_paintable(Some(&texture));
+                }
+            })));
 
         #[cfg(not(feature = "cef-stub"))]
-        crate::cef_client::set_render_callback(Some(Box::new(move |buffer: &[u8], width: i32, height: i32| {
-            let mut cb = render_callback_rc.borrow_mut();
-            cb(buffer, width, height);
-        })));
-
-        #[cfg(feature = "cef-stub")]
-        let _ = render_callback_rc;
+        {
+            let rc = render_callback.clone();
+            crate::cef_client::set_render_callback(Some(Box::new(move |buffer: &[u8], width: i32, height: i32| {
+                if let Ok(mut guard) = rc.lock() {
+                    guard(buffer, width, height);
+                }
+            })));
+        }
 
         #[cfg(not(feature = "cef-stub"))]
         let mut _client = IronClient::new(client_state.clone());
