@@ -1,6 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, GestureClick, EventControllerScroll};
-use gdk_pixbuf::{Pixbuf, Colorspace};
+use gdk_pixbuf::Pixbuf;
+use gdk_pixbuf::glib::Bytes as PixbufBytes;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -104,18 +105,18 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                if let Ok(pixbuf) = Pixbuf::from_bytes(
-                    &glib::Bytes::from(&rgba_buffer),
-                    Colorspace::Rgb,
+                let bytes = PixbufBytes::from(rgba_buffer.as_slice());
+                let pixbuf = Pixbuf::from_bytes(
+                    &bytes,
+                    gdk_pixbuf::Colorspace::Rgb,
                     true,
                     8,
                     width,
                     height,
                     width * 4,
-                ) {
-                    let texture = gdk::Texture::for_pixbuf(&pixbuf);
-                    picture_clone.set_paintable(Some(&texture));
-                }
+                );
+                let texture = gdk::Texture::for_pixbuf(&pixbuf);
+                picture_clone.set_paintable(Some(&texture));
             }
         };
 
@@ -165,12 +166,12 @@ impl CefBrowserWrapper {
     }
 
     fn setup_input_controllers(&self) {
-        let browser_clone = self.browser.clone();
-        let has_focus_clone = self.has_focus.clone();
+        let browser_for_key_press = self.browser.clone();
+        let browser_for_key_release = self.browser.clone();
 
         let key_controller = EventControllerKey::new();
         key_controller.connect_key_pressed(move |_, keyval, keycode, modifier| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_key_press.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let cef_event = build_cef_key_event(keyval, keycode, modifier, true);
                     host.send_key_event(Some(&cef_event));
@@ -180,7 +181,7 @@ impl CefBrowserWrapper {
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_key_release.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let cef_event = build_cef_key_event(keyval, keycode, modifier, false);
                     host.send_key_event(Some(&cef_event));
@@ -190,25 +191,26 @@ impl CefBrowserWrapper {
 
         self.widget.add_controller(key_controller);
 
-        let browser_clone = self.browser.clone();
-        let has_focus_clone = self.has_focus.clone();
+        let browser_for_motion = self.browser.clone();
 
         let motion_controller = EventControllerMotion::new();
         motion_controller.connect_motion(move |_, x, y| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_motion.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let cef_event = build_cef_mouse_move_event(x as i32, y as i32, 0);
                     host.send_mouse_move_event(Some(&cef_event), 0);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(motion_controller);
 
-        let browser_clone = self.browser.clone();
+        let browser_for_press = self.browser.clone();
+        let browser_for_release = self.browser.clone();
         let click_controller = GestureClick::new();
         click_controller.connect_pressed(move |gesture, _, x, y| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_press.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let button = gesture.current_button();
                     let cef_button = match button {
@@ -226,10 +228,11 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 0, 1);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         click_controller.connect_released(move |gesture, _, x, y| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_release.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let button = gesture.current_button();
                     let cef_button = match button {
@@ -247,16 +250,17 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 1, 1);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(click_controller);
 
-        let browser_clone = self.browser.clone();
+        let browser_for_scroll = self.browser.clone();
         let scroll_controller = EventControllerScroll::new(
             gtk4::EventControllerScrollFlags::BOTH_AXES
         );
         scroll_controller.connect_scroll(move |_, dx, dy| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_scroll.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     let delta_x = (dx * 100.0) as i32;
                     let delta_y = (dy * 100.0) as i32;
@@ -269,25 +273,27 @@ impl CefBrowserWrapper {
 
         self.widget.add_controller(scroll_controller);
 
-        let browser_clone = self.browser.clone();
-        let has_focus_clone = self.has_focus.clone();
+        let browser_for_enter = self.browser.clone();
+        let browser_for_leave = self.browser.clone();
+        let has_focus_for_enter = self.has_focus.clone();
+        let has_focus_for_leave = self.has_focus.clone();
         let focus_controller = gtk4::EventControllerFocus::new();
         focus_controller.connect_enter(move |_| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_enter.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     host.set_focus(1);
                 }
             }
-            *has_focus_clone.borrow_mut() = true;
+            *has_focus_for_enter.borrow_mut() = true;
         });
 
         focus_controller.connect_leave(move |_| {
-            if let Some(browser) = browser_clone.borrow().as_ref() {
+            if let Some(browser) = browser_for_leave.borrow().as_ref() {
                 if let Some(host) = browser.host() {
                     host.set_focus(0);
                 }
             }
-            *has_focus_clone.borrow_mut() = false;
+            *has_focus_for_leave.borrow_mut() = false;
         });
 
         self.widget.add_controller(focus_controller);
