@@ -141,14 +141,17 @@ cef::wrap_render_handler! {
             _browser: Option<&mut Browser>,
             _kind: PaintElementType,
             _dirty_rects: Option<&[Rect]>,
-            buffer: Option<&[u8]>,
+            buffer: *const u8,
             width: i32,
             height: i32,
         ) {
-            let Some(buffer) = buffer else { return };
+            if buffer.is_null() || width <= 0 || height <= 0 {
+                return;
+            }
+            let buffer_slice = unsafe { std::slice::from_raw_parts(buffer, (width * height * 4) as usize) };
             if let Ok(mut guard) = RENDER_CALLBACK.lock() {
                 if let Some(ref mut callback) = *guard {
-                    callback(buffer, width, height);
+                    callback(buffer_slice, width, height);
                 }
             }
         }
