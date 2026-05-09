@@ -500,11 +500,11 @@ fn build_window(
                                 command::Command::Forward => { if wv_for_cmd.can_go_forward() { wv_for_cmd.go_forward(); } }
                                 command::Command::Reload => wv_for_cmd.reload(),
                                 command::Command::Duplicate => {
-                                    let url = wv_for_cmd.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                                    let url = wv_for_cmd.get_url();
                                     let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));
                                 }
                                 command::Command::CopyAddress => {
-                                    let url = wv_for_cmd.uri().map(|u| u.to_string()).unwrap_or_default();
+                                    let url = wv_for_cmd.get_url();
                                     if !url.is_empty() {
                                         if let Some(d) = gdk::Display::default() {
                                             d.clipboard().set_text(&url);
@@ -809,7 +809,7 @@ fn build_window(
                     return glib::Propagation::Stop;
                 }
                 "duplicate" => {
-                    let url = browser_ref.uri().map(|u| u.to_string()).unwrap_or_else(|| "https://www.rust-lang.org".to_string());
+                    let url = browser_ref.get_url();
                     let _ = build_window(&app_clone, cfg_clone.clone(), session_mgr_clone.clone(), history_mgr_clone.clone(), Some(&url));
                     return glib::Propagation::Stop;
                 }
