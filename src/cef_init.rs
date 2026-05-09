@@ -55,6 +55,12 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = cef::CefString::from(cache_path_str.as_ref());
 
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_str) = exe_path.to_str() {
+            settings.browser_subprocess_path = cef::CefString::from(exe_str);
+        }
+    }
+
     let main_args = cef::MainArgs::default();
 
     let result = cef::initialize(

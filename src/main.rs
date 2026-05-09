@@ -38,6 +38,16 @@ use gtk4::{
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
 
 fn main() {
+    #[cfg(not(feature = "cef-stub"))]
+    {
+        let args: Vec<String> = std::env::args().collect();
+        let cef_args: Vec<cef::CefStringUtf16> = args.iter()
+            .map(|s| cef::CefString::from(s.as_str()).into())
+            .collect();
+        let main_args = cef::MainArgs::default();
+        let _ = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+    }
+
     let app = adw::Application::new(
         Some("org.blueak.iron"),
         gio::ApplicationFlags::HANDLES_OPEN,
