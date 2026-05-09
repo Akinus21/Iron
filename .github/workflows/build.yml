@@ -12,7 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CEF_PATH: ~/.local/share/cef
+  CEF_PATH: $HOME/.local/share/cef
 
 jobs:
   build:
@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/cef
-          key: cef-148.0.0-linux-x64
+          key: cef-147.0.10-linux-x64
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
