@@ -51,7 +51,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
-    settings.no_sandbox = 1;
 
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = cef::CefString::from(cache_path_str.as_ref());

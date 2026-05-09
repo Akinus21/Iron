@@ -40,13 +40,9 @@ use gtk4::prelude::{WidgetExt, GtkWindowExt};
 fn main() {
     #[cfg(not(feature = "cef-stub"))]
     {
-        let mut args: Vec<String> = std::env::args().collect();
-        if args.iter().any(|a| a.starts_with("--type=")) {
+        if std::env::args().any(|a| a.starts_with("--type=")) {
             std::process::exit(0);
         }
-        args.push("--no-sandbox".to_string());
-        args.push("--disable-zygote".to_string());
-        std::env::set_var("IRON_ARGS", args.join("\0"));
     }
 
     let app = adw::Application::new(
