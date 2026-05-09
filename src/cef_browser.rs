@@ -125,8 +125,8 @@ impl CefBrowserWrapper {
                     let w = *pw.borrow();
                     let h = *ph.borrow();
                     if w > 0 && h > 0 {
-                        let bytes = glib::Bytes::from(rgba);
-                        if let Ok(pixbuf) = Pixbuf::from_bytes(
+                        let bytes = glib::Bytes::from(&rgba);
+                        let pixbuf = Pixbuf::from_bytes(
                             &bytes,
                             gtk4::gdk_pixbuf::Colorspace::Rgb,
                             true,
@@ -134,10 +134,9 @@ impl CefBrowserWrapper {
                             w,
                             h,
                             w * 4,
-                        ) {
-                            let texture = gdk::Texture::for_pixbuf(&pixbuf);
-                            picture.set_paintable(Some(&texture));
-                        }
+                        );
+                        let texture = gdk::Texture::for_pixbuf(&pixbuf);
+                        picture.set_paintable(Some(&texture));
                     }
                 }
                 glib::Continue(true)
