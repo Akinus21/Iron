@@ -86,41 +86,62 @@ impl CefBrowserWrapper {
         }
 
         let picture = wrapper.widget.downcast_ref::<gtk4::Picture>().unwrap().clone();
-        let paint_buffer = wrapper.paint_buffer.clone();
-        let buffer_width = wrapper.buffer_width.clone();
-        let buffer_height = wrapper.buffer_height.clone();
-
-        let render_callback: Arc<Mutex<Box<dyn FnMut(&[u8], i32, i32) + Send + Sync>>> =
-            Arc::new(Mutex::new(Box::new(move |buffer: &[u8], width: i32, height: i32| {
-                *paint_buffer.borrow_mut() = Some(buffer.to_vec());
-                *buffer_width.borrow_mut() = width;
-                *buffer_height.borrow_mut() = height;
-
-                if width > 0 && height > 0 {
-                    let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                    let bytes = glib::Bytes::from(rgba_buffer.as_slice());
-                    let pixbuf = Pixbuf::from_bytes(
-                        &bytes,
-                        gtk4::gdk_pixbuf::Colorspace::Rgb,
-                        true,
-                        8,
-                        width,
-                        height,
-                        width * 4,
-                    );
-                    let texture = gdk::Texture::for_pixbuf(&pixbuf);
-                    picture.set_paintable(Some(&texture));
-                }
-            })));
 
         #[cfg(not(feature = "cef-stub"))]
         {
+            let paint_buffer = wrapper.paint_buffer.clone();
+            let buffer_width = wrapper.buffer_width.clone();
+            let buffer_height = wrapper.buffer_height.clone();
+
+            struct RenderData {
+                buffer: Option<Vec<u8>>,
+                width: i32,
+                height: i32,
+            }
+
+            let render_data = Arc::new(Mutex::new(RenderData { buffer: None, width: 0, height: 0 }));
+            let render_data_cb = render_data.clone();
+            let render_data_poll = render_data.clone();
+
+            let render_callback: Arc<Mutex<Box<dyn FnMut(&[u8], i32, i32) + Send + Sync>>> =
+                Arc::new(Mutex::new(Box::new(move |buffer: &[u8], width: i32, height: i32| {
+                    let mut d = render_data_cb.lock().unwrap();
+                    d.buffer = Some(buffer.to_vec());
+                    d.width = width;
+                    d.height = height;
+                })));
+
             let rc = render_callback.clone();
             crate::cef_client::set_render_callback(Some(Box::new(move |buffer: &[u8], width: i32, height: i32| {
                 if let Ok(mut guard) = rc.lock() {
                     guard(buffer, width, height);
                 }
             })));
+            let pw = buffer_width.clone();
+            let ph = buffer_height.clone();
+            glib::timeout_add(std::time::Duration::from_millis(16), move || {
+                let mut d = render_data_poll.lock().unwrap();
+                if let Some(rgba) = d.buffer.take() {
+                    let w = *pw.borrow();
+                    let h = *ph.borrow();
+                    if w > 0 && h > 0 {
+                        let bytes = glib::Bytes::from(rgba);
+                        if let Ok(pixbuf) = Pixbuf::from_bytes(
+                            &bytes,
+                            gtk4::gdk_pixbuf::Colorspace::Rgb,
+                            true,
+                            8,
+                            w,
+                            h,
+                            w * 4,
+                        ) {
+                            let texture = gdk::Texture::for_pixbuf(&pixbuf);
+                            picture.set_paintable(Some(&texture));
+                        }
+                    }
+                }
+                glib::Continue(true)
+            });
         }
 
         #[cfg(not(feature = "cef-stub"))]
