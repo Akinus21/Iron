@@ -129,15 +129,17 @@ impl CefBrowserWrapper {
         #[cfg(not(feature = "cef-stub"))]
         let mut client = IronClient::new(client_state.clone());
 
-        let mut window_info = cef::WindowInfo::default();
-
-        if is_offscreen || parent_window.is_none() {
-            window_info.windowless_rendering_enabled = 1;
-            window_info.set_as_windowless(0);
+        let window_info = cef::WindowInfo::default();
+        let window_info = if is_offscreen || parent_window.is_none() {
+            let mut wi = window_info;
+            wi.windowless_rendering_enabled = 1;
+            wi.set_as_windowless(0)
         } else if let Some(surface) = parent_window {
             let win_id = get_window_handle(surface);
-            window_info.set_as_child(win_id, &cef::Rect::default());
-        }
+            window_info.set_as_child(win_id, &cef::Rect::default())
+        } else {
+            window_info
+        };
 
         let browser_settings = cef::BrowserSettings::default();
 
