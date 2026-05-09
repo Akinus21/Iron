@@ -6,4 +6,14 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", cef_path);
         println!("cargo:rustc-link-lib=dylib=cef");
     }
+
+    let out_dir = std::env::var("OUT_DIR").unwrap_or_default();
+    if !out_dir.is_empty() {
+        let lib_dir = std::path::Path::new(&out_dir).join("out");
+        if lib_dir.exists() {
+            if let Some(lib_dir_str) = lib_dir.to_str() {
+                println!("cargo:rustc-link-search=native={}", lib_dir_str);
+            }
+        }
+    }
 }
