@@ -48,6 +48,14 @@ fn find_cef_dir() -> Option<PathBuf> {
             }
         }
     }
+    if let Ok(ld_path) = std::env::var("LD_LIBRARY_PATH") {
+        for dir in ld_path.split(':') {
+            let path = PathBuf::from(dir);
+            if path.join("libcef.so").exists() {
+                return Some(path);
+            }
+        }
+    }
     for dir in &[
         PathBuf::from("/usr/local/lib"),
         PathBuf::from("/home/linuxbrew/.linuxbrew/lib"),

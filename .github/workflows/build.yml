@@ -55,6 +55,7 @@ jobs:
             libx11-dev \
             libxext-dev \
             libegl1-mesa-dev \
+            patchelf \
             jq
 
       - name: Cache Cargo registry and build artifacts
@@ -71,13 +72,18 @@ jobs:
       - name: Build (release)
         run: cargo build --release --no-default-features 2>&1 | tee build.log
 
-      - name: Verify binary exists
+      - name: Set rpath and verify binary
         run: |
-          if [ ! -f target/release/iron ]; then
-            echo "ERROR: Binary not found at target/release/iron"
+          BINARY="target/release/iron"
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: Binary not found"
             exit 1
           fi
-          SIZE=$(stat -c%s target/release/iron)
+          patchelf --set-rpath '$ORIGIN:$ORIGIN/../lib:$ORIGIN/lib' "$BINARY" 2>/dev/null || \
+            patchelf --set-rpath '\$ORIGIN:\$ORIGIN/../lib:\$ORIGIN/lib' "$BINARY" || true
+          echo "RPATH in binary:"
+          readelf -d "$BINARY" 2>/dev/null | grep -E 'RPATH|RUNPATH' || echo "WARNING: No RPATH/RUNPATH found"
+          SIZE=$(stat -c%s "$BINARY")
           echo "Binary size: $SIZE bytes"
           if [ "$SIZE" -lt 100000 ]; then
             echo "ERROR: Binary too small ($SIZE bytes)"

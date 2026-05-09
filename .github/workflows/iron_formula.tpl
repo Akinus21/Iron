@@ -14,14 +14,20 @@ class Iron < Formula
   end
 
   def install
-    bin.install "iron"
+    bin.install "iron" => "iron.bin"
 
     resource("cef-runtime").stage do
-      lib.install Dir["*.so"]
+      lib.install "libcef.so"
       (share/"iron").install Dir["*.pak"], "icudtl.dat"
       (share/"iron"/"locales").install Dir["locales/*"] if Dir.exist?("locales")
       (share/"iron").install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")
     end
+
+    (bin/"iron").write <<~SH
+      #!/bin/bash
+      export LD_LIBRARY_PATH="#{lib}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      exec "#{bin}/iron.bin" "$@"
+    SH
   end
 
   test do
