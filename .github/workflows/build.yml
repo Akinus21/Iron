@@ -75,7 +75,7 @@ jobs:
         run: |
           CEF_DIR="$HOME/.local/share/cef"
           echo "=== CEF directory contents ==="
-          ls -la "$CEF_DIR" 2>/dev/null || echo "CEF_DIR not found"
+          ls -la "$CEF_DIR" 2>/dev/null || echo "CEF_DIR not found - triggering download"
           echo ""
           echo "=== All files in CEF_DIR ==="
           find "$CEF_DIR" -type f 2>/dev/null | head -30 || echo "No files found"
@@ -91,7 +91,21 @@ jobs:
             echo "Symlinked to: $VERSIONED/libcef.so"
           else
             echo "ERROR: libcef.so not found in $CEF_DIR"
-            exit 1
+            echo "=== Running cargo fetch to trigger cef-dll-sys download ==="
+            cargo fetch --release 2>&1 || true
+            echo "=== CEF directory contents after fetch ==="
+            ls -la "$CEF_DIR" 2>/dev/null || echo "Still not found"
+            LIBCEF=$(find "$CEF_DIR" -name "libcef.so" 2>/dev/null | head -1)
+            if [ -n "$LIBCEF" ]; then
+              echo "Now found libcef.so at: $LIBCEF"
+              VERSIONED="$CEF_DIR/147.0.10/cef_linux_x86_64"
+              mkdir -p "$VERSIONED"
+              ln -sf "$LIBCEF" "$VERSIONED/libcef.so"
+            else
+              echo "CEF download failed - exiting"
+              find "$CEF_DIR" -type f 2>/dev/null | head -30 || echo "No files"
+              exit 1
+            fi
           fi
 
       - name: Check (release)
