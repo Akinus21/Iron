@@ -107,7 +107,7 @@ jobs:
           [ -z "$MAJOR" ] && MAJOR=0
           [ -z "$MINOR" ] && MINOR=0
           [ -z "$PATCH" ] && PATCH=0
-          while git rev-parse "v${MAJOR}.${MINOR}.${PATCH}" >/dev/null 2>&; do
+          while git rev-parse "v${MAJOR}.${MINOR}.${PATCH}" >/dev/null 2>&1; do
             PATCH=$((10#$PATCH + 1))
           done
           NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
