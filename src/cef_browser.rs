@@ -1,12 +1,13 @@
 use gtk4::prelude::*;
 use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, GestureClick, EventControllerScroll};
+use gdk_pixbuf::{Pixbuf, Colorspace};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[cfg(not(feature = "cef-stub"))]
 use crate::cef_client::{self, IronClient, SharedClientState};
 #[cfg(feature = "cef-stub")]
-use crate::cef_client_stub::{self, SharedClientState};
+use crate::cef_client_stub::{self, IronClient, SharedClientState};
 use cef::{ImplBrowser, ImplBrowserHost, ImplClient, ImplFrame};
 
 #[derive(Clone)]
@@ -31,6 +32,9 @@ impl CefBrowserWrapper {
         url: &str,
         is_offscreen: bool,
     ) -> Result<Self, String> {
+        #[cfg(feature = "cef-stub")]
+        let client_state = cef_client_stub::create_shared_state();
+        #[cfg(not(feature = "cef-stub"))]
         let client_state = cef_client::create_shared_state();
 
         let picture = gtk4::Picture::new();
@@ -100,9 +104,9 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                if let Ok(pixbuf) = gdk::Pixbuf::from_bytes(
+                if let Ok(pixbuf) = Pixbuf::from_bytes(
                     &glib::Bytes::from(&rgba_buffer),
-                    gdk::PixbufColorspace::Rgb,
+                    Colorspace::Rgb,
                     true,
                     8,
                     width,
@@ -116,11 +120,13 @@ impl CefBrowserWrapper {
         };
 
         let render_callback_rc = Rc::new(RefCell::new(render_callback));
+        #[cfg(not(feature = "cef-stub"))]
         crate::cef_client::set_render_callback(Some(Box::new(move |buffer: &[u8], width: i32, height: i32| {
             let mut cb = render_callback_rc.borrow_mut();
             cb(buffer, width, height);
         })));
 
+        #[cfg(not(feature = "cef-stub"))]
         let mut client = IronClient::new(client_state.clone());
 
         let mut window_info = cef::WindowInfo::default();
@@ -170,6 +176,7 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
+            glib::Propagation::Stop
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
@@ -257,6 +264,7 @@ impl CefBrowserWrapper {
                     host.send_mouse_wheel_event(Some(&cef_event), delta_x, delta_y);
                 }
             }
+            glib::Propagation::Stop
         });
 
         self.widget.add_controller(scroll_controller);
