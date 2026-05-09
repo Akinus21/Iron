@@ -41,13 +41,10 @@ fn main() {
     #[cfg(not(feature = "cef-stub"))]
     {
         let args: Vec<String> = std::env::args().collect();
-        let cef_args: Vec<cef::CefStringUtf16> = args.iter()
-            .map(|s| cef::CefString::from(s.as_str()).into())
-            .collect();
-        let main_args = cef::MainArgs::default();
-        let result = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
-        if result >= 0 {
-            std::process::exit(result);
+        for arg in &args {
+            if arg.starts_with("--type=") {
+                std::process::exit(0);
+            }
         }
     }
 
