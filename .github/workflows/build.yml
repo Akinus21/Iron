@@ -157,19 +157,39 @@ jobs:
           fi
 
           CEF_RUNTIME_SHA256=""
-          CEF_DIR=$(find target/release -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
+          CEF_DIR=""
+          # Search for libcef.so in multiple locations (cef-dll-sys cache, target, system)
+          CEF_DIR=$(dirname "$(ldd target/release/iron 2>/dev/null | grep libcef | awk '{print $3}' | head -1)" 2>/dev/null || true)
+          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
+            CEF_DIR=$(find target -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
+          fi
+          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
+            CEF_DIR=$(find ~/.cache ~/.local -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
+          fi
+          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
+            CEF_DIR=$(find /tmp -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
+          fi
           if [ -n "$CEF_DIR" ] && [ -f "$CEF_DIR/libcef.so" ]; then
             echo "Found CEF runtime at: $CEF_DIR"
+            # Copy libcef.so next to the binary for $ORIGIN rpath
+            cp "$CEF_DIR/libcef.so" target/release/
+            # Create CEF runtime tarball from the found directory
             cd "$CEF_DIR"
-            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so icudtl.dat *.pak locales/ v8_context_snapshot.bin 2>/dev/null || \
-            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so icudtl.dat *.pak v8_context_snapshot.bin 2>/dev/null || \
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
+              libcef.so icudtl.dat *.pak \
+              locales/ v8_context_snapshot.bin 2>/dev/null || \
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
+              libcef.so icudtl.dat *.pak \
+              v8_context_snapshot.bin 2>/dev/null || \
             tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so
             cd "$GITHUB_WORKSPACE"
             CEF_RUNTIME_SHA256=$(sha256sum cef-runtime.tar.gz | awk '{print $1}')
             echo "CEF runtime tarball SHA256: $CEF_RUNTIME_SHA256"
             echo "CEF runtime tarball size: $(stat -c%s cef-runtime.tar.gz) bytes"
           else
-            echo "WARNING: No CEF runtime files found"
+            echo "ERROR: libcef.so not found - CEF runtime is required"
+            find / -name "libcef.so" 2>/dev/null | head -20
+            exit 1
           fi
 
           git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
