@@ -144,7 +144,7 @@ impl CefBrowserWrapper {
         }
 
         #[cfg(not(feature = "cef-stub"))]
-        let _client = IronClient::new(client_state.clone());
+        let mut _client = IronClient::new(client_state.clone());
 
         let window_info = cef::WindowInfo::default();
         let window_info = if is_offscreen || parent_window.is_none() {
@@ -164,7 +164,7 @@ impl CefBrowserWrapper {
         #[cfg(not(feature = "cef-stub"))]
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(&_client),
+            Some(&mut _client),
             Some(&cef_url),
             Some(&browser_settings),
             None,
