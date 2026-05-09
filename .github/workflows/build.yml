@@ -157,17 +157,19 @@ jobs:
           fi
 
           CEF_RUNTIME_SHA256=""
-          cd target/release
-          CEF_FILES=$(ls -1 libcef.so icudtl.dat v8_context_snapshot.bin *.pak locales/ 2>/dev/null || true)
-          if [ -n "$CEF_FILES" ]; then
-            tar czf ../../cef-runtime.tar.gz $CEF_FILES
-            cd ../..
+          CEF_DIR=$(find target/release -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
+          if [ -n "$CEF_DIR" ] && [ -f "$CEF_DIR/libcef.so" ]; then
+            echo "Found CEF runtime at: $CEF_DIR"
+            cd "$CEF_DIR"
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so icudtl.dat *.pak locales/ v8_context_snapshot.bin 2>/dev/null || \
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so icudtl.dat *.pak v8_context_snapshot.bin 2>/dev/null || \
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so
+            cd "$GITHUB_WORKSPACE"
             CEF_RUNTIME_SHA256=$(sha256sum cef-runtime.tar.gz | awk '{print $1}')
             echo "CEF runtime tarball SHA256: $CEF_RUNTIME_SHA256"
             echo "CEF runtime tarball size: $(stat -c%s cef-runtime.tar.gz) bytes"
           else
-            cd ../..
-            echo "WARNING: No CEF runtime files found in target/release/"
+            echo "WARNING: No CEF runtime files found"
           fi
 
           git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
