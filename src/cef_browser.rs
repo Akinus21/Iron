@@ -170,7 +170,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Proceed
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
@@ -180,7 +179,6 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
-            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(key_controller);
@@ -196,7 +194,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_move_event(Some(&cef_event), 0);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(motion_controller);
@@ -222,7 +219,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 0, 1);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         click_controller.connect_released(move |gesture, _, x, y| {
@@ -244,7 +240,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 1, 1);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(click_controller);
@@ -262,7 +257,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_wheel_event(Some(&cef_event), delta_x, delta_y);
                 }
             }
-            glib::Propagation::Stop
         });
 
         self.widget.add_controller(scroll_controller);

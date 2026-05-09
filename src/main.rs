@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports)]
 mod cac;
 mod cef_browser;
+#[cfg(not(feature = "cef-stub"))]
 mod cef_client;
 #[cfg(feature = "cef-stub")]
 mod cef_client_stub;
