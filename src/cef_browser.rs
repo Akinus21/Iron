@@ -3,7 +3,10 @@ use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, Gesture
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[cfg(not(feature = "cef-stub"))]
 use crate::cef_client::{self, IronClient, SharedClientState};
+#[cfg(feature = "cef-stub")]
+use crate::cef_client_stub::{self, SharedClientState};
 use cef::{ImplBrowser, ImplBrowserHost, ImplClient, ImplFrame};
 
 #[derive(Clone)]
@@ -97,9 +100,9 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                if let Ok(pixbuf) = gio::Pixbuf::from_bytes(
+                if let Ok(pixbuf) = gdk::Pixbuf::from_bytes(
                     &glib::Bytes::from(&rgba_buffer),
-                    gio::PixbufColorspace::Rgb,
+                    gdk::PixbufColorspace::Rgb,
                     true,
                     8,
                     width,
@@ -167,6 +170,7 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
+            glib::Propagation::Proceed
         });
 
         key_controller.connect_key_released(move |_, keyval, keycode, modifier| {
@@ -176,6 +180,7 @@ impl CefBrowserWrapper {
                     host.send_key_event(Some(&cef_event));
                 }
             }
+            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(key_controller);
@@ -191,6 +196,7 @@ impl CefBrowserWrapper {
                     host.send_mouse_move_event(Some(&cef_event), 0);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(motion_controller);
@@ -216,6 +222,7 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 0, 1);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         click_controller.connect_released(move |gesture, _, x, y| {
@@ -237,6 +244,7 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 1, 1);
                 }
             }
+            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(click_controller);

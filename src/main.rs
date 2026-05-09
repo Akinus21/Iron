@@ -2,6 +2,8 @@
 mod cac;
 mod cef_browser;
 mod cef_client;
+#[cfg(feature = "cef-stub")]
+mod cef_client_stub;
 mod cef_init;
 mod command;
 mod config;
