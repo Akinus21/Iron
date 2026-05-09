@@ -1,7 +1,6 @@
 use gtk4::prelude::*;
 use gtk4::{Widget, gdk, glib, EventControllerKey, EventControllerMotion, GestureClick, EventControllerScroll};
-use gdk_pixbuf::Pixbuf;
-use gdk_pixbuf::glib::Bytes as PixbufBytes;
+use gtk4::gdk_pixbuf::Pixbuf;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -105,10 +104,10 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                let bytes = PixbufBytes::from(rgba_buffer.as_slice());
+                let bytes = glib::Bytes::from(rgba_buffer.as_slice());
                 let pixbuf = Pixbuf::from_bytes(
                     &bytes,
-                    gdk_pixbuf::Colorspace::Rgb,
+                    gtk4::gdk_pixbuf::Colorspace::Rgb,
                     true,
                     8,
                     width,
@@ -201,7 +200,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_move_event(Some(&cef_event), 0);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(motion_controller);
@@ -228,7 +226,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 0, 1);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         click_controller.connect_released(move |gesture, _, x, y| {
@@ -250,7 +247,6 @@ impl CefBrowserWrapper {
                     host.send_mouse_click_event(Some(&cef_event), mouse_button, 1, 1);
                 }
             }
-            glib::Propagation::Proceed
         });
 
         self.widget.add_controller(click_controller);
