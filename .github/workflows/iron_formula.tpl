@@ -4,25 +4,30 @@ class Iron < Formula
   version "{{VERSION}}"
   url "{{URL}}"
   sha256 "{{SHA256}}"
+
   depends_on "gtk4"
   depends_on "libadwaita"
-  depends_on "webkitgtk"
+
+  resource "libcef" do
+    url "{{LIBCEF_URL}}"
+    sha256 "{{LIBCEF_SHA256}}"
+  end
 
   def install
     bin.install "iron"
-    (share/"applications").mkpath
-    (share/"applications"/"org.blueak.iron.desktop").write <<~DESKTOP
-      [Desktop Entry]
-      Type=Application
-      Name=Iron
-      Comment=GTK4 keyboard-driven web browser for BlueAK
-      Exec=iron %u
-      Icon=org.blueak.iron
-      Categories=Network;WebBrowser;
-      MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-      StartupNotify=true
-      Terminal=false
-    DESKTOP
+    resource("libcef").stage do
+      libexec.install "libcef.so"
+    end
+  end
+
+  def caveats
+    <<~EOS
+      Iron requires libcef.so to run. It has been installed to:
+        #{libexec}/libcef.so
+
+      You may need to add it to your LD_LIBRARY_PATH:
+        export LD_LIBRARY_PATH="#{libexec}:$LD_LIBRARY_PATH"
+    EOS
   end
 
   test do
