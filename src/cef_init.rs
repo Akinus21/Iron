@@ -2,8 +2,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings, WrapApp};
-use cef::rc::Rc;
+use cef::{CefString, MainArgs, Settings};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -69,20 +68,10 @@ fn find_cef_dir() -> Option<PathBuf> {
     None
 }
 
-cef::wrap_app! {
-    pub struct IronApp {}
-    impl App {
-        fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
-            if let Some(cmd) = command_line {
-                cmd.append_switch(Some(&CefString::from("no-sandbox")));
-                cmd.append_switch(Some(&CefString::from("disable-zygote")));
-            }
-        }
-    }
-}
-
 fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    args.push("--no-sandbox".to_string());
+    args.push("--disable-zygote".to_string());
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
@@ -98,8 +87,7 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 
 pub fn execute_subprocess() -> Option<i32> {
     let (_owned, _c_args, main_args) = build_main_args();
-    let mut app = IronApp::new();
-    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
@@ -175,12 +163,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
-    let mut app = IronApp::new();
-
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        Some(&mut app),
+        None,
         std::ptr::null_mut(),
     );
 
