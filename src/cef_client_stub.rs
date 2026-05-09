@@ -32,3 +32,7 @@ impl IronClient {
         Self
     }
 }
+
+pub fn is_browser_created() -> bool {
+    false
+}

@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use crate::cef_client::{self, IronClient, SharedClientState};
 #[cfg(feature = "cef-stub")]
 use crate::cef_client_stub::{self, IronClient, SharedClientState};
-use cef::{ImplBrowser, ImplBrowserHost, ImplClient, ImplFrame};
+use cef::{ImplBrowser, ImplBrowserHost, ImplFrame};
 
 #[derive(Clone)]
 pub struct CefBrowserWrapper {
