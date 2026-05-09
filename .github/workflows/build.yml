@@ -177,8 +177,10 @@ jobs:
           fi
           if [ -n "$CEF_DIR" ] && [ -f "$CEF_DIR/libcef.so" ]; then
             echo "Found CEF runtime at: $CEF_DIR"
-            # Copy libcef.so next to the binary for $ORIGIN rpath
-            cp "$CEF_DIR/libcef.so" target/release/
+            # Copy libcef.so next to the binary for $ORIGIN rpath (skip if already there)
+            if [ "$(readlink -f "$CEF_DIR/libcef.so")" != "$(readlink -f "target/release/libcef.so" 2>/dev/null || echo "")" ]; then
+              cp "$CEF_DIR/libcef.so" target/release/
+            fi
             # Create CEF runtime tarball from the found directory
             cd "$CEF_DIR"
             tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
