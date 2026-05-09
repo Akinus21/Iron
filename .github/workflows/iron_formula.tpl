@@ -17,13 +17,12 @@ class Iron < Formula
     bin.install "iron" => "iron.bin"
 
     resource("cef-runtime").stage do
-      files = Dir["*"] + Dir["*/*"].select { |f| File.file?(f) }
-      lib.install "libcef.so" if files.any? { |f| File.basename(f) == "libcef.so" }
-
+      lib.install "libcef.so"
       Dir.glob("*.dat").each { |f| lib.install f }
       Dir.glob("*.bin").each { |f| lib.install f }
-      Dir.glob("*.pak").each { |f| (share/"iron").install f }
-      Dir.glob("locales/*").each { |f| (share/"iron"/"locales").install f } if Dir.exist?("locales")
+      Dir.glob("*.pak").each { |f| lib.install f }
+      (share/"iron").install Dir.glob("*.pak")
+      (share/"iron"/"locales").install Dir.glob("locales/*") if Dir.exist?("locales")
     end
 
     (bin/"iron").write <<~SH
