@@ -17,13 +17,13 @@ class Iron < Formula
     bin.install "iron" => "iron.bin"
 
     resource("cef-runtime").stage do
-      lib.install "libcef.so"
-      lib.install "icudtl.dat" if File.exist?("icudtl.dat")
-      lib.install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")
-      (share/"iron").install Dir["*.pak"] if !Dir["*.pak"].empty?
-      (share/"iron").install "icudtl.dat" if File.exist?("icudtl.dat")
-      (share/"iron"/"locales").install Dir["locales/*"] if Dir.exist?("locales") && !Dir["locales/*"].empty?
-      (share/"iron").install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")
+      files = Dir["*"] + Dir["*/*"].select { |f| File.file?(f) }
+      lib.install "libcef.so" if files.any? { |f| File.basename(f) == "libcef.so" }
+
+      Dir.glob("*.dat").each { |f| lib.install f }
+      Dir.glob("*.bin").each { |f| lib.install f }
+      Dir.glob("*.pak").each { |f| (share/"iron").install f }
+      Dir.glob("locales/*").each { |f| (share/"iron"/"locales").install f } if Dir.exist?("locales")
     end
 
     (bin/"iron").write <<~SH
