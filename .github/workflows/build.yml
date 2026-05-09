@@ -183,6 +183,10 @@ jobs:
             fi
             # Create CEF runtime tarball from the found directory
             cd "$CEF_DIR"
+            echo "CEF runtime files:"
+            ls -la "$CEF_DIR/" | head -30
+            echo "Contents of locales:"
+            ls -la "$CEF_DIR/locales/" 2>/dev/null | head -10
             tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
               libcef.so icudtl.dat *.pak \
               locales/ v8_context_snapshot.bin 2>/dev/null || \
@@ -191,6 +195,8 @@ jobs:
               v8_context_snapshot.bin 2>/dev/null || \
             tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so
             cd "$GITHUB_WORKSPACE"
+            echo "Tarball contents:"
+            tar tzf cef-runtime.tar.gz | head -20
             CEF_RUNTIME_SHA256=$(sha256sum cef-runtime.tar.gz | awk '{print $1}')
             echo "CEF runtime tarball SHA256: $CEF_RUNTIME_SHA256"
             echo "CEF runtime tarball size: $(stat -c%s cef-runtime.tar.gz) bytes"
