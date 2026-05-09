@@ -35,18 +35,22 @@ impl Default for CefConfig {
 fn find_cef_dir() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            let candidate = parent.join("libcef.so");
-            if candidate.exists() {
+            if parent.join("libcef.so").exists() {
                 return Some(parent.to_path_buf());
             }
-            let lib_candidate = parent.join("lib").join("libcef.so");
-            if lib_candidate.exists() {
+            if parent.join("lib").join("libcef.so").exists() {
                 return Some(parent.join("lib"));
+            }
+            if let Some(grandparent) = parent.parent() {
+                if grandparent.join("lib").join("libcef.so").exists() {
+                    return Some(grandparent.join("lib"));
+                }
             }
         }
     }
     for dir in &[
         PathBuf::from("/usr/local/lib"),
+        PathBuf::from("/home/linuxbrew/.linuxbrew/lib"),
         PathBuf::from("/usr/lib"),
         PathBuf::from("/usr/lib/x86_64-linux-gnu"),
     ] {

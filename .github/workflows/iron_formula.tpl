@@ -17,13 +17,11 @@ class Iron < Formula
     bin.install "iron"
 
     resource("cef-runtime").stage do
-      bin.install Dir["*.so"]
+      lib.install Dir["*.so"]
       (share/"iron").install Dir["*.pak"], "icudtl.dat"
       (share/"iron"/"locales").install Dir["locales/*"] if Dir.exist?("locales")
       (share/"iron").install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")
     end
-
-    (lib/"libcef.so").make_symlink bin/"libcef.so"
   end
 
   test do
