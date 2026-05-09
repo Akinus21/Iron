@@ -15,6 +15,7 @@ use cef::{
     WrapClient, WrapLifeSpanHandler, WrapLoadHandler, WrapDisplayHandler,
     WrapRenderHandler, WrapFocusHandler, WrapDownloadHandler,
 };
+use cef::rc::Rc;
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 static PAGE_LOAD_COUNT: AtomicUsize = AtomicUsize::new(0);
