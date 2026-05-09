@@ -140,7 +140,6 @@ jobs:
 
           NEW_TAG="${{ steps.tag.outputs.new_tag }}"
           BINARY="target/release/iron"
-          LIBCEF="target/release/libcef.so"
 
           if [ ! -s "$BINARY" ]; then
             echo "ERROR: Binary missing or empty at $BINARY"
@@ -157,25 +156,29 @@ jobs:
             exit 1
           fi
 
-          LIBCEF_SHA256=""
-          if [ -f "$LIBCEF" ]; then
-            LIBCEF_SHA256=$(sha256sum "$LIBCEF" | awk '{print $1}')
-            LIBCEF_SIZE=$(stat -c%s "$LIBCEF")
-            echo "libcef.so size: $LIBCEF_SIZE bytes"
-            echo "libcef.so SHA256: $LIBCEF_SHA256"
+          CEF_RUNTIME_SHA256=""
+          cd target/release
+          CEF_FILES=$(ls -1 libcef.so icudtl.dat v8_context_snapshot.bin *.pak locales/ 2>/dev/null || true)
+          if [ -n "$CEF_FILES" ]; then
+            tar czf ../../cef-runtime.tar.gz $CEF_FILES
+            cd ../..
+            CEF_RUNTIME_SHA256=$(sha256sum cef-runtime.tar.gz | awk '{print $1}')
+            echo "CEF runtime tarball SHA256: $CEF_RUNTIME_SHA256"
+            echo "CEF runtime tarball size: $(stat -c%s cef-runtime.tar.gz) bytes"
           else
-            echo "WARNING: libcef.so not found at $LIBCEF"
+            cd ../..
+            echo "WARNING: No CEF runtime files found in target/release/"
           fi
 
           git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
           git push origin "$NEW_TAG"
 
-          if [ -f "$LIBCEF" ]; then
+          if [ -f cef-runtime.tar.gz ]; then
             gh release create "$NEW_TAG" \
               --title "$NEW_TAG" \
               --notes "" \
               "$BINARY#iron" \
-              "$LIBCEF#libcef.so"
+              "cef-runtime.tar.gz#cef-runtime"
           else
             gh release create "$NEW_TAG" \
               --title "$NEW_TAG" \
@@ -187,7 +190,7 @@ jobs:
           echo "Assets uploaded: $ASSET_COUNT"
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "libcef_sha256=$LIBCEF_SHA256" >> $GITHUB_OUTPUT
+          echo "cef_runtime_sha256=$CEF_RUNTIME_SHA256" >> $GITHUB_OUTPUT
 
       - name: Update homebrew tap
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -199,9 +202,9 @@ jobs:
 
           NEW_TAG="${{ steps.tag.outputs.new_tag }}"
           SHA256="${{ steps.release.outputs.sha256 }}"
-          LIBCEF_SHA256="${{ steps.release.outputs.libcef_sha256 }}"
+          CEF_RUNTIME_SHA256="${{ steps.release.outputs.cef_runtime_sha256 }}"
           BINARY_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/iron"
-          LIBCEF_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/libcef.so"
+          CEF_RUNTIME_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/cef-runtime.tar.gz"
 
           TAP_REPO="Akinus21/homebrew-tap"
           TAP_DIR="/tmp/homebrew-tap"
@@ -217,8 +220,8 @@ jobs:
           sed -e "s|{{VERSION}}|${IRON_VERSION}|g" \
               -e "s|{{URL}}|${BINARY_URL}|g" \
               -e "s|{{SHA256}}|${SHA256}|g" \
-              -e "s|{{LIBCEF_URL}}|${LIBCEF_URL}|g" \
-              -e "s|{{LIBCEF_SHA256}}|${LIBCEF_SHA256}|g" \
+              -e "s|{{CEF_RUNTIME_URL}}|${CEF_RUNTIME_URL}|g" \
+              -e "s|{{CEF_RUNTIME_SHA256}}|${CEF_RUNTIME_SHA256}|g" \
               "$GITHUB_WORKSPACE/.github/workflows/iron_formula.tpl" > Formula/iron.rb
 
           git add Formula/iron.rb

@@ -8,14 +8,14 @@ class Iron < Formula
   depends_on "gtk4"
   depends_on "libadwaita"
 
-  resource "libcef" do
-    url "{{LIBCEF_URL}}"
-    sha256 "{{LIBCEF_SHA256}}"
+  resource "cef-runtime" do
+    url "{{CEF_RUNTIME_URL}}"
+    sha256 "{{CEF_RUNTIME_SHA256}}"
   end
 
   def install
     bin.install "iron"
-    resource("libcef").stage { bin.install "libcef.so" }
+    resource("cef-runtime").stage { (bin).install Dir["*"] }
   end
 
   test do
