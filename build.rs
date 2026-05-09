@@ -3,6 +3,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LD_LIBRARY_PATH");
 
     println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/lib");
 
     if let Ok(cef_path) = std::env::var("CEF_PATH") {
         println!("cargo:rustc-link-search=native={}", cef_path);

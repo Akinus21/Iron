@@ -32,6 +32,31 @@ impl Default for CefConfig {
     }
 }
 
+fn find_cef_dir() -> Option<PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join("libcef.so");
+            if candidate.exists() {
+                return Some(parent.to_path_buf());
+            }
+            let lib_candidate = parent.join("lib").join("libcef.so");
+            if lib_candidate.exists() {
+                return Some(parent.join("lib"));
+            }
+        }
+    }
+    for dir in &[
+        PathBuf::from("/usr/local/lib"),
+        PathBuf::from("/usr/lib"),
+        PathBuf::from("/usr/lib/x86_64-linux-gnu"),
+    ] {
+        if dir.join("libcef.so").exists() {
+            return Some(dir.clone());
+        }
+    }
+    None
+}
+
 cef::wrap_app! {
     pub struct IronApp {}
     impl App {
@@ -82,6 +107,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let (_owned, _c_args, main_args) = build_main_args();
 
     let mut settings = Settings::default();
+    settings.no_sandbox = 1;
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
@@ -92,6 +118,57 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_str) = exe_path.to_str() {
             settings.browser_subprocess_path = CefString::from(exe_str);
+        }
+    }
+
+    if let Some(cef_dir) = find_cef_dir() {
+        if let Some(dir_str) = cef_dir.to_str() {
+            settings.framework_dir_path = CefString::from(dir_str);
+            eprintln!("[CEF] Framework dir: {}", dir_str);
+        }
+        let resources_dir = cef_dir.join("share").join("iron");
+        if resources_dir.exists() {
+            if let Some(res_str) = resources_dir.to_str() {
+                settings.resources_dir_path = CefString::from(res_str);
+                eprintln!("[CEF] Resources dir: {}", res_str);
+            }
+        }
+        let locales_dir = resources_dir.join("locales");
+        if locales_dir.exists() {
+            if let Some(loc_str) = locales_dir.to_str() {
+                settings.locales_dir_path = CefString::from(loc_str);
+                eprintln!("[CEF] Locales dir: {}", loc_str);
+            }
+        }
+        let bin_resources = cef_dir.parent()
+            .map(|p| p.join("share").join("iron"))
+            .unwrap_or_else(|| PathBuf::new());
+        if bin_resources.exists() {
+            if let Some(res_str) = bin_resources.to_str() {
+                settings.resources_dir_path = CefString::from(res_str);
+                eprintln!("[CEF] Resources dir: {}", res_str);
+            }
+            let bin_locales = bin_resources.join("locales");
+            if bin_locales.exists() {
+                if let Some(loc_str) = bin_locales.to_str() {
+                    settings.locales_dir_path = CefString::from(loc_str);
+                    eprintln!("[CEF] Locales dir: {}", loc_str);
+                }
+            }
+        }
+        let same_dir_resources = cef_dir.join("res");
+        if same_dir_resources.exists() {
+            if let Some(res_str) = same_dir_resources.to_str() {
+                settings.resources_dir_path = CefString::from(res_str);
+                eprintln!("[CEF] Resources dir: {}", res_str);
+            }
+        }
+        let same_dir_locales = cef_dir.join("locales");
+        if same_dir_locales.exists() {
+            if let Some(loc_str) = same_dir_locales.to_str() {
+                settings.locales_dir_path = CefString::from(loc_str);
+                eprintln!("[CEF] Locales dir: {}", loc_str);
+            }
         }
     }
 
