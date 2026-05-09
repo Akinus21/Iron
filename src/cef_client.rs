@@ -1,7 +1,7 @@
 #![cfg(not(feature = "cef-stub"))]
 
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::Rc as StdRc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::atomic::AtomicUsize;
 
@@ -15,7 +15,7 @@ use cef::{
     WrapClient, WrapLifeSpanHandler, WrapLoadHandler, WrapDisplayHandler,
     WrapRenderHandler, WrapFocusHandler, WrapDownloadHandler,
 };
-use cef::rc::Rc as _;
+use cef::rc::Rc;
 
 static BROWSER_CREATED: AtomicBool = AtomicBool::new(false);
 static PAGE_LOAD_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -27,10 +27,10 @@ pub struct IronClientState {
     pub on_page_load_end: Option<Box<dyn Fn()>>,
 }
 
-pub type SharedClientState = Rc<RefCell<IronClientState>>;
+pub type SharedClientState = StdRc<RefCell<IronClientState>>;
 
 pub fn create_shared_state() -> SharedClientState {
-    Rc::new(RefCell::new(IronClientState {
+    StdRc::new(RefCell::new(IronClientState {
         on_title_change: None,
         on_url_change: None,
         on_loading_state_change: None,

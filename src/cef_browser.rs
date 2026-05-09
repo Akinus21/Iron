@@ -119,7 +119,7 @@ impl CefBrowserWrapper {
             })));
             let pw = buffer_width.clone();
             let ph = buffer_height.clone();
-            glib::timeout_add(std::time::Duration::from_millis(16), move || {
+            glib::timeout_add_local(std::time::Duration::from_millis(16), move || {
                 let mut d = render_data_poll.lock().unwrap();
                 if let Some(rgba) = d.buffer.take() {
                     let w = *pw.borrow();
