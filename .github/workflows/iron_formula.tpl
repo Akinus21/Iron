@@ -18,6 +18,8 @@ class Iron < Formula
 
     resource("cef-runtime").stage do
       lib.install "libcef.so"
+      lib.install "icudtl.dat"
+      lib.install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")
       (share/"iron").install Dir["*.pak"], "icudtl.dat"
       (share/"iron"/"locales").install Dir["locales/*"] if Dir.exist?("locales")
       (share/"iron").install "v8_context_snapshot.bin" if File.exist?("v8_context_snapshot.bin")

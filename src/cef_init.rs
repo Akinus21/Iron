@@ -121,10 +121,26 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
+    let mut resources_set = false;
+    let mut locales_set = false;
+
     if let Some(cef_dir) = find_cef_dir() {
         if let Some(dir_str) = cef_dir.to_str() {
             settings.framework_dir_path = CefString::from(dir_str);
             eprintln!("[CEF] Framework dir: {}", dir_str);
+            if cef_dir.join("icudtl.dat").exists() {
+                settings.resources_dir_path = CefString::from(dir_str);
+                eprintln!("[CEF] Resources dir: {}", dir_str);
+                resources_set = true;
+            }
+            let locales_dir = cef_dir.join("locales");
+            if locales_dir.exists() {
+                if let Some(loc_str) = locales_dir.to_str() {
+                    settings.locales_dir_path = CefString::from(loc_str);
+                    eprintln!("[CEF] Locales dir: {}", loc_str);
+                    locales_set = true;
+                }
+            }
         }
     }
 
@@ -133,13 +149,13 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
             let share_iron = exe_dir.parent()
                 .map(|p| p.join("share").join("iron"))
                 .unwrap_or_else(|| PathBuf::new());
-            if share_iron.exists() {
+            if share_iron.exists() && !resources_set {
                 if let Some(res_str) = share_iron.to_str() {
                     settings.resources_dir_path = CefString::from(res_str);
                     eprintln!("[CEF] Resources dir: {}", res_str);
                 }
                 let locales = share_iron.join("locales");
-                if locales.exists() {
+                if locales.exists() && !locales_set {
                     if let Some(loc_str) = locales.to_str() {
                         settings.locales_dir_path = CefString::from(loc_str);
                         eprintln!("[CEF] Locales dir: {}", loc_str);
@@ -147,14 +163,14 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
                 }
             }
             let res_dir = exe_dir.join("res");
-            if res_dir.exists() {
+            if res_dir.exists() && !resources_set {
                 if let Some(res_str) = res_dir.to_str() {
                     settings.resources_dir_path = CefString::from(res_str);
                     eprintln!("[CEF] Resources dir: {}", res_str);
                 }
             }
             let locales_dir = exe_dir.join("locales");
-            if locales_dir.exists() {
+            if locales_dir.exists() && !locales_set {
                 if let Some(loc_str) = locales_dir.to_str() {
                     settings.locales_dir_path = CefString::from(loc_str);
                     eprintln!("[CEF] Locales dir: {}", loc_str);
