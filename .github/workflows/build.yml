@@ -72,11 +72,19 @@ jobs:
           key: cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-
 
+      - name: Check CEF installation before build
+        run: |
+          echo "CEF path: $CEF_PATH"
+          ls -la "$CEF_PATH" 2>/dev/null || echo "CEF directory not found at root"
+          ls -la "$CEF_PATH/147.0.10" 2>/dev/null || echo "CEF 147.0.10 directory not found"
+          ls -la "$CEF_PATH/147.0.10/cef_linux_x64" 2>/dev/null || echo "CEF linux_x64 directory not found"
+          find "$CEF_PATH" -name "libcef*" 2>/dev/null | head -10 || echo "No libcef files found"
+
       - name: Check (release)
         id: check_release
         env:
-          CEF_PATH: ~/.local/share/cef
-          LD_LIBRARY_PATH: ~/.local/share/cef
+          CEF_PATH: $HOME/.local/share/cef
+          LD_LIBRARY_PATH: $HOME/.local/share/cef
         run: |
           set -o pipefail
           cargo check --release 2>&1 | tee build.log
@@ -86,9 +94,12 @@ jobs:
         if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         id: build_release
         env:
-          CEF_PATH: ~/.local/share/cef
-          LD_LIBRARY_PATH: ~/.local/share/cef
+          CEF_PATH: $HOME/.local/share/cef
+          LD_LIBRARY_PATH: $HOME/.local/share/cef/147.0.10/cef_linux_x64
         run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          ls -la "$LD_LIBRARY_PATH" 2>/dev/null || echo "CEF directory missing"
+          find "$LD_LIBRARY_PATH" -name "libcef*" 2>/dev/null | head -5 || echo "No libcef found"
           set -o pipefail
           cargo build --release 2>&1 | tee -a build.log
         shell: bash
@@ -96,9 +107,12 @@ jobs:
       - name: Build debug (PRs)
         if: success() && github.event_name == 'pull_request'
         env:
-          CEF_PATH: ~/.local/share/cef
-          LD_LIBRARY_PATH: ~/.local/share/cef
-        run: cargo build --verbose
+          CEF_PATH: $HOME/.local/share/cef
+          LD_LIBRARY_PATH: $HOME/.local/share/cef/147.0.10/cef_linux_x64
+        run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          ls -la "$LD_LIBRARY_PATH" 2>/dev/null || echo "CEF directory missing"
+          cargo build --verbose
 
       - name: Verify binary
         if: steps.build_release.outcome == 'success'
