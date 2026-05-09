@@ -89,7 +89,7 @@ impl CefBrowserWrapper {
 
         #[cfg(not(feature = "cef-stub"))]
         {
-            let paint_buffer = wrapper.paint_buffer.clone();
+            let _paint_buffer = wrapper.paint_buffer.clone();
             let buffer_width = wrapper.buffer_width.clone();
             let buffer_height = wrapper.buffer_height.clone();
 

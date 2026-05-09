@@ -134,7 +134,7 @@ cef::wrap_display_handler! {
 }
 
 cef::wrap_render_handler! {
-    pub struct IronRenderHandler;
+    pub struct IronRenderHandler {}
     impl RenderHandler {
         fn on_paint(
             &self,
@@ -156,7 +156,7 @@ cef::wrap_render_handler! {
 }
 
 cef::wrap_focus_handler! {
-    pub struct IronFocusHandler;
+    pub struct IronFocusHandler {}
     impl FocusHandler {
         fn on_set_focus(
             &self,
@@ -169,7 +169,7 @@ cef::wrap_focus_handler! {
 }
 
 cef::wrap_download_handler! {
-    pub struct IronDownloadHandler;
+    pub struct IronDownloadHandler {}
     impl DownloadHandler {
         fn on_before_download(
             &self,
