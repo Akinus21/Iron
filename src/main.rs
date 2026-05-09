@@ -40,8 +40,8 @@ use gtk4::prelude::{WidgetExt, GtkWindowExt};
 fn main() {
     #[cfg(not(feature = "cef-stub"))]
     {
-        if std::env::args().any(|a| a.starts_with("--type=")) {
-            std::process::exit(0);
+        if let Some(exit_code) = cef_init::execute_subprocess() {
+            std::process::exit(exit_code);
         }
     }
 

@@ -1,7 +1,9 @@
+use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{Settings, App};
+use cef::{App, CefString, CommandLine, MainArgs, Settings};
+use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -30,6 +32,43 @@ impl Default for CefConfig {
     }
 }
 
+cef::wrap_app! {
+    pub struct IronApp {}
+    impl App {
+        fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
+            if let Some(cmd) = command_line {
+                cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("disable-zygote")));
+            }
+        }
+    }
+}
+
+fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
+    let args: Vec<String> = std::env::args().collect();
+    let mut owned: Vec<CString> = Vec::with_capacity(args.len());
+    for arg in &args {
+        owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
+    }
+    let mut c_args: Vec<*mut std::os::raw::c_char> =
+        owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+
+    let mut main_args = MainArgs::default();
+    main_args.argc = c_args.len() as i32;
+    main_args.argv = c_args.as_mut_ptr();
+    (owned, c_args, main_args)
+}
+
+pub fn execute_subprocess() -> Option<i32> {
+    let (_owned, _c_args, main_args) = build_main_args();
+    let mut app = App::new(IronApp {});
+    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    if exit_code >= 0 {
+        return Some(exit_code);
+    }
+    None
+}
+
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     if CEF_INITIALIZED.load(Ordering::SeqCst) {
         return Ok(());
@@ -40,12 +79,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     eprintln!("[CEF] Initializing (track={}, cache={:?}, osr={})",
               config.track, config.cache_path, config.windowless_rendering);
 
-    let args: Vec<String> = std::env::args().collect();
-    let cef_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    let _cef_arg_vec: Vec<cef::CefStringUtf16> = cef_args
-        .iter()
-        .map(|s| cef::CefString::from(*s).into())
-        .collect();
+    let (_owned, _c_args, main_args) = build_main_args();
 
     let mut settings = Settings::default();
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
@@ -53,25 +87,25 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.multi_threaded_message_loop = 0;
 
     let cache_path_str = config.cache_path.to_string_lossy();
-    settings.cache_path = cef::CefString::from(cache_path_str.as_ref());
+    settings.cache_path = CefString::from(cache_path_str.as_ref());
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_str) = exe_path.to_str() {
-            settings.browser_subprocess_path = cef::CefString::from(exe_str);
+            settings.browser_subprocess_path = CefString::from(exe_str);
         }
     }
 
-    let main_args = cef::MainArgs::default();
+    let mut app = App::new(IronApp {});
 
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        None,
+        Some(&mut app),
         std::ptr::null_mut(),
     );
 
     if result != 0 {
-        return Err("CEF subprocess handler".to_string());
+        return Err(format!("CEF initialization failed (result={})", result));
     }
 
     CEF_INIT_COUNT.fetch_add(1, Ordering::SeqCst);
