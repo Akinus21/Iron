@@ -72,6 +72,10 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
     let mut args: Vec<String> = std::env::args().collect();
     args.push("--no-sandbox".to_string());
     args.push("--disable-zygote".to_string());
+    args.push("--disable-gpu".to_string());
+    args.push("--disable-gpu-compositing".to_string());
+    args.push("--disable-software-rasterizer".to_string());
+    args.push("--in-process-gpu".to_string());
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
