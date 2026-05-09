@@ -59,7 +59,6 @@ impl CefBrowserWrapper {
             buffer_height: Rc::new(RefCell::new(0)),
         };
 
-        // FIX: each closure gets its own clone — no shared moves
         let is_loading_clone = wrapper.is_loading.clone();
         let can_go_back_clone = wrapper.can_go_back.clone();
         let can_go_forward_clone = wrapper.can_go_forward.clone();
@@ -69,8 +68,6 @@ impl CefBrowserWrapper {
             *can_go_back_clone.borrow_mut() = back;
             *can_go_forward_clone.borrow_mut() = forward;
         }));
-
-        // FIX: removed duplicate on_loading_state_change assignment that was here
 
         let title_clone2 = wrapper.title.clone();
         client_state.borrow_mut().on_title_change = Some(Box::new(move |t: &str| {
@@ -99,7 +96,6 @@ impl CefBrowserWrapper {
 
             if width > 0 && height > 0 {
                 let rgba_buffer = convert_bgra_to_rgba(buffer, width as usize, height as usize);
-                // FIX: use gtk4::gdk_pixbuf::Pixbuf (same version as gdk4) and its glib::Bytes
                 let bytes = glib::Bytes::from(rgba_buffer.as_slice());
                 let pixbuf = Pixbuf::from_bytes(
                     &bytes,
@@ -129,7 +125,6 @@ impl CefBrowserWrapper {
         #[cfg(not(feature = "cef-stub"))]
         let mut _client = IronClient::new(client_state.clone());
 
-        // FIX: set_as_windowless / set_as_child take ownership and return Self — must reassign
         let window_info = cef::WindowInfo::default();
         let window_info = if is_offscreen || parent_window.is_none() {
             let mut wi = window_info;
@@ -167,9 +162,6 @@ impl CefBrowserWrapper {
     }
 
     fn setup_input_controllers(&self) {
-        // FIX: each connect_* closure needs its own clone — never share one clone across two moves
-
-        // --- Key controller ---
         let browser_for_key_press = self.browser.clone();
         let browser_for_key_release = self.browser.clone();
 
@@ -193,7 +185,6 @@ impl CefBrowserWrapper {
         });
         self.widget.add_controller(key_controller);
 
-        // --- Motion controller ---
         let browser_for_motion = self.browser.clone();
         let motion_controller = EventControllerMotion::new();
         motion_controller.connect_motion(move |_, x, y| {
@@ -206,7 +197,6 @@ impl CefBrowserWrapper {
         });
         self.widget.add_controller(motion_controller);
 
-        // --- Click controller ---
         let browser_for_press = self.browser.clone();
         let browser_for_release = self.browser.clone();
 
@@ -243,7 +233,6 @@ impl CefBrowserWrapper {
         });
         self.widget.add_controller(click_controller);
 
-        // --- Scroll controller ---
         let browser_for_scroll = self.browser.clone();
         let scroll_controller = EventControllerScroll::new(
             gtk4::EventControllerScrollFlags::BOTH_AXES
@@ -261,7 +250,6 @@ impl CefBrowserWrapper {
         });
         self.widget.add_controller(scroll_controller);
 
-        // --- Focus controller ---
         let browser_for_enter = self.browser.clone();
         let browser_for_leave = self.browser.clone();
         let has_focus_for_enter = self.has_focus.clone();

@@ -186,15 +186,15 @@ impl HintManager {
         }
         self.active = true;
         self.typed.clear();
-        browser.execute_javascript(HINT_JS_MODULE);
-        browser.execute_javascript("__iron_hints_activate(); window.__iron_hints_typed = '';");
+        browser.execute_js(HINT_JS_MODULE);
+        browser.execute_js("__iron_hints_activate(); window.__iron_hints_typed = '';");
     }
 
     /// Append `c` to the typed prefix and filter visible hints.
     /// Auto-clicks + deactivates if only one hint matches.
     pub fn handle_key(&mut self, c: char, browser: &CefBrowserWrapper) {
         self.typed.push(c);
-        browser.execute_javascript(
+        browser.execute_js(
             &format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed),
         );
     }
@@ -207,24 +207,24 @@ impl HintManager {
             } else {
                 format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed)
             };
-            browser.execute_javascript(&js);
+            browser.execute_js(&js);
         }
     }
 
     /// Move selection to the next visible hint.
     pub fn select_next(&mut self, browser: &CefBrowserWrapper) {
-        browser.execute_javascript("__iron_hints_select_next();");
+        browser.execute_js("__iron_hints_select_next();");
     }
 
     /// Move selection to the previous visible hint.
     pub fn select_prev(&mut self, browser: &CefBrowserWrapper) {
-        browser.execute_javascript("__iron_hints_select_prev();");
+        browser.execute_js("__iron_hints_select_prev();");
     }
 
     /// Commit the current selection (click it), or click the single visible hint.
     pub fn commit(&mut self, browser: &CefBrowserWrapper) {
         self.active = false;
-        browser.execute_javascript("__iron_hints_commit();");
+        browser.execute_js("__iron_hints_commit();");
         self.typed.clear();
     }
 
@@ -232,6 +232,6 @@ impl HintManager {
     pub fn deactivate(&mut self, browser: &CefBrowserWrapper) {
         self.active = false;
         self.typed.clear();
-        browser.execute_javascript("__iron_hints_deactivate();");
+        browser.execute_js("__iron_hints_deactivate();");
     }
 }

@@ -222,7 +222,7 @@ impl ThemeManager {
             "(function(){{ var s = document.createElement('style'); s.textContent = `{}`; document.head.appendChild(s); }})()",
             escaped
         );
-        webview.execute_javascript(&js);
+        webview.execute_js(&js);
     }
 
     pub fn start_watch(
