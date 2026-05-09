@@ -15,19 +15,7 @@ class Iron < Formula
 
   def install
     bin.install "iron"
-    resource("libcef").stage do
-      libexec.install "libcef.so"
-    end
-  end
-
-  def caveats
-    <<~EOS
-      Iron requires libcef.so to run. It has been installed to:
-        #{libexec}/libcef.so
-
-      You may need to add it to your LD_LIBRARY_PATH:
-        export LD_LIBRARY_PATH="#{libexec}:$LD_LIBRARY_PATH"
-    EOS
+    resource("libcef").stage { bin.install "libcef.so" }
   end
 
   test do
