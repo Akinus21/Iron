@@ -2,30 +2,10 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings};
-use cef::rc::Rc;
+use cef::{CefString, MainArgs, Settings};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-cef::wrap_app! {
-    pub struct IronApp {}
-    impl App {
-        fn on_before_command_line_processing(
-            &self,
-            _process_type: Option<&CefString>,
-            command_line: Option<&mut CommandLine>,
-        ) {
-            if let Some(cmd) = command_line {
-                cmd.append_switch(Some(&CefString::from("no-sandbox")));
-                cmd.append_switch(Some(&CefString::from("disable-gpu")));
-                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
-                cmd.append_switch(Some(&CefString::from("in-process-gpu")));
-                cmd.append_switch(Some(&CefString::from("disable-dev-shm-usage")));
-            }
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CefConfig {
@@ -106,9 +86,10 @@ fn build_raw_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainA
     }
     let mut c_args: Vec<*mut std::os::raw::c_char> =
         owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+    c_args.push(std::ptr::null_mut());
 
     let mut main_args = MainArgs::default();
-    main_args.argc = c_args.len() as i32;
+    main_args.argc = owned.len() as i32;
     main_args.argv = c_args.as_mut_ptr();
     (owned, c_args, main_args)
 }
@@ -131,18 +112,21 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
     }
     let mut c_args: Vec<*mut std::os::raw::c_char> =
         owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+    c_args.push(std::ptr::null_mut());
 
     let mut main_args = MainArgs::default();
-    main_args.argc = c_args.len() as i32;
+    main_args.argc = owned.len() as i32;
     main_args.argv = c_args.as_mut_ptr();
     (owned, c_args, main_args)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
     let is_cef_subprocess = std::env::args().any(|arg| arg.starts_with("--type="));
+    if is_cef_subprocess {
+        eprintln!("[CEF] Detected subprocess invocation");
+    }
     let (_owned, _c_args, main_args) = build_raw_main_args();
-    let mut app = IronApp::new();
-    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
@@ -239,11 +223,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
-    let mut app = IronApp::new();
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        Some(&mut app),
+        None,
         std::ptr::null_mut(),
     );
 
