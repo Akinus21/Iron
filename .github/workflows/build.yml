@@ -175,13 +175,15 @@ jobs:
           }
 
           CANDIDATES=()
-          # Prefer CEF runtime produced by cef-dll-sys during this build.
+          # Use only runtimes from cef-dll-sys build outputs to avoid ABI mismatches.
           while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target/release/build -path "*cef-dll-sys*" -name "libcef.so" -printf '%h\n' 2>/dev/null)
           while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target/debug/build -path "*cef-dll-sys*" -name "libcef.so" -printf '%h\n' 2>/dev/null)
 
-          # Fallbacks for environments where artifacts are cached elsewhere.
-          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target -name "libcef.so" -printf '%h\n' 2>/dev/null)
-          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find ~/.cache ~/.local -name "libcef.so" -printf '%h\n' 2>/dev/null)
+          if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+            echo "ERROR: no cef-dll-sys runtime candidates found in target/*/build"
+            find target -path "*cef-dll-sys*" -maxdepth 6 -type f | head -50
+            exit 1
+          fi
 
           for dir in "${CANDIDATES[@]}"; do
             case "$dir" in
