@@ -19,7 +19,6 @@ cef::wrap_app! {
             if let Some(cmd) = command_line {
                 cmd.append_switch(Some(&CefString::from("no-sandbox")));
                 cmd.append_switch(Some(&CefString::from("no-zygote")));
-                cmd.append_switch(Some(&CefString::from("single-process")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
                 cmd.append_switch(Some(&CefString::from("in-process-gpu")));
