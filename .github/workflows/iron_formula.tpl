@@ -15,23 +15,24 @@ class Iron < Formula
 
   def install
     bin.install "iron" => "iron.bin"
+    cef_runtime_dir = libexec/"cef-runtime"
 
     resource("cef-runtime").stage do
-      lib.install "libcef.so"
-      Dir.glob("*.so").reject { |f| f == "libcef.so" }.each { |f| lib.install f }
-      Dir.glob("*.so.*").each { |f| lib.install f }
-      Dir.glob("*.dat").each { |f| lib.install f }
-      Dir.glob("*.bin").each { |f| lib.install f }
-      Dir.glob("*.json").each { |f| lib.install f }
-      Dir.glob("*.pak").each { |f| lib.install f }
-      (lib/"swiftshader").install Dir.glob("swiftshader/*") if Dir.exist?("swiftshader")
-      (share/"iron").install Dir.glob("*.pak")
+      Dir.glob("*.so").each { |f| cef_runtime_dir.install f }
+      Dir.glob("*.so.*").each { |f| cef_runtime_dir.install f }
+      Dir.glob("*.dat").each { |f| cef_runtime_dir.install f }
+      Dir.glob("*.bin").each { |f| cef_runtime_dir.install f }
+      Dir.glob("*.json").each { |f| cef_runtime_dir.install f }
+      Dir.glob("*.pak").each { |f| cef_runtime_dir.install f }
+      (cef_runtime_dir/"swiftshader").install Dir.glob("swiftshader/*") if Dir.exist?("swiftshader")
+      paks = Dir.glob("*.pak")
+      (share/"iron").install paks unless paks.empty?
       (share/"iron"/"locales").install Dir.glob("locales/*") if Dir.exist?("locales")
     end
 
     (bin/"iron").write <<~SH
       #!/bin/bash
-      export LD_LIBRARY_PATH="#{lib}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       exec "#{bin}/iron.bin" "$@"
     SH
   end
