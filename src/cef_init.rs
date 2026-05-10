@@ -2,10 +2,26 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{CefString, MainArgs, Settings};
+use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings};
+use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+cef::wrap_app! {
+    pub struct IronApp {}
+    impl App {
+        fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
+            if let Some(cmd) = command_line {
+                cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("disable-zygote")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
+                cmd.append_switch(Some(&CefString::from("in-process-gpu")));
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CefConfig {
@@ -69,13 +85,7 @@ fn find_cef_dir() -> Option<PathBuf> {
 }
 
 fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
-    let mut args: Vec<String> = std::env::args().collect();
-    args.push("--no-sandbox".to_string());
-    args.push("--disable-zygote".to_string());
-    args.push("--disable-gpu".to_string());
-    args.push("--disable-gpu-compositing".to_string());
-    args.push("--disable-software-rasterizer".to_string());
-    args.push("--in-process-gpu".to_string());
+    let args: Vec<String> = std::env::args().collect();
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
@@ -91,7 +101,8 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 
 pub fn execute_subprocess() -> Option<i32> {
     let (_owned, _c_args, main_args) = build_main_args();
-    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+    let mut app = IronApp::new();
+    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
@@ -111,7 +122,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let (_owned, _c_args, main_args) = build_main_args();
 
     let mut settings = Settings::default();
-    settings.no_sandbox = 1;
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
@@ -181,10 +191,12 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
+    let mut app = IronApp::new();
+
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        None,
+        Some(&mut app),
         std::ptr::null_mut(),
     );
 
