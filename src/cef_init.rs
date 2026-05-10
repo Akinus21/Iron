@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, ImplApp, MainArgs, Settings};
+use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings};
 use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -10,7 +10,23 @@ static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 cef::wrap_app! {
     pub struct IronApp {}
-    impl App {}
+    impl App {
+        fn on_before_command_line_processing(
+            &self,
+            _process_type: Option<&CefString>,
+            command_line: Option<&mut CommandLine>,
+        ) {
+            if let Some(cmd) = command_line {
+                cmd.append_switch(Some(&CefString::from("single-process")));
+                cmd.append_switch(Some(&CefString::from("no-zygote")));
+                cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
+                cmd.append_switch(Some(&CefString::from("disable-vulkan")));
+                cmd.append_switch(Some(&CefString::from("disable-dev-shm-usage")));
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
