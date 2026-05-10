@@ -2,27 +2,10 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings};
-use cef::rc::Rc;
+use cef::{CefString, MainArgs, Settings};
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-cef::wrap_app! {
-    pub struct IronApp {}
-    impl App {
-        fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
-            if let Some(cmd) = command_line {
-                cmd.append_switch(Some(&CefString::from("no-sandbox")));
-                cmd.append_switch(Some(&CefString::from("no-zygote")));
-                cmd.append_switch(Some(&CefString::from("single-process")));
-                cmd.append_switch(Some(&CefString::from("disable-gpu")));
-                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
-                cmd.append_switch(Some(&CefString::from("in-process-gpu")));
-            }
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CefConfig {
@@ -140,15 +123,10 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
-    let is_subprocess = std::env::args().any(|a| a.starts_with("--type="));
     let (_owned, _c_args, main_args) = build_raw_main_args();
-    let mut app = IronApp::new();
-    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
-    }
-    if is_subprocess {
-        return Some(0);
     }
     None
 }
@@ -236,12 +214,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
-    let mut app = IronApp::new();
-
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        Some(&mut app),
+        None,
         std::ptr::null_mut(),
     );
 
