@@ -164,18 +164,32 @@ jobs:
 
           CEF_RUNTIME_SHA256=""
           CEF_DIR=""
-          # Search for libcef.so in multiple locations (cef-dll-sys cache, target, system)
-          CEF_DIR=$(dirname "$(ldd target/release/iron 2>/dev/null | grep libcef | awk '{print $3}' | head -1)" 2>/dev/null || true)
-          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
-            CEF_DIR=$(find target -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
-          fi
-          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
-            CEF_DIR=$(find ~/.cache ~/.local -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
-          fi
-          if [ -z "$CEF_DIR" ] || [ ! -f "$CEF_DIR/libcef.so" ]; then
-            CEF_DIR=$(find /tmp -name "libcef.so" -printf '%h' -quit 2>/dev/null || true)
-          fi
-          if [ -n "$CEF_DIR" ] && [ -f "$CEF_DIR/libcef.so" ]; then
+
+          is_cef_runtime_dir() {
+            local dir="$1"
+            [ -n "$dir" ] || return 1
+            [ -f "$dir/libcef.so" ] || return 1
+            [ -f "$dir/icudtl.dat" ] || return 1
+            [ -d "$dir/locales" ] || return 1
+            return 0
+          }
+
+          CANDIDATES=()
+          LDD_CEF_DIR=$(dirname "$(ldd target/release/iron 2>/dev/null | grep libcef | awk '{print $3}' | head -1)" 2>/dev/null || true)
+          [ -n "$LDD_CEF_DIR" ] && CANDIDATES+=("$LDD_CEF_DIR")
+
+          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target -name "libcef.so" -printf '%h\n' 2>/dev/null)
+          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find ~/.cache ~/.local -name "libcef.so" -printf '%h\n' 2>/dev/null)
+          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find /tmp -name "libcef.so" -printf '%h\n' 2>/dev/null)
+
+          for dir in "${CANDIDATES[@]}"; do
+            if is_cef_runtime_dir "$dir"; then
+              CEF_DIR="$dir"
+              break
+            fi
+          done
+
+          if [ -n "$CEF_DIR" ] && is_cef_runtime_dir "$CEF_DIR"; then
             echo "Found CEF runtime at: $CEF_DIR"
             # Copy libcef.so next to the binary for $ORIGIN rpath (skip if already there)
             if [ "$(readlink -f "$CEF_DIR/libcef.so")" != "$(readlink -f "target/release/libcef.so" 2>/dev/null || echo "")" ]; then
@@ -188,7 +202,11 @@ jobs:
             echo "Contents of locales:"
             ls -la "$CEF_DIR/locales/" 2>/dev/null | head -10
             shopt -s nullglob
-            RUNTIME_FILES=(libcef.so *.so *.so.* *.dat *.bin *.pak *.json)
+            RUNTIME_FILES=(libcef.so icudtl.dat *.pak *.bin)
+            [ -f libEGL.so ] && RUNTIME_FILES+=(libEGL.so)
+            [ -f libGLESv2.so ] && RUNTIME_FILES+=(libGLESv2.so)
+            [ -f libvk_swiftshader.so ] && RUNTIME_FILES+=(libvk_swiftshader.so)
+            [ -f vk_swiftshader_icd.json ] && RUNTIME_FILES+=(vk_swiftshader_icd.json)
             [ -d locales ] && RUNTIME_FILES+=(locales)
             [ -d swiftshader ] && RUNTIME_FILES+=(swiftshader)
             tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" "${RUNTIME_FILES[@]}"
@@ -199,7 +217,7 @@ jobs:
             echo "CEF runtime tarball SHA256: $CEF_RUNTIME_SHA256"
             echo "CEF runtime tarball size: $(stat -c%s cef-runtime.tar.gz) bytes"
           else
-            echo "ERROR: libcef.so not found - CEF runtime is required"
+            echo "ERROR: no complete CEF runtime directory found"
             find / -name "libcef.so" 2>/dev/null | head -20
             exit 1
           fi
