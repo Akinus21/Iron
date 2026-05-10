@@ -144,7 +144,7 @@ impl CefBrowserWrapper {
         }
 
         #[cfg(not(feature = "cef-stub"))]
-        let mut _client = IronClient::new(client_state.clone());
+        let mut client = IronClient::new(client_state.clone());
 
         let window_info = cef::WindowInfo::default();
         let window_info = if is_offscreen || parent_window.is_none() {
@@ -164,7 +164,7 @@ impl CefBrowserWrapper {
         #[cfg(not(feature = "cef-stub"))]
         let result = cef::browser_host_create_browser(
             Some(&window_info),
-            Some(&mut _client),
+            Some(&mut client),
             Some(&cef_url),
             Some(&browser_settings),
             None,
@@ -176,6 +176,9 @@ impl CefBrowserWrapper {
             eprintln!("[CEF] Failed to create browser (result={})", result);
             return Err("Failed to create CEF browser".to_string());
         }
+
+        #[cfg(not(feature = "cef-stub"))]
+        std::mem::forget(client);
 
         #[cfg(not(feature = "cef-stub"))]
         eprintln!("[CEF] Browser creation initiated for {}", url_str);
