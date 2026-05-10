@@ -43,6 +43,12 @@ fn main() {
         if let Some(exit_code) = cef_init::execute_subprocess() {
             std::process::exit(exit_code);
         }
+        let cef_config = cef_init::CefConfig {
+            ..Default::default()
+        };
+        if let Err(e) = cef_init::initialize_cef(&cef_config) {
+            eprintln!("CEF initialization warning: {}", e);
+        }
     }
 
     let app = adw::Application::new(
@@ -148,17 +154,6 @@ fn build_window(
         .unwrap_or_else(|| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("res/org.blueak.iron.svg"));
 
     let overlay = Overlay::new();
-
-    // Initialize CEF on first window creation
-    let cef_config = cef_init::CefConfig {
-        track: cfg.borrow().cef_track.to_string(),
-        enable_window_sleep: cfg.borrow().enable_window_sleep,
-        ..Default::default()
-    };
-    
-    if let Err(e) = cef_init::initialize_cef(&cef_config) {
-        eprintln!("CEF initialization warning: {}", e);
-    }
 
     // CEF message pump: tick CEF's event loop alongside GTK's
     glib::source::timeout_add_local(std::time::Duration::from_millis(10), || {
