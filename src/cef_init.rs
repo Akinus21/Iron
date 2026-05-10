@@ -84,6 +84,21 @@ fn find_cef_dir() -> Option<PathBuf> {
     None
 }
 
+fn build_raw_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
+    let args: Vec<String> = std::env::args().collect();
+    let mut owned: Vec<CString> = Vec::with_capacity(args.len());
+    for arg in &args {
+        owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
+    }
+    let mut c_args: Vec<*mut std::os::raw::c_char> =
+        owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+
+    let mut main_args = MainArgs::default();
+    main_args.argc = c_args.len() as i32;
+    main_args.argv = c_args.as_mut_ptr();
+    (owned, c_args, main_args)
+}
+
 fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
     let mut args: Vec<String> = std::env::args().collect();
     args.push("--no-sandbox".to_string());
@@ -105,11 +120,15 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
-    let (_owned, _c_args, main_args) = build_main_args();
+    let is_subprocess = std::env::args().any(|a| a.starts_with("--type="));
+    let (_owned, _c_args, main_args) = build_raw_main_args();
     let mut app = IronApp::new();
     let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
+    }
+    if is_subprocess {
+        return Some(0);
     }
     None
 }
