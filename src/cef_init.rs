@@ -2,10 +2,16 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{CefString, MainArgs, Settings};
+use cef::{App, CefString, ImplApp, MainArgs, Settings};
+use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+cef::wrap_app! {
+    pub struct IronApp {}
+    impl App {}
+}
 
 #[derive(Debug, Clone)]
 pub struct CefConfig {
@@ -139,7 +145,8 @@ pub fn execute_subprocess() -> Option<i32> {
         eprintln!("[CEF] Detected subprocess invocation");
     }
     let (_owned, _c_args, main_args) = build_raw_main_args();
-    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+    let mut app = IronApp::new();
+    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
@@ -236,10 +243,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
+    let mut app = IronApp::new();
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        None,
+        Some(&mut app),
         std::ptr::null_mut(),
     );
 
