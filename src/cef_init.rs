@@ -87,6 +87,8 @@ fn find_cef_dir() -> Option<PathBuf> {
 fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
     let mut args: Vec<String> = std::env::args().collect();
     args.push("--no-sandbox".to_string());
+    args.push("--single-process".to_string());
+    args.push("--no-zygote".to_string());
     args.push("--disable-gpu".to_string());
     args.push("--in-process-gpu".to_string());
     args.push("--disable-gpu-compositing".to_string());
@@ -133,12 +135,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
-
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_str) = exe_path.to_str() {
-            settings.browser_subprocess_path = CefString::from(exe_str);
-        }
-    }
 
     let mut resources_set = false;
     let mut locales_set = false;
