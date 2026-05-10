@@ -106,6 +106,19 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
         }
     }
 
+    for flag in [
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--disable-vulkan",
+        "--disable-features=Vulkan",
+        "--disable-dev-shm-usage",
+    ] {
+        if !args.iter().any(|arg| arg == flag) {
+            args.push(flag.to_string());
+        }
+    }
+
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
