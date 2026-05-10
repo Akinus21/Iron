@@ -18,9 +18,13 @@ class Iron < Formula
 
     resource("cef-runtime").stage do
       lib.install "libcef.so"
+      Dir.glob("*.so").reject { |f| f == "libcef.so" }.each { |f| lib.install f }
+      Dir.glob("*.so.*").each { |f| lib.install f }
       Dir.glob("*.dat").each { |f| lib.install f }
       Dir.glob("*.bin").each { |f| lib.install f }
+      Dir.glob("*.json").each { |f| lib.install f }
       Dir.glob("*.pak").each { |f| lib.install f }
+      (lib/"swiftshader").install Dir.glob("swiftshader/*") if Dir.exist?("swiftshader")
       (share/"iron").install Dir.glob("*.pak")
       (share/"iron"/"locales").install Dir.glob("locales/*") if Dir.exist?("locales")
     end

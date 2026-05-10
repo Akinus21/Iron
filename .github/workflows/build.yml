@@ -187,13 +187,11 @@ jobs:
             ls -la "$CEF_DIR/" | head -30
             echo "Contents of locales:"
             ls -la "$CEF_DIR/locales/" 2>/dev/null | head -10
-            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
-              libcef.so icudtl.dat *.pak \
-              locales/ v8_context_snapshot.bin 2>/dev/null || \
-            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" \
-              libcef.so icudtl.dat *.pak \
-              v8_context_snapshot.bin 2>/dev/null || \
-            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" libcef.so
+            shopt -s nullglob
+            RUNTIME_FILES=(libcef.so *.so *.so.* *.dat *.bin *.pak *.json)
+            [ -d locales ] && RUNTIME_FILES+=(locales)
+            [ -d swiftshader ] && RUNTIME_FILES+=(swiftshader)
+            tar czf "$GITHUB_WORKSPACE/cef-runtime.tar.gz" "${RUNTIME_FILES[@]}"
             cd "$GITHUB_WORKSPACE"
             echo "Tarball contents:"
             tar tzf cef-runtime.tar.gz | head -20
