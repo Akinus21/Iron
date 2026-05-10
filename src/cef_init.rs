@@ -146,8 +146,7 @@ pub fn execute_subprocess() -> Option<i32> {
         eprintln!("[CEF] Detected subprocess invocation");
     }
     let (_owned, _c_args, main_args) = build_raw_main_args();
-    let mut app = IronApp::new();
-    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
