@@ -243,7 +243,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         std::ptr::null_mut(),
     );
 
-    if result != 0 {
+    if result == 0 {
         return Err(format!("CEF initialization failed (result={})", result));
     }
 
