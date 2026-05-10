@@ -14,6 +14,7 @@ cef::wrap_app! {
         fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
             if let Some(cmd) = command_line {
                 cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("no-zygote")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
                 cmd.append_switch(Some(&CefString::from("in-process-gpu")));
@@ -84,7 +85,12 @@ fn find_cef_dir() -> Option<PathBuf> {
 }
 
 fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs) {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    args.push("--no-sandbox".to_string());
+    args.push("--no-zygote".to_string());
+    args.push("--disable-gpu".to_string());
+    args.push("--disable-gpu-compositing".to_string());
+    args.push("--in-process-gpu".to_string());
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
