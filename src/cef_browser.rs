@@ -15,6 +15,8 @@ use cef::{ImplBrowser, ImplBrowserHost, ImplFrame};
 pub struct CefBrowserWrapper {
     pub widget: Widget,
     pub client_state: SharedClientState,
+    #[cfg(not(feature = "cef-stub"))]
+    client: Rc<RefCell<Option<cef::Client>>>,
     browser: Rc<RefCell<Option<cef::Browser>>>,
     url: Rc<RefCell<String>>,
     title: Rc<RefCell<String>>,
@@ -47,6 +49,8 @@ impl CefBrowserWrapper {
 
         let wrapper = Self {
             widget: picture.upcast(),
+            #[cfg(not(feature = "cef-stub"))]
+            client: Rc::new(RefCell::new(Some(IronClient::new(client_state.clone())))),
             browser: Rc::new(RefCell::new(None)),
             client_state: client_state.clone(),
             url: Rc::new(RefCell::new(url_str.clone())),
@@ -143,9 +147,6 @@ impl CefBrowserWrapper {
             });
         }
 
-        #[cfg(not(feature = "cef-stub"))]
-        let mut client = IronClient::new(client_state.clone());
-
         let window_info = cef::WindowInfo::default();
         let window_info = if is_offscreen || parent_window.is_none() {
             let mut wi = window_info;
@@ -162,23 +163,26 @@ impl CefBrowserWrapper {
         let cef_url = cef::CefString::from(url_str.as_str());
 
         #[cfg(not(feature = "cef-stub"))]
-        let result = cef::browser_host_create_browser(
-            Some(&window_info),
-            Some(&mut client),
-            Some(&cef_url),
-            Some(&browser_settings),
-            None,
-            None,
-        );
+        let result = {
+            let mut client_ref = wrapper.client.borrow_mut();
+            let client = client_ref
+                .as_mut()
+                .ok_or_else(|| "CEF client unavailable".to_string())?;
+            cef::browser_host_create_browser(
+                Some(&window_info),
+                Some(client),
+                Some(&cef_url),
+                Some(&browser_settings),
+                None,
+                None,
+            )
+        };
 
         #[cfg(not(feature = "cef-stub"))]
         if result != 1 {
             eprintln!("[CEF] Failed to create browser (result={})", result);
             return Err("Failed to create CEF browser".to_string());
         }
-
-        #[cfg(not(feature = "cef-stub"))]
-        std::mem::forget(client);
 
         #[cfg(not(feature = "cef-stub"))]
         eprintln!("[CEF] Browser creation initiated for {}", url_str);
