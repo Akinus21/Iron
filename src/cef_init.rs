@@ -113,6 +113,7 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
     }
 
     for flag in [
+        "--single-process",
         "--no-sandbox",
         "--disable-gpu",
         "--disable-gpu-compositing",
