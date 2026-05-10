@@ -18,7 +18,6 @@ cef::wrap_app! {
         ) {
             if let Some(cmd) = command_line {
                 cmd.append_switch(Some(&CefString::from("no-sandbox")));
-                cmd.append_switch(Some(&CefString::from("no-zygote")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
                 cmd.append_switch(Some(&CefString::from("in-process-gpu")));
@@ -140,11 +139,16 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
+    let is_cef_subprocess = std::env::args().any(|arg| arg.starts_with("--type="));
     let (_owned, _c_args, main_args) = build_raw_main_args();
     let mut app = IronApp::new();
     let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
+    }
+    if is_cef_subprocess {
+        eprintln!("[CEF] Subprocess was not handled by execute_process; exiting to avoid GTK arg parsing");
+        return Some(0);
     }
     None
 }
