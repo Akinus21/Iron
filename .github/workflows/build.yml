@@ -175,14 +175,20 @@ jobs:
           }
 
           CANDIDATES=()
-          LDD_CEF_DIR=$(dirname "$(ldd target/release/iron 2>/dev/null | grep libcef | awk '{print $3}' | head -1)" 2>/dev/null || true)
-          [ -n "$LDD_CEF_DIR" ] && CANDIDATES+=("$LDD_CEF_DIR")
+          # Prefer CEF runtime produced by cef-dll-sys during this build.
+          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target/release/build -path "*cef-dll-sys*" -name "libcef.so" -printf '%h\n' 2>/dev/null)
+          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target/debug/build -path "*cef-dll-sys*" -name "libcef.so" -printf '%h\n' 2>/dev/null)
 
+          # Fallbacks for environments where artifacts are cached elsewhere.
           while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find target -name "libcef.so" -printf '%h\n' 2>/dev/null)
           while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find ~/.cache ~/.local -name "libcef.so" -printf '%h\n' 2>/dev/null)
-          while IFS= read -r dir; do CANDIDATES+=("$dir"); done < <(find /tmp -name "libcef.so" -printf '%h\n' 2>/dev/null)
 
           for dir in "${CANDIDATES[@]}"; do
+            case "$dir" in
+              /home/linuxbrew/.linuxbrew/*|/usr/lib*|/usr/local/lib*)
+                continue
+                ;;
+            esac
             if is_cef_runtime_dir "$dir"; then
               CEF_DIR="$dir"
               break
