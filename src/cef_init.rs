@@ -14,10 +14,10 @@ cef::wrap_app! {
         fn on_before_command_line_processing(&self, _process_type: Option<&CefString>, command_line: Option<&mut CommandLine>) {
             if let Some(cmd) = command_line {
                 cmd.append_switch(Some(&CefString::from("no-sandbox")));
-                cmd.append_switch(Some(&CefString::from("disable-zygote")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu")));
                 cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
                 cmd.append_switch(Some(&CefString::from("in-process-gpu")));
+                cmd.append_switch(Some(&CefString::from("single-process")));
             }
         }
     }
@@ -122,6 +122,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let (_owned, _c_args, main_args) = build_main_args();
 
     let mut settings = Settings::default();
+    settings.no_sandbox = 1;
     settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
     settings.external_message_pump = 1;
     settings.multi_threaded_message_loop = 0;
