@@ -2,10 +2,32 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{CefString, MainArgs, Settings};
+use cef::{App, CefString, CommandLine, ImplApp, ImplCommandLine, MainArgs, Settings};
+use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+cef::wrap_app! {
+    pub struct IronApp {}
+    impl App {
+        fn on_before_command_line_processing(
+            &self,
+            _process_type: Option<&CefString>,
+            command_line: Option<&mut CommandLine>,
+        ) {
+            if let Some(cmd) = command_line {
+                cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("no-zygote")));
+                cmd.append_switch(Some(&CefString::from("single-process")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
+                cmd.append_switch(Some(&CefString::from("in-process-gpu")));
+                cmd.append_switch(Some(&CefString::from("disable-dev-shm-usage")));
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CefConfig {
@@ -79,6 +101,7 @@ fn build_raw_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainA
             }
         }
     }
+
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
@@ -103,12 +126,7 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
             }
         }
     }
-    args.push("--no-sandbox".to_string());
-    args.push("--no-zygote".to_string());
-    args.push("--single-process".to_string());
-    args.push("--disable-gpu".to_string());
-    args.push("--disable-gpu-compositing".to_string());
-    args.push("--in-process-gpu".to_string());
+
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
         owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
@@ -124,7 +142,8 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 
 pub fn execute_subprocess() -> Option<i32> {
     let (_owned, _c_args, main_args) = build_raw_main_args();
-    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
+    let mut app = IronApp::new();
+    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
     if exit_code >= 0 {
         return Some(exit_code);
     }
@@ -138,8 +157,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let _ = std::fs::create_dir_all(&config.cache_path);
 
-    eprintln!("[CEF] Initializing (track={}, cache={:?}, osr={})",
-              config.track, config.cache_path, config.windowless_rendering);
+    eprintln!(
+        "[CEF] Initializing (track={}, cache={:?}, osr={})",
+        config.track, config.cache_path, config.windowless_rendering
+    );
 
     let (_owned, _c_args, main_args) = build_main_args();
 
@@ -163,9 +184,10 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     if let Ok(exe) = std::env::current_exe() {
         if let Some(exe_dir) = exe.parent() {
-            let share_iron = exe_dir.parent()
+            let share_iron = exe_dir
+                .parent()
                 .map(|p| p.join("share").join("iron"))
-                .unwrap_or_else(|| PathBuf::new());
+                .unwrap_or_else(PathBuf::new);
             if share_iron.exists() {
                 if let Some(res_str) = share_iron.to_str() {
                     settings.resources_dir_path = CefString::from(res_str);
@@ -214,10 +236,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         }
     }
 
+    let mut app = IronApp::new();
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
-        None,
+        Some(&mut app),
         std::ptr::null_mut(),
     );
 
@@ -236,7 +259,6 @@ pub fn shutdown_cef() {
     if !CEF_INITIALIZED.load(Ordering::SeqCst) {
         return;
     }
-
     let count = CEF_INIT_COUNT.fetch_sub(1, Ordering::SeqCst);
     if count == 1 {
         eprintln!("[CEF] Shutting down");
