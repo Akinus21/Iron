@@ -49,6 +49,9 @@ fn find_cef_dir() -> Option<PathBuf> {
                 if grandparent.join("lib").join("libcef.so").exists() {
                     return Some(grandparent.join("lib"));
                 }
+                if grandparent.join("libexec").join("cef-runtime").join("libcef.so").exists() {
+                    return Some(grandparent.join("libexec").join("cef-runtime"));
+                }
             }
         }
     }
