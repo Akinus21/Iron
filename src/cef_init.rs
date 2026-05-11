@@ -157,6 +157,13 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.iter().any(|arg| arg.starts_with("--type=")) {
+        eprintln!("[CEF] Detected --type= argument, exiting silently");
+        std::process::exit(0);
+    }
+
     let args = cef::args::Args::new();
 
     let exit_code = cef::execute_process(
@@ -300,18 +307,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
                 }
             }
         }
-    }
-
-    let mut app = IronApp::new();
-    let result = cef::initialize(
-        Some(&main_args),
-        Some(&settings),
-        Some(&mut app),
-        std::ptr::null_mut(),
-    );
-
-    if result == 0 {
-        return Err(format!("CEF initialization failed (result={})", result));
     }
 
     CEF_INIT_COUNT.fetch_add(1, Ordering::SeqCst);
