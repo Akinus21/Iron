@@ -33,7 +33,7 @@ class Iron < Formula
     (bin/"iron").write <<~SH
       #!/bin/bash
       export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-      export CEF_PARAMETERS="--no-sandbox --disable-gpu --disable-gpu-compositing --disable-dev-shm-usage"
+      export CEF_PARAMETERS=""
       cd /tmp
       exec "#{bin}/iron.bin" "$@"
     SH
