@@ -177,23 +177,9 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let raw_args: Vec<String> = std::env::args().collect();
     eprintln!("[CEF] Raw args: {:?}", raw_args);
 
-    let mut args: Vec<String> = raw_args.into_iter()
+    let args: Vec<String> = raw_args.into_iter()
         .filter(|arg| !arg.starts_with("--type="))
         .collect();
-
-    for flag in [
-        "--single-process",
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-gpu-compositing",
-        "--disable-vulkan",
-        "--disable-features=Vulkan",
-        "--disable-dev-shm-usage",
-    ] {
-        if !args.iter().any(|arg| arg == flag) {
-            args.push(flag.to_string());
-        }
-    }
 
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
@@ -224,14 +210,20 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
-
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_str) = exe_path.to_str() {
-            settings.browser_subprocess_path = CefString::from("");
-        }
-    }
-
     settings.browser_subprocess_path = CefString::from("");
+
+    let mut app = IronApp::new();
+    eprintln!("[CEF] Calling cef::initialize with single_process=1 and browser_subprocess_path=\"\"");
+    let result = cef::initialize(
+        Some(&main_args),
+        Some(&settings),
+        Some(&mut app),
+        std::ptr::null_mut(),
+    );
+
+    if result == 0 {
+        return Err(format!("CEF initialization failed (result={})", result));
+    }
 
     let mut resources_set = false;
     let mut locales_set = false;
