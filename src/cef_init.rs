@@ -157,9 +157,11 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
-    let is_cef_subprocess = std::env::args().any(|arg| arg.starts_with("--type="));
-    if is_cef_subprocess {
-        eprintln!("[CEF] Detected subprocess invocation");
+    let args: Vec<String> = std::env::args().collect();
+    let has_type_arg = args.iter().any(|arg| arg.starts_with("--type="));
+
+    if has_type_arg {
+        eprintln!("[CEF] Detected subprocess argument, exiting silently");
         std::process::exit(0);
     }
     None
@@ -172,12 +174,24 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let _ = std::fs::create_dir_all(&config.cache_path);
 
+    let mut args: Vec<String> = std::env::args().collect();
+    args.retain(|arg| !arg.starts_with("--type="));
+
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
         config.track, config.cache_path, config.windowless_rendering
     );
 
-    let (_owned, _c_args, main_args) = build_main_args();
+    let mut owned: Vec<CString> = Vec::with_capacity(args.len());
+    for arg in &args {
+        owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
+    }
+    let mut c_args: Vec<*mut std::os::raw::c_char> =
+        owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+    c_args.push(std::ptr::null_mut());
+    let mut main_args = MainArgs::default();
+    main_args.argc = owned.len() as i32;
+    main_args.argv = c_args.as_mut_ptr();
 
     let mut settings = Settings::default();
     settings.no_sandbox = 1;
