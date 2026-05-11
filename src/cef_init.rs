@@ -174,8 +174,12 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let _ = std::fs::create_dir_all(&config.cache_path);
 
-    let mut args: Vec<String> = std::env::args().collect();
-    args.retain(|arg| !arg.starts_with("--type="));
+    let raw_args: Vec<String> = std::env::args().collect();
+    eprintln!("[CEF] Raw args: {:?}", raw_args);
+
+    let mut args: Vec<String> = raw_args.into_iter()
+        .filter(|arg| !arg.starts_with("--type="))
+        .collect();
 
     for flag in [
         "--single-process",
@@ -195,6 +199,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
         config.track, config.cache_path, config.windowless_rendering
     );
+    eprintln!("[CEF] Filtered args: {:?}", args);
 
     let mut owned: Vec<CString> = Vec::with_capacity(args.len());
     for arg in &args {
