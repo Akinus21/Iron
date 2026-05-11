@@ -154,25 +154,7 @@ pub fn execute_subprocess() -> Option<i32> {
         std::process::exit(0);
     }
 
-    let args_vec: Vec<CString> = args.iter()
-        .map(|s| CString::new(s.as_str()).unwrap_or_else(|_| CString::new("").unwrap()))
-        .collect();
-    let mut argv: Vec<*mut std::os::raw::c_char> = args_vec.iter_mut()
-        .map(|c| c.as_ptr() as *mut std::os::raw::c_char)
-        .collect();
-    argv.push(std::ptr::null_mut());
-    let mut main_args = MainArgs::default();
-    main_args.argc = args.len() as i32;
-    main_args.argv = argv.as_mut_ptr();
-
-    let mut app = IronApp::new();
-    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
-    eprintln!("[CEF] execute_process returned: {}", exit_code);
-    if exit_code >= 0 {
-        Some(exit_code)
-    } else {
-        None
-    }
+    None
 }
 
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
@@ -188,6 +170,21 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let mut args: Vec<String> = raw_args.into_iter()
         .filter(|arg| !arg.starts_with("--type="))
         .collect();
+
+    for flag in &[
+        "--single-process",
+        "--no-zygote",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--disable-vulkan",
+        "--disable-features=Vulkan",
+        "--disable-dev-shm-usage",
+    ] {
+        if !args.iter().any(|a| a == flag) {
+            args.push(flag.to_string());
+        }
+    }
 
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
