@@ -177,9 +177,23 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let raw_args: Vec<String> = std::env::args().collect();
     eprintln!("[CEF] Raw args: {:?}", raw_args);
 
-    let args: Vec<String> = raw_args.into_iter()
+    let mut args: Vec<String> = raw_args.into_iter()
         .filter(|arg| !arg.starts_with("--type="))
         .collect();
+
+    for flag in [
+        "--single-process",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--disable-vulkan",
+        "--disable-features=Vulkan",
+        "--disable-dev-shm-usage",
+    ] {
+        if !args.iter().any(|arg| arg == flag) {
+            args.push(flag.to_string());
+        }
+    }
 
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
