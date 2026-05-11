@@ -38,6 +38,12 @@ use gtk4::{
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg.starts_with("--type=")) {
+        eprintln!("[IRON] Detected --type= argument, exiting before any CEF initialization");
+        std::process::exit(0);
+    }
+
     #[cfg(not(feature = "cef-stub"))]
     {
         if let Some(code) = cef_init::execute_subprocess() {
