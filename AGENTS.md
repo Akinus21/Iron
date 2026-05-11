@@ -52,6 +52,10 @@ CEF settings that work during CI testing may fail when the user downloads via Ho
 2. Consider the user's home directory structure (may not exist at path used in CI)
 3. Consider that the working directory when running `iron` from Homebrew is the user's current directory, not the binary's directory
 
+**If Iron needs extra files (CEF runtime, resources, etc.):**
+- Include them in the Homebrew formula via `resource` blocks (preferred)
+- OR wire in a first-start downloader that fetches required files before initialization
+
 ---
 
 ## 🔐 Authentication & Secrets  
