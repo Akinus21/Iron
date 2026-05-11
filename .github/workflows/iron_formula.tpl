@@ -34,8 +34,6 @@ class Iron < Formula
       #!/bin/bash
       export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       export CEF_PARAMETERS=""
-      cd /tmp
-      pwd
       exec "#{bin}/iron.bin" "$@"
     SH
   end

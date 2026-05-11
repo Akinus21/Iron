@@ -187,11 +187,21 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     settings.multi_threaded_message_loop = 0;
     settings.persist_session_cookies = 0;
 
-    let cache_path_str = config.cache_path.to_string_lossy();
+let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
 
+    if let Some(cef_dir) = find_cef_dir() {
+        settings.resources_dir_path = CefString::from(cef_dir.to_string_lossy().as_ref());
+        eprintln!("[CEF] Resources dir: {}", cef_dir.display());
+        let locales = cef_dir.join("locales");
+        if locales.exists() {
+            settings.locales_dir_path = CefString::from(locales.to_string_lossy().as_ref());
+            eprintln!("[CEF] Locales dir: {}", locales.display());
+        }
+    }
+
     let mut app = IronApp::new();
-    eprintln!("[CEF] Calling cef::initialize with single_process=1");
+    eprintln!("[CEF] Calling cef::initialize");
     let result = cef::initialize(
         Some(&main_args),
         Some(&settings),
@@ -201,63 +211,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     if result == 0 {
         return Err(format!("CEF initialization failed (result={})", result));
-    }
-
-    let mut resources_set = false;
-    let mut locales_set = false;
-
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            let share_iron = exe_dir
-                .parent()
-                .map(|p| p.join("share").join("iron"))
-                .unwrap_or_else(PathBuf::new);
-            if share_iron.exists() {
-                if let Some(res_str) = share_iron.to_str() {
-                    settings.resources_dir_path = CefString::from(res_str);
-                    eprintln!("[CEF] Resources dir: {}", res_str);
-                    resources_set = true;
-                }
-                let locales = share_iron.join("locales");
-                if locales.exists() {
-                    if let Some(loc_str) = locales.to_str() {
-                        settings.locales_dir_path = CefString::from(loc_str);
-                        eprintln!("[CEF] Locales dir: {}", loc_str);
-                        locales_set = true;
-                    }
-                }
-            }
-            if !resources_set {
-                let res_dir = exe_dir.join("res");
-                if res_dir.exists() {
-                    if let Some(res_str) = res_dir.to_str() {
-                        settings.resources_dir_path = CefString::from(res_str);
-                        eprintln!("[CEF] Resources dir: {}", res_str);
-                    }
-                }
-            }
-            if !locales_set {
-                let locales_dir = exe_dir.join("locales");
-                if locales_dir.exists() {
-                    if let Some(loc_str) = locales_dir.to_str() {
-                        settings.locales_dir_path = CefString::from(loc_str);
-                        eprintln!("[CEF] Locales dir: {}", loc_str);
-                    }
-                }
-            }
-        }
-    }
-
-    if let Some(cef_dir) = find_cef_dir() {
-        if !locales_set {
-            let cef_locales = cef_dir.join("locales");
-            if cef_locales.exists() {
-                if let Some(loc_str) = cef_locales.to_str() {
-                    settings.locales_dir_path = CefString::from(loc_str);
-                    eprintln!("[CEF] Locales dir: {}", loc_str);
-                }
-            }
-        }
     }
 
     CEF_INIT_COUNT.fetch_add(1, Ordering::SeqCst);
