@@ -204,9 +204,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
 
-    let exe_path = std::env::current_exe().ok().and_then(|p| p.to_str()).unwrap_or("");
-    settings.browser_subprocess_path = CefString::from(exe_path);
-
     let mut app = IronApp::new();
     eprintln!("[CEF] Calling cef::initialize with single_process=1");
     let result = cef::initialize(

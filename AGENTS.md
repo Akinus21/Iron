@@ -32,6 +32,28 @@ All heavy lifting (CEF integration, GTK4 UI) is handled in Rust; the binary is d
 
 ---
 
+## 🔄 Deployment Flow (CRITICAL)
+
+When making code changes, you MUST consider the full deployment chain:
+
+```
+Developer (you) -> GitHub CI (compile/build) -> Homebrew tap (distribution) -> End user (runs on their machine)
+```
+
+**Changes must work for the END USER, not just in the GitHub CI environment.**
+
+CEF settings that work during CI testing may fail when the user downloads via Homebrew because:
+- CI runner has different filesystem layout than user's PC
+- CI runner has different working directory than user's shell environment
+- CEF's internal subprocess spawning behaves differently when invoked via Homebrew wrapper vs direct binary
+
+**Before pushing changes that affect CEF initialization:**
+1. Consider how the change behaves on a fresh Linux install
+2. Consider the user's home directory structure (may not exist at path used in CI)
+3. Consider that the working directory when running `iron` from Homebrew is the user's current directory, not the binary's directory
+
+---
+
 ## 🔐 Authentication & Secrets  
 
 | Secret | Location / How to set |
