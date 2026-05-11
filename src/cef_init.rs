@@ -160,37 +160,7 @@ pub fn execute_subprocess() -> Option<i32> {
     let is_cef_subprocess = std::env::args().any(|arg| arg.starts_with("--type="));
     if is_cef_subprocess {
         eprintln!("[CEF] Detected subprocess invocation");
-    }
-    let mut args: Vec<String> = std::env::args().collect();
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_str) = exe_path.to_str() {
-            if args.is_empty() {
-                args.push(exe_str.to_string());
-            } else {
-                args[0] = exe_str.to_string();
-            }
-        }
-    }
-    if !args.iter().any(|arg| arg == "--no-zygote") {
-        args.push("--no-zygote".to_string());
-    }
-    let mut owned: Vec<CString> = Vec::with_capacity(args.len());
-    for arg in &args {
-        owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
-    }
-    let mut c_args: Vec<*mut std::os::raw::c_char> =
-        owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
-    c_args.push(std::ptr::null_mut());
-    let mut main_args = MainArgs::default();
-    main_args.argc = owned.len() as i32;
-    main_args.argv = c_args.as_mut_ptr();
-    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
-    if exit_code >= 0 {
-        return Some(exit_code);
-    }
-    if is_cef_subprocess {
-        eprintln!("[CEF] Subprocess was not handled by execute_process; exiting to avoid GTK arg parsing");
-        return Some(0);
+        std::process::exit(0);
     }
     None
 }
