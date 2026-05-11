@@ -33,12 +33,10 @@ class Iron < Formula
       (share/"iron"/"locales").install Dir.glob("locales/*") if Dir.exist?("locales")
     end
 
-    (bin/"iron").write <<~SH
+(bin/"iron").write <<~SH
       #!/bin/bash
       export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-      export CEF_PARAMETERS=""
-      mkdir -p /tmp/iron-$$
-      cd /tmp/iron-$$
+      export IRON_CEF_RUNTIME_DIR="#{cef_runtime_dir}"
       exec "#{bin}/iron.bin" "$@"
     SH
   end

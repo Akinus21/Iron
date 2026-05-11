@@ -37,42 +37,46 @@ impl Default for CefConfig {
 }
 
 fn find_cef_dir() -> Option<PathBuf> {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            if parent.join("libcef.so").exists() {
-                return Some(parent.to_path_buf());
-            }
-            if parent.join("lib").join("libcef.so").exists() {
-                return Some(parent.join("lib"));
-            }
-            if let Some(grandparent) = parent.parent() {
-                if grandparent.join("lib").join("libcef.so").exists() {
-                    return Some(grandparent.join("lib"));
-                }
-                if grandparent.join("libexec").join("cef-runtime").join("libcef.so").exists() {
-                    return Some(grandparent.join("libexec").join("cef-runtime"));
-                }
-            }
+    if let Ok(dir) = std::env::var("IRON_CEF_RUNTIME_DIR") {
+        let path = PathBuf::from(&dir);
+        if path.join("libcef.so").exists() {
+            eprintln!("[CEF] Found CEF dir via IRON_CEF_RUNTIME_DIR: {}", dir);
+            return Some(path);
         }
     }
+
+    let exe = std::fs::read_link("/proc/self/exe")
+        .or_else(|_| std::env::current_exe())
+        .ok()?;
+    let exe_dir = exe.parent()?;
+
+    if exe_dir.join("libcef.so").exists() {
+        eprintln!("[CEF] Found CEF dir next to exe: {}", exe_dir.display());
+        return Some(exe_dir.to_path_buf());
+    }
+
+    if let Some(prefix) = exe_dir.parent() {
+        let homebrew_cef = prefix.join("libexec").join("cef-runtime");
+        if homebrew_cef.join("libcef.so").exists() {
+            eprintln!("[CEF] Found CEF dir via Homebrew layout: {}", homebrew_cef.display());
+            return Some(homebrew_cef);
+        }
+    }
+
+    if exe_dir.join("lib").join("libcef.so").exists() {
+        return Some(exe_dir.join("lib"));
+    }
+
     if let Ok(ld_path) = std::env::var("LD_LIBRARY_PATH") {
         for dir in ld_path.split(':') {
             let path = PathBuf::from(dir);
             if path.join("libcef.so").exists() {
+                eprintln!("[CEF] Found CEF dir via LD_LIBRARY_PATH: {}", path.display());
                 return Some(path);
             }
         }
     }
-    for dir in &[
-        PathBuf::from("/usr/local/lib"),
-        PathBuf::from("/home/linuxbrew/.linuxbrew/lib"),
-        PathBuf::from("/usr/lib"),
-        PathBuf::from("/usr/lib/x86_64-linux-gnu"),
-    ] {
-        if dir.join("libcef.so").exists() {
-            return Some(dir.clone());
-        }
-    }
+
     None
 }
 
@@ -150,7 +154,25 @@ pub fn execute_subprocess() -> Option<i32> {
         std::process::exit(0);
     }
 
-    None
+    let args_vec: Vec<CString> = args.iter()
+        .map(|s| CString::new(s.as_str()).unwrap_or_else(|_| CString::new("").unwrap()))
+        .collect();
+    let mut argv: Vec<*mut std::os::raw::c_char> = args_vec.iter_mut()
+        .map(|c| c.as_ptr() as *mut std::os::raw::c_char)
+        .collect();
+    argv.push(std::ptr::null_mut());
+    let mut main_args = MainArgs::default();
+    main_args.argc = args.len() as i32;
+    main_args.argv = argv.as_mut_ptr();
+
+    let mut app = IronApp::new();
+    let exit_code = cef::execute_process(Some(&main_args), Some(&mut app), std::ptr::null_mut());
+    eprintln!("[CEF] execute_process returned: {}", exit_code);
+    if exit_code >= 0 {
+        Some(exit_code)
+    } else {
+        None
+    }
 }
 
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
@@ -201,6 +223,14 @@ let cache_path_str = config.cache_path.to_string_lossy();
             settings.locales_dir_path = CefString::from(locales.to_string_lossy().as_ref());
             eprintln!("[CEF] Locales dir: {}", locales.display());
         }
+    }
+
+    let real_exe = std::fs::read_link("/proc/self/exe")
+        .or_else(|_| std::env::current_exe())
+        .unwrap_or_default();
+    if let Some(exe_str) = real_exe.to_str() {
+        settings.browser_subprocess_path = CefString::from(exe_str);
+        eprintln!("[CEF] Subprocess path: {}", exe_str);
     }
 
     let mut app = IronApp::new();
