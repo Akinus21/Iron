@@ -18,8 +18,11 @@ class Iron < Formula
     cef_runtime_dir = libexec/"cef-runtime"
 
     resource("cef-runtime").stage do
-      Dir.glob("*.so").each { |f| cef_runtime_dir.install f }
-      Dir.glob("*.so.*").each { |f| cef_runtime_dir.install f }
+      puts "CEF runtime files in staging:"
+      Dir.glob("*").each { |f| puts "  #{f}" }
+      puts "Locales:"
+      Dir.glob("locales/*").each { |f| puts "  #{f}" } if Dir.exist?("locales")
+      Dir.glob("*.so*").each { |f| cef_runtime_dir.install f }
       Dir.glob("*.dat").each { |f| cef_runtime_dir.install f }
       Dir.glob("*.bin").each { |f| cef_runtime_dir.install f }
       Dir.glob("*.json").each { |f| cef_runtime_dir.install f }
