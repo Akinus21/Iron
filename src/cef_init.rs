@@ -164,20 +164,7 @@ pub fn execute_subprocess() -> Option<i32> {
         std::process::exit(0);
     }
 
-    let args = cef::args::Args::new();
-
-    let exit_code = cef::execute_process(
-        Some(args.as_main_args()),
-        None,
-        std::ptr::null_mut(),
-    );
-
-    if exit_code >= 0 {
-        eprintln!("[CEF] Detected subprocess (exit code {}), terminating", exit_code);
-        Some(exit_code)
-    } else {
-        None
-    }
+    None
 }
 
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
@@ -237,7 +224,7 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
-    settings.browser_subprocess_path = CefString::from(std::env::current_exe().unwrap_or_default().to_string_lossy().as_ref());
+    settings.browser_subprocess_path = CefString::from("");
 
     let mut app = IronApp::new();
     eprintln!("[CEF] Calling cef::initialize with single_process=1");
