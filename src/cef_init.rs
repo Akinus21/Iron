@@ -227,9 +227,11 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_str) = exe_path.to_str() {
-            settings.browser_subprocess_path = CefString::from(exe_str);
+            settings.browser_subprocess_path = CefString::from("");
         }
     }
+
+    settings.browser_subprocess_path = CefString::from("");
 
     let mut resources_set = false;
     let mut locales_set = false;
