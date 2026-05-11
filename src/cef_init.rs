@@ -172,13 +172,9 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         .collect();
 
     for flag in &[
-        "--single-process",
-        "--no-zygote",
         "--no-sandbox",
         "--disable-gpu",
         "--disable-gpu-compositing",
-        "--disable-vulkan",
-        "--disable-features=Vulkan",
         "--disable-dev-shm-usage",
     ] {
         if !args.iter().any(|a| a == flag) {

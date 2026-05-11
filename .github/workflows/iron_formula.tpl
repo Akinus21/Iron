@@ -37,7 +37,7 @@ class Iron < Formula
       #!/bin/bash
       export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       export IRON_CEF_RUNTIME_DIR="#{cef_runtime_dir}"
-      export CEF_PARAMETERS="--single-process --no-zygote --no-sandbox --disable-gpu"
+      export CEF_PARAMETERS="--no-sandbox --disable-gpu --disable-gpu-compositing"
       exec "#{bin}/iron.bin" "$@"
     SH
   end
