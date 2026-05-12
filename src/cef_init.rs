@@ -147,14 +147,8 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.iter().any(|arg| arg.starts_with("--type=")) {
-        eprintln!("[CEF] Detected --type= argument, exiting silently");
-        std::process::exit(0);
-    }
-
-    None
+    eprintln!("[CEF] execute_subprocess called, exiting immediately");
+    std::process::exit(0);
 }
 
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
@@ -168,7 +162,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     eprintln!("[CEF] Raw args: {:?}", raw_args);
 
     let mut args: Vec<String> = raw_args.into_iter()
-        .filter(|arg| !arg.starts_with("--type="))
         .collect();
 
     eprintln!(
@@ -196,16 +189,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
 let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
-
-    if let Some(cef_dir) = find_cef_dir() {
-        settings.resources_dir_path = CefString::from(cef_dir.to_string_lossy().as_ref());
-        eprintln!("[CEF] Resources dir: {}", cef_dir.display());
-        let locales = cef_dir.join("locales");
-        if locales.exists() {
-            settings.locales_dir_path = CefString::from(locales.to_string_lossy().as_ref());
-            eprintln!("[CEF] Locales dir: {}", locales.display());
-        }
-    }
 
     let mut app = IronApp::new();
     eprintln!("[CEF] Calling cef::initialize");
