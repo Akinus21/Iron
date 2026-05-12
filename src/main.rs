@@ -59,8 +59,13 @@ fn main() {
 
     let app = adw::Application::new(
         Some("org.blueak.iron"),
-        gio::ApplicationFlags::HANDLES_OPEN,
+        gio::ApplicationFlags::HANDLES_OPEN | gio::ApplicationFlags::HANDLES_COMMAND_LINE,
     );
+
+    app.connect_command_line(|app, _cmdline| {
+        app.activate();
+        0
+    });
 
     app.connect_activate(move |app| {
         let cfg = Rc::new(RefCell::new(Config::load()));
