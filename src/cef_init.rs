@@ -171,17 +171,6 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         .filter(|arg| !arg.starts_with("--type="))
         .collect();
 
-    for flag in &[
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-gpu-compositing",
-        "--disable-dev-shm-usage",
-    ] {
-        if !args.iter().any(|a| a == flag) {
-            args.push(flag.to_string());
-        }
-    }
-
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
         config.track, config.cache_path, config.windowless_rendering
