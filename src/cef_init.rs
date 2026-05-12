@@ -22,7 +22,10 @@ cef::wrap_app! {
                 cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
                 cmd.append_switch(Some(&CefString::from("disable-dev-shm-usage")));
                 cmd.append_switch(Some(&CefString::from("no-zygote")));
-                cmd.append_switch(Some(&CefString::from("single-process")));
+                cmd.append_switch(Some(&CefString::from("in-process-gpu")));
+                cmd.append_switch(Some(&CefString::from("renderer-process-limit=1")));
+                cmd.append_switch(Some(&CefString::from("disable-site-isolation-trials")));
+                cmd.append_switch(Some(&CefString::from("disable-features=IsolateOrigins,site-per-process,SitePerProcess")));
             }
         }
     }

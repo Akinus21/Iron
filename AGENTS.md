@@ -58,6 +58,30 @@ CEF settings that work during CI testing may fail when the user downloads via Ho
 
 ---
 
+## 🐛 CEF Zygote Crash (Known Issue)
+
+**Error:** `FATAL: content/browser/zygote_host/zygote_host_impl_linux.cc:207] Check failed: . : No such file or directory (2)`
+
+**Root Cause:** CEF tries to spawn a zygote subprocess for sandboxing. On some Linux systems (especially Fedora/Silverblue with Toolbox), the sandbox setup fails because:
+1. The chrome-sandbox binary is not available or not executable
+2. CLONE_NEWUSER namespace restrictions in containerized environments
+3. The "." (current working directory) is invalid in the subprocess
+
+**Known Workaround (from CEF issue #4067):**
+Use these flags INSTEAD of `--single-process`:
+```bash
+--no-zygote --no-sandbox --disable-setuid-sandbox --in-process-gpu --renderer-process-limit=1 --disable-site-isolation-trials --disable-features=IsolateOrigins,site-per-process,SitePerProcess
+```
+
+**Important:** `--single-process` is known to cause crashes with CEF builds after v138 on Linux. Use `--in-process-gpu` instead.
+
+**Homebrew wrapper should set CEF_PARAMETERS:**
+```
+--no-zygote --no-sandbox --disable-setuid-sandbox --in-process-gpu --renderer-process-limit=1 --disable-dev-shm-usage
+```
+
+---
+
 ## 🔐 Authentication & Secrets  
 
 | Secret | Location / How to set |
