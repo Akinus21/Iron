@@ -218,14 +218,6 @@ let cache_path_str = config.cache_path.to_string_lossy();
         }
     }
 
-    let real_exe = std::fs::read_link("/proc/self/exe")
-        .or_else(|_| std::env::current_exe())
-        .unwrap_or_default();
-    if let Some(exe_str) = real_exe.to_str() {
-        settings.browser_subprocess_path = CefString::from(exe_str);
-        eprintln!("[CEF] Subprocess path: {}", exe_str);
-    }
-
     let mut app = IronApp::new();
     eprintln!("[CEF] Calling cef::initialize");
     let result = cef::initialize(
