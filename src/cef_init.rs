@@ -163,8 +163,17 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 }
 
 pub fn execute_subprocess() -> Option<i32> {
-    eprintln!("[CEF] execute_subprocess called, exiting immediately");
-    std::process::exit(0);
+    let args: Vec<String> = std::env::args().collect();
+    eprintln!("[CEF] execute_subprocess called with args: {:?}", args);
+
+    let exit_code = cef::execute_process(None, None, std::ptr::null_mut());
+    eprintln!("[CEF] execute_process returned: {}", exit_code);
+
+    if exit_code >= 0 {
+        Some(exit_code)
+    } else {
+        None
+    }
 }
 
 pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
