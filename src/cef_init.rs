@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use cef::{CefString, MainArgs, Settings, WrapApp};
+use cef::{App, CefString, CommandLine, ImplApp, MainArgs, Settings, WrapApp};
 use cef::rc::Rc;
 
 static CEF_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -10,6 +10,22 @@ static CEF_INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 cef::wrap_app! {
     pub struct IronApp {}
+    impl App {
+        fn on_before_command_line_processing(
+            &self,
+            _process_type: Option<&CefString>,
+            command_line: Option<&mut CommandLine>,
+        ) {
+            if let Some(cmd) = command_line {
+                cmd.append_switch(Some(&CefString::from("no-sandbox")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu")));
+                cmd.append_switch(Some(&CefString::from("disable-gpu-compositing")));
+                cmd.append_switch(Some(&CefString::from("disable-dev-shm-usage")));
+                cmd.append_switch(Some(&CefString::from("no-zygote")));
+                cmd.append_switch(Some(&CefString::from("single-process")));
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -162,7 +178,19 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
     eprintln!("[CEF] Raw args: {:?}", raw_args);
 
     let mut args: Vec<String> = raw_args.into_iter()
+        .filter(|arg| !arg.starts_with("--type="))
         .collect();
+
+    for flag in &[
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--disable-dev-shm-usage",
+    ] {
+        if !args.iter().any(|a| a == flag) {
+            args.push(flag.to_string());
+        }
+    }
 
     eprintln!(
         "[CEF] Initializing (track={}, cache={:?}, osr={})",
