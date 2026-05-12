@@ -211,12 +211,19 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
 
     let mut settings = Settings::default();
     settings.no_sandbox = 1;
-    settings.windowless_rendering_enabled = if config.windowless_rendering { 1 } else { 0 };
+    settings.windowless_rendering_enabled = 0;
+    settings.external_message_pump = 1;
+    settings.multi_threaded_message_loop = 1;
     settings.multi_threaded_message_loop = 0;
     settings.persist_session_cookies = 0;
 
 let cache_path_str = config.cache_path.to_string_lossy();
     settings.cache_path = CefString::from(cache_path_str.as_ref());
+
+    if let Some(cef_dir) = find_cef_dir() {
+        settings.resources_dir_path = CefString::from(cef_dir.to_string_lossy().as_ref());
+        eprintln!("[CEF] Resources dir: {}", cef_dir.display());
+    }
 
     let mut app = IronApp::new();
     eprintln!("[CEF] Calling cef::initialize");
