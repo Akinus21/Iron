@@ -1,11 +1,5 @@
 #![allow(dead_code, unused_imports)]
 mod cac;
-mod cef_browser;
-#[cfg(not(feature = "cef-stub"))]
-mod cef_client;
-#[cfg(feature = "cef-stub")]
-mod cef_client_stub;
-mod cef_init;
 mod command;
 mod config;
 mod download;
@@ -15,6 +9,7 @@ mod hints;
 mod history;
 mod noctalia;
 mod search;
+mod servo_browser;
 mod session;
 mod settings;
 
@@ -38,25 +33,6 @@ use gtk4::{
 use gtk4::prelude::{WidgetExt, GtkWindowExt};
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.iter().any(|arg| arg.starts_with("--type=")) {
-        eprintln!("[IRON] Detected --type= argument, exiting before any CEF initialization");
-        std::process::exit(0);
-    }
-
-    #[cfg(not(feature = "cef-stub"))]
-    {
-        if let Some(code) = cef_init::execute_subprocess() {
-            std::process::exit(code);
-        }
-        let cef_config = cef_init::CefConfig {
-            ..Default::default()
-        };
-        if let Err(e) = cef_init::initialize_cef(&cef_config) {
-            eprintln!("CEF initialization warning: {}", e);
-        }
-    }
-
     let app = adw::Application::new(
         Some("org.blueak.iron"),
         gio::ApplicationFlags::HANDLES_OPEN | gio::ApplicationFlags::HANDLES_COMMAND_LINE,
@@ -109,9 +85,7 @@ fn main() {
     });
     app.add_action(&open_folder_action);
 
-    let _exit_code = app.run();
-
-    cef_init::shutdown_cef();
+    app.run();
 }
 
 const ALL_COMMANDS: [(&str, &str); 18] = [
@@ -166,45 +140,25 @@ fn build_window(
 
     let overlay = Overlay::new();
 
-    // CEF message pump: tick CEF's event loop alongside GTK's
-    glib::source::timeout_add_local(std::time::Duration::from_millis(10), || {
-        cef_init::do_message_loop_work();
-        glib::ControlFlow::Continue
-    });
-
-    // Create CEF browser wrapper
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
-    let browser = cef_browser::CefBrowserWrapper::new(
+    let browser = servo_browser::ServoBrowserWrapper::new(
         None,
         &url,
-        true, // Use OSR (off-screen rendering)
+        true,
     ).unwrap_or_else(|e| {
-        eprintln!("Failed to create CEF browser: {}", e);
-        // Fallback: create with about:blank
-        cef_browser::CefBrowserWrapper::new(
+        eprintln!("Failed to create Servo browser: {}", e);
+        servo_browser::ServoBrowserWrapper::new(
             None,
             "about:blank",
             false,
         ).expect("Fallback browser creation failed")
     });
 
-    // ---- History tracking (CEF version) ----
-    let hist_mgr_for_closure = history_mgr.clone();
-    
-    // Set up history tracking via client state callback
-    let client_state_for_history = browser.client_state.clone();
-    client_state_for_history.borrow_mut().on_url_change = Some(Box::new(move |url: &str| {
-        hist_mgr_for_closure.borrow_mut().add(url, None);
-    }));
-    
-    // Add initial URL to history
     history_mgr.borrow_mut().add(&url, Some("Loading..."));
 
-    // Add CEF browser widget to overlay
     overlay.set_child(Some(&browser.widget));
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
-    // Note: CEF download handling will be implemented separately
     window.set_content(Some(&overlay));
 
     let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
@@ -338,7 +292,6 @@ fn build_window(
                     entry.set_margin_end(80);
                     full_overlay.append(&entry);
 
-                    // ---- Three-column layout ----
                     let columns = GtkBox::new(Orientation::Horizontal, 12);
                     columns.set_homogeneous(true);
                     columns.set_margin_start(80);
@@ -346,7 +299,6 @@ fn build_window(
                     columns.set_margin_top(8);
                     columns.set_vexpand(true);
 
-                    // Left: Commands
                     let left_col = GtkBox::new(Orientation::Vertical, 4);
                     left_col.add_css_class("command-col");
                     left_col.set_size_request(280, -1);
@@ -360,7 +312,6 @@ fn build_window(
                     let left_scroll = ScrolledWindow::builder().vexpand(true).child(&left_col).build();
                     columns.append(&left_scroll);
 
-                    // Center: History
                     let center_col = GtkBox::new(Orientation::Vertical, 4);
                     center_col.add_css_class("command-col");
                     center_col.set_size_request(280, -1);
@@ -374,7 +325,6 @@ fn build_window(
                     let center_scroll = ScrolledWindow::builder().vexpand(true).child(&center_col).build();
                     columns.append(&center_scroll);
 
-                    // Right: Keybindings
                     let right_col = GtkBox::new(Orientation::Vertical, 4);
                     right_col.add_css_class("command-col");
                     right_col.set_size_request(280, -1);
@@ -426,7 +376,6 @@ fn build_window(
                     esc_hint.set_margin_bottom(12);
                     full_overlay.append(&esc_hint);
 
-                    // ---- State ----
                     let state = Rc::new(RefCell::new(OverlayState {
                         selected_cmd: -1,
                         selected_hist: -1,
@@ -437,12 +386,10 @@ fn build_window(
 
                     let all_cmd_names: Vec<&str> = ALL_COMMANDS.iter().map(|(n, _)| *n).collect();
 
-                    // ---- Populate initial lists ----
                     rebuild_cmd_list(&cmd_list_widget, &all_cmd_names, -1);
                     let recent = history_mgr_clone.borrow().recent(20);
                     rebuild_hist_list(&hist_list_widget, &recent, -1);
 
-                    // ---- Clones for closures ----
                     let wv_for_cmd = browser_ref.clone();
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
@@ -459,7 +406,6 @@ fn build_window(
                     let entry_cmd_list = cmd_list_widget.clone();
                     let entry_hist_list = hist_list_widget.clone();
 
-                    // ---- Text change handler ----
                     entry.connect_changed(move |e| {
                         let text = e.text().to_string();
                         let cursor = e.position();
@@ -502,7 +448,6 @@ fn build_window(
                         }
                     });
 
-                    // ---- Enter execution ----
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
                         let input = CommandInput::new(&text);
@@ -625,7 +570,6 @@ fn build_window(
                                 command::Command::ReloadTheme => {
                                     tm_cmd.borrow_mut().load();
                                     tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
-                                    tm_cmd.borrow().apply_webkit_css(&wv_for_cmd);
                                     eprintln!("Theme reloaded manually");
                                 }
                             }
@@ -636,7 +580,6 @@ fn build_window(
                         wv_for_cmd.grab_focus();
                     });
 
-                    // ---- Key navigation ----
                     let key_state = state.clone();
                     let key_cmd_list = cmd_list_widget.clone();
                     let key_hist_list = hist_list_widget.clone();
@@ -847,8 +790,6 @@ fn build_window(
     window
 }
 
-// ---- Helper functions for command overlay ----
-
 fn rebuild_cmd_list(list: &ListBox, items: &[&str], selected: i32) {
     while let Some(c) = list.first_child() {
         list.remove(&c);
@@ -1015,8 +956,6 @@ fn show_history_overlay(overlay: &Overlay, history_mgr: Rc<RefCell<HistoryManage
     full
 }
 
-/// Ensure the local .desktop file exists in ~/.local/share/applications/.
-/// This is required for xdg-settings to recognise it as a valid handler.
 fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
     let local_apps = dirs::data_dir()
         .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".to_string())))
@@ -1029,7 +968,6 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
         return Ok(dest);
     }
 
-    // Try to copy from the install location first (standard FHS paths).
     let candidates = [
         std::path::PathBuf::from("/usr/share/applications/org.blueak.iron.desktop"),
         std::path::PathBuf::from("/usr/local/share/applications/org.blueak.iron.desktop"),
@@ -1041,9 +979,6 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
         }
     }
 
-    // Fallback: write the desktop entry inline so the binary is self-contained.
-    // Use the absolute path of the running binary so xdg-open can find it
-    // regardless of whether `iron` is on $PATH (important on Silverblue/atomic).
     let exec_path = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "iron".to_string());
@@ -1063,6 +998,3 @@ fn ensure_local_desktop_file() -> Result<std::path::PathBuf, std::io::Error> {
     std::fs::write(&dest, &desktop_content)?;
     Ok(dest)
 }
-
-// Note: CEF configuration is handled in cef_init.rs
-// CEF uses Chrome UA by default, JavaScript/WebGL/media enabled by default

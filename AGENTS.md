@@ -1,23 +1,23 @@
-# Iron – Rust‑based Chromium‑GTK Browser  
+# Iron – Rust‑based GTK Browser
 **Agent Instructions**
 
 ---
 
-## 📖 Overview  
+## Overview
 
-**Iron** is a lightweight web browser built in Rust that embeds the Chromium Embedded Framework (CEF) inside a GTK4 UI. It provides:
+**Iron** is a lightweight web browser built in Rust that embeds the Servo rendering engine inside a GTK4 UI. It provides:
 
-- Full‑screen and windowed browsing with CEF rendering.  
-- Smart‑card (CAC) support via PKCS#11.  
-- Persistent session handling (cookies, cache, history).  
-- Search‑engine registry, fuzzy command palette, hint‑mode navigation, and download manager.  
-- Customizable key‑bindings and theming (via `noctalia`).  
+- Full‑screen and windowed browsing with Servo rendering.
+- Smart‑card (CAC) support via PKCS#11.
+- Persistent session handling (cookies, cache, history).
+- Search‑engine registry, fuzzy command palette, hint‑mode navigation, and download manager.
+- Customizable key‑bindings and theming (via `noctalia`).
 
-All heavy lifting (CEF integration, GTK4 UI) is handled in Rust; the binary is distributed via a Homebrew tap (`Akinus21/homebrew-tap`).
+All heavy lifting (Servo integration, GTK4 UI) is handled in Rust; the binary is distributed via a Homebrew tap (`Akinus21/homebrew-tap`).
 
 ---
 
-## 🏗️ Build System  
+## Build System
 
 | Item | Value |
 |------|-------|
@@ -28,11 +28,11 @@ All heavy lifting (CEF integration, GTK4 UI) is handled in Rust; the binary is d
 | **Homebrew tap** | `Akinus21/homebrew-tap` |
 | **CI** | GitHub Actions (no local Rust install required) |
 
-**Important:** Do **not** install Rust locally. Let the CI pipeline compile the binary and report any errors. If you need a quick syntax check, just run `cargo check` locally (it only needs the Rust toolchain, not the full CEF build).
+**Important:** Do **not** install Rust locally. Let the CI pipeline compile the binary and report any errors. If you need a quick syntax check, just run `cargo check` locally (it only needs the Rust toolchain, not the full Servo build).
 
 ---
 
-## 🔄 Deployment Flow (CRITICAL)
+## Deployment Flow
 
 When making code changes, you MUST consider the full deployment chain:
 
@@ -42,47 +42,22 @@ Developer (you) -> GitHub CI (compile/build) -> Homebrew tap (distribution) -> E
 
 **Changes must work for the END USER, not just in the GitHub CI environment.**
 
-CEF settings that work during CI testing may fail when the user downloads via Homebrew because:
-- CI runner has different filesystem layout than user's PC
-- CI runner has different working directory than user's shell environment
-- CEF's internal subprocess spawning behaves differently when invoked via Homebrew wrapper vs direct binary
-
-**Before pushing changes that affect CEF initialization:**
-1. Consider how the change behaves on a fresh Linux install
-2. Consider the user's home directory structure (may not exist at path used in CI)
-3. Consider that the working directory when running `iron` from Homebrew is the user's current directory, not the binary's directory
-
-**If Iron needs extra files (CEF runtime, resources, etc.):**
-- Include them in the Homebrew formula via `resource` blocks (preferred)
-- OR wire in a first-start downloader that fetches required files before initialization
+Servo runs as a subprocess (`servo-runner`) managed by `servo-gtk`. The subprocess is spawned via `cargo run --bin servo-runner` from within the `servo-gtk` library. Proto IPC communication handles browser state between the main process and the servo subprocess.
 
 ---
 
-## 🐛 CEF Zygote Crash (Known Issue)
+## Servo Architecture
 
-**Error:** `FATAL: content/browser/zygote_host/zygote_host_impl_linux.cc:207] Check failed: . : No such file or directory (2)`
+**Servo** does not use Chromium's zygote sandboxing, avoiding the class of crashes that affected CEF.
 
-**Root Cause:** CEF tries to spawn a zygote subprocess for sandboxing. On some Linux systems (especially Fedora/Silverblue with Toolbox), the sandbox setup fails because:
-1. The chrome-sandbox binary is not available or not executable
-2. CLONE_NEWUSER namespace restrictions in containerized environments
-3. The "." (current working directory) is invalid in the subprocess
-
-**Known Workaround (from CEF issue #4067):**
-Use these flags INSTEAD of `--single-process`:
-```bash
---no-zygote --no-sandbox --disable-setuid-sandbox --in-process-gpu --renderer-process-limit=1 --disable-site-isolation-trials --disable-features=IsolateOrigins,site-per-process,SitePerProcess
-```
-
-**Important:** `--single-process` is known to cause crashes with CEF builds after v138 on Linux. Use `--in-process-gpu` instead.
-
-**Homebrew wrapper should set CEF_PARAMETERS:**
-```
---no-zygote --no-sandbox --disable-setuid-sandbox --in-process-gpu --renderer-process-limit=1 --disable-dev-shm-usage
-```
+The rendering engine runs in a separate process (`servo-runner`) managed by `servo-gtk`:
+- `vendor/servo-gtk/` - vendored Servo-gtk library
+- Proto IPC via `prost` encodes/decodes messages between main process and servo-runner
+- `servo-runner` binary is spawned via `cargo run --bin servo-runner`
 
 ---
 
-## 🔐 Authentication & Secrets  
+## Authentication & Secrets
 
 | Secret | Location / How to set |
 |--------|----------------------|
@@ -96,12 +71,12 @@ Use these flags INSTEAD of `--single-process`:
 
 ---
 
-## 📦 Release & Homebrew  
+## Release & Homebrew
 
 When a new version is tagged (e.g., `v1.2.3`), the CI will:
 
-1. Build `iron` with `cargo build --release`.  
-2. Upload the binary to the Homebrew tap (`Akinus21/homebrew-tap`).  
+1. Build `iron` with `cargo build --release`.
+2. Upload the binary to the Homebrew tap (`Akinus21/homebrew-tap`).
 3. Publish a GitHub Release containing the checksum and release notes.
 
 **Manual Homebrew update (if needed):**
@@ -114,7 +89,7 @@ brew upgrade iron   # after a new release is published
 
 ---
 
-## 🔄 Git Push Workflow  
+## Git Push Workflow
 
 Because the `gh` CLI is not authenticated on the runner, push via SSH directly:
 
@@ -130,22 +105,20 @@ GIT_SSH_COMMAND="ssh -i /config/.ssh/github -o StrictHostKeyChecking=no" \
 
 ---
 
-## 📂 Project Structure  
+## Project Structure
 
 ```
 Iron/
 ├── Cargo.toml                 # Crate metadata, version, dependencies
-├── build.rs                   # Build script – sets up CEF library paths, copies resources
 ├── AGENTS.md                  # ← This file
 ├── src/
 │   ├── main.rs                # Entry point – wires modules together
 │   ├── cac.rs                 # CAC / smart‑card status helper (PKCS#11)
-│   ├── cef_browser.rs        # GTK4 widget wrapper around CEF
-│   ├── cef_init.rs            # Global CEF lifecycle & config
+│   ├── servo_browser.rs       # GTK4 widget wrapper around servo-gtk WebView
 │   ├── command.rs             # `Command` enum – all user‑triggered actions
 │   ├── config.rs              # Serializable config (key bindings, modes, etc.)
 │   ├── download.rs            # Download manager & notification handling
-│   ├── find.rs                # UI overlay for “find in page”
+│   ├── find.rs                # UI overlay for "find in page"
 │   ├── fuzzy.rs               # Lightweight fuzzy matching for command/history
 │   ├── hints.rs               # JavaScript hint overlay injected into pages
 │   ├── history.rs             # SQLite‑backed browsing history manager
@@ -153,20 +126,19 @@ Iron/
 │   ├── search.rs              # Search‑engine registry & URL builder
 │   ├── session.rs             # Persistent session (cache, cookies, incognito)
 │   ├── settings.rs            # Settings overlay UI
-│   └── ... (additional modules) 
-├── resources/                 # CEF binaries & assets (populated by CI)
+│   └── ... (additional modules)
+├── vendor/
+│   └── servo-gtk/              # Vendored servo-gtk library with proto IPC
 └── .github/
     └── workflows/ci.yml       # GitHub Actions CI definition
 ```
 
-### Key Files Explained  
+### Key Files Explained
 
 | File | Purpose |
 |------|---------|
-| **build.rs** | Runs before compilation; reads `CEF_TRACK` & `CEF_DIR` env vars, configures linker flags, copies CEF resources into the output directory. |
-| **src/cef_init.rs** | Holds global `CEF_INITIALIZED` flag, reference counting, and `CefConfig` struct (track, cache path, log level, etc.). |
-| **src/cef_browser.rs** | Provides `CefBrowserWrapper` – a GTK4 `Widget` that embeds the CEF browser, exposing URL, title, and loading state. |
-| **src/config.rs** | Defines `Config`, `KeyBinding`, `Mode`, and `CefTrack` (stable/nightly). Serialized to/from `~/.config/iron/config.toml`. |
+| **src/servo_browser.rs** | Provides `ServoBrowser` – a GTK4 `Widget` that wraps the servo-gtk `WebView`, exposing URL, title, and loading state. |
+| **src/config.rs** | Defines `Config`, `KeyBinding`, and `Mode`. Serialized to/from `~/.config/iron/config.toml`. |
 | **src/command.rs** | Central enum for all commands the UI can invoke (open URL, navigation, settings, CAC status, search engine management, etc.). |
 | **src/search.rs** | `SearchEngine` struct + registry handling; builds final URLs from query strings. |
 | **src/hints.rs** | JavaScript module injected into pages to render hint overlays for keyboard navigation. |
@@ -175,18 +147,19 @@ Iron/
 | **src/session.rs** | Manages per‑profile data directories, incognito mode, and site‑data clearing. |
 | **src/noctalia.rs** | Theme utilities – hex‑to‑rgba conversion, CSS provider setup, and `ThemeManager` struct. |
 | **src/settings.rs** | Builds the full‑window settings overlay (key‑binding editor, theme picker, etc.). |
-| **src/find.rs** | UI overlay for “find in page” functionality, with entry widget and match counter. |
+| **src/find.rs** | UI overlay for "find in page" functionality, with entry widget and match counter. |
 | **src/download.rs** | Simple download manager exposing progress, notifications, and error handling. |
+| **vendor/servo-gtk/** | Vendored servo-gtk library. Contains `lib.rs`, `web_view.rs`, `servo_runner.rs`, proto IPC definitions, and `servo-runner` binary crate. |
 
 ---
 
-## 🛠️ Development Conventions  
+## Development Conventions
 
 | Area | Convention |
 |------|------------|
 | **Code style** | Follow `rustfmt` defaults. Use `cargo clippy` for linting. |
 | **Error handling** | Propagate errors with `Result<T, anyhow::Error>` where appropriate; UI‑level errors should surface as GTK notifications. |
-| **Logging** | Use `log` crate (`env_logger` in CI). Respect `CefConfig.log_level`. |
+| **Logging** | Use `log` crate (`env_logger` in CI). |
 | **Configuration** | Store user‑editable settings in `~/.config/iron/config.toml`. Keep defaults in `Config::default()`. |
 | **Secrets** | Never commit `.secrets` or any private key. Access them via environment variables injected by CI. |
 | **Testing** | Unit tests live in `src/*_test.rs` modules; run with `cargo test`. UI integration tests are out‑of‑scope for CI. |
@@ -197,35 +170,35 @@ Iron/
 
 ---
 
-## 📡 Webhook Integration  
+## Webhook Integration
 
 The project is wired to a custom webhook endpoint that triggers a remote build pipeline:
 
-- **Endpoint:** `https://webhook.akinus21.com/webhook/iron-build`  
-- **Secret:** `WEBHOOK_SECRET` (must be set in the repo’s GitHub secrets).  
+- **Endpoint:** `https://webhook.akinus21.com/webhook/iron-build`
+- **Secret:** `WEBHOOK_SECRET` (must be set in the repo's GitHub secrets).
 
 When a push to `main` occurs, GitHub sends a POST to the above URL. The remote service pulls the repo, runs the CI build, and reports status back to the GitHub Checks API.
 
 ---
 
-## 📦 Release Checklist  
+## Release Checklist
 
-1. **Update version** in `Cargo.toml`.  
-2. **Run local tests:** `cargo test`.  
-3. **Commit & push** (use SSH workflow).  
-4. Verify **GitHub Actions** succeeded.  
-5. **Tag** the commit: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then push tags.  
-6. CI will automatically publish the Homebrew formula update.  
-7. **Update README** with any new command‑line flags or UI changes.  
+1. **Update version** in `Cargo.toml`.
+2. **Run local tests:** `cargo test`.
+3. **Commit & push** (use SSH workflow).
+4. Verify **GitHub Actions** succeeded.
+5. **Tag** the commit: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then push tags.
+6. CI will automatically publish the Homebrew formula update.
+7. **Update README** with any new command‑line flags or UI changes.
 
 ---
 
-## 🙋‍♀️ Support & Contributions  
+## Support & Contributions
 
-- **Issues:** Open on the GitHub repo (`Akinus21/Iron`).  
-- **Pull Requests:** Follow the branch policy and include a short description of the change.  
-- **Contact:** For secret‑related problems, reach out to the repository owner (Akinus21) via the internal Slack channel `#iron-dev`.  
+- **Issues:** Open on the GitHub repo (`Akinus21/Iron`).
+- **Pull Requests:** Follow the branch policy and include a short description of the change.
+- **Contact:** For secret‑related problems, reach out to the repository owner (Akinus21) via the internal Slack channel `#iron-dev`.
 
---- 
+---
 
 *End of AGENTS.md*

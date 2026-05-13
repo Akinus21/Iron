@@ -1,0 +1,37 @@
+[package]
+name = "servo-gtk"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "servo_gtk"
+path = "servo_gtk/lib.rs"
+
+[[bin]]
+name = "servo-runner"
+path = "servo_runner/runner.rs"
+
+[dependencies]
+gio = "0.22"
+glib = { version = "0.22", features = ["v2_74", "log_macros"] }
+gtk = { package="gtk4", version="0.11" }
+servo = { git = "https://github.com/servo/servo.git", rev = "8d153761f9f538c4f8642d20c63fcd677b476e9a" }
+servo-embedder-traits = { git = "https://github.com/servo/servo.git", rev = "8d153761f9f538c4f8642d20c63fcd677b476e9a" }
+surfman = { version = "0.9", features = ["chains", "sm-angle", "sm-angle-default"] }
+gl = "0.14.0"
+epoxy = "0.1.0"
+libloading = "0.8.8"
+euclid = "0.22"
+url = "2.3"
+dpi = "0.1"
+rustls = { version = "0.23.12", default-features = false, features = ["aws-lc-rs"] }
+async-channel = "2.5.0"
+log = "0.4.0"
+image = "0.25"
+keyboard-types = "0.8"
+prost = "0.13"
+bytes = "1.0"
+
+[build-dependencies]
+glib-build-tools = "0.22"
+prost-build = "0.13"
