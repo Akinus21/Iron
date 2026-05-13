@@ -75,9 +75,9 @@ jobs:
 
       - name: Verify servo-runner
         run: |
-          BINARY="target/release/servo-runner"
+          BINARY="vendor/servo-gtk/target/release/servo-runner"
           if [ ! -f "$BINARY" ]; then
-            echo "ERROR: servo-runner not found"
+            echo "ERROR: servo-runner not found at $BINARY"
             exit 1
           fi
           SIZE=$(stat -c%s "$BINARY")
