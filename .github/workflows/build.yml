@@ -108,10 +108,16 @@ jobs:
         env:
           WEBHOOK_HMAC_SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs/$(echo ${{ github.job }})"
           SHA="${{ github.sha }}"
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
-          ERRORS=$(tail -n 200 servo-build.log | jq -Rs .)
+          JOB_NAME="${{ github.job }}"
+          ERRORS=""
+          if [ -f servo-build.log ]; then
+            ERRORS=$(tail -n 200 servo-build.log | jq -Rs .)
+          else
+            ERRORS=$(echo "No servo-build.log found. Job: $JOB_NAME, Runner: ${{ runner.os }}")
+          fi
 
           PAYLOAD=$(jq -cn \
             --arg run_url "$RUN_URL" \
@@ -120,7 +126,8 @@ jobs:
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
             --arg errors "$ERRORS" \
-            '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors}')
+            --arg job "$JOB_NAME" \
+            '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors,job:$job}')
 
           SIG=$(printf '%s' "$PAYLOAD" | \
             openssl dgst -sha256 -hmac "$WEBHOOK_HMAC_SECRET" | \
