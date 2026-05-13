@@ -71,23 +71,29 @@ jobs:
 
       - name: Build servo-runner
         run: |
-          cargo build --release -p servo-gtk --bin servo-runner 2>&1 | tee servo-build.log
+          cargo build --release --bin servo-runner 2>&1 | tee servo-build.log
         working-directory: vendor/servo-gtk
 
       - name: Verify servo-runner
         run: |
-          BINARY="vendor/servo-gtk/target/release/servo-runner"
-          if [ ! -f "$BINARY" ]; then
-            echo "ERROR: servo-runner not found at $BINARY"
+          echo "=== Contents of target/release ==="
+          ls -la vendor/servo-gtk/target/release/ 2>/dev/null || echo "target/release dir not found"
+          echo "=== Looking for servo-runner ==="
+          find vendor/servo-gtk/target -name "servo-runner" -type f 2>/dev/null || echo "servo-runner not found"
+          if [ -f "vendor/servo-gtk/target/release/servo-runner" ]; then
+            SIZE=$(stat -c%s "vendor/servo-gtk/target/release/servo-runner")
+            echo "servo-runner size: $SIZE bytes"
+            if [ "$SIZE" -lt 100000 ]; then
+              echo "ERROR: Binary too small ($SIZE bytes)"
+              exit 1
+            fi
+            echo "servo-runner build successful!"
+          else
+            echo "ERROR: servo-runner not found at vendor/servo-gtk/target/release/servo-runner"
+            echo "=== Last 100 lines of servo-build.log ==="
+            tail -100 servo-build.log 2>/dev/null || echo "No servo-build.log found"
             exit 1
           fi
-          SIZE=$(stat -c%s "$BINARY")
-          echo "servo-runner size: $SIZE bytes"
-          if [ "$SIZE" -lt 100000 ]; then
-            echo "ERROR: Binary too small ($SIZE bytes)"
-            exit 1
-          fi
-          echo "servo-runner build successful!"
 
       - name: Upload servo-runner artifact
         uses: actions/upload-artifact@v4
