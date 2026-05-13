@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports)]
 mod cac;
 mod command;
+mod compat;
 mod config;
 mod download;
 mod find;
@@ -88,7 +89,7 @@ fn main() {
     app.run();
 }
 
-const ALL_COMMANDS: [(&str, &str); 18] = [
+const ALL_COMMANDS: [(&str, &str); 22] = [
     ("duplicate", "Duplicate current window"),
     ("copy-address", "Copy current page URL"),
     ("downloads", "Show recent downloads"),
@@ -107,6 +108,10 @@ const ALL_COMMANDS: [(&str, &str); 18] = [
     ("clear-site-data", "Clear all site data"),
     ("clear-cookies", "Clear cookies only"),
     ("reload-theme", "Reload Noctalia theme manually"),
+    ("compat-add", "Add domain to external-browser compat list"),
+    ("compat-del", "Remove domain from compat list"),
+    ("compat-list", "Show all compat domains"),
+    ("open-external", "Open URL in system browser now"),
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -159,6 +164,7 @@ fn build_window(
     overlay.set_child(Some(&browser.widget));
 
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
+    let compat_mgr: Rc<RefCell<compat::CompatList>> = Rc::new(RefCell::new(compat::CompatList::load()));
     window.set_content(Some(&overlay));
 
     let hints: Rc<RefCell<HintManager>> = Rc::new(RefCell::new(HintManager::new()));
@@ -200,6 +206,7 @@ fn build_window(
     let download_mgr_clone = download_mgr.clone();
     let history_mgr_clone = history_mgr.clone();
     let session_mgr_clone = session_mgr.clone();
+    let compat_mgr_clone = compat_mgr.clone();
 
     let tm_watch = tm.clone();
     let noctalia_provider_watch = noctalia_provider.clone();
@@ -400,6 +407,7 @@ fn build_window(
                     let session_mgr_cmd = session_mgr_clone.clone();
                     let history_mgr_cmd = history_mgr_clone.clone();
                     let tm_cmd = tm.clone();
+                    let compat_mgr_cmd = compat_mgr_clone.clone();
                     let noctalia_provider_cmd = noctalia_provider.clone();
                     let history_mgr_changed = history_mgr_clone.clone();
                     let entry_state = state.clone();
@@ -453,7 +461,13 @@ fn build_window(
                         let input = CommandInput::new(&text);
                         if let Some(cmd) = input.parse() {
                             match cmd {
-                                command::Command::Open(url) => wv_for_cmd.load_uri(&url),
+                                command::Command::Open(url) => {
+                                    if compat_mgr_clone.borrow().matches(&url) {
+                                        crate::compat::CompatList::open_external(&url);
+                                    } else {
+                                        wv_for_cmd.load_uri(&url);
+                                    }
+                                }
                                 command::Command::Back => { if wv_for_cmd.can_go_back() { wv_for_cmd.go_back(); } }
                                 command::Command::Forward => { if wv_for_cmd.can_go_forward() { wv_for_cmd.go_forward(); } }
                                 command::Command::Reload => wv_for_cmd.reload(),
@@ -517,7 +531,12 @@ fn build_window(
                                 }
                                 command::Command::Search(query) => {
                                     if let Some(e) = cfg_cmd.borrow().search.default_engine().cloned() {
-                                        wv_for_cmd.load_uri(&e.build_url(&query));
+                                        let url = e.build_url(&query);
+                                        if compat_mgr_cmd.borrow().matches(&url) {
+                                            crate::compat::CompatList::open_external(&url);
+                                        } else {
+                                            wv_for_cmd.load_uri(&url);
+                                        }
                                     }
                                 }
                                 command::Command::Find(query) => {
@@ -571,6 +590,23 @@ fn build_window(
                                     tm_cmd.borrow_mut().load();
                                     tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
                                     eprintln!("Theme reloaded manually");
+                                }
+                                command::Command::CompatAdd(domain) => {
+                                    compat_mgr_clone.borrow_mut().add(&domain);
+                                    let _ = compat_mgr_clone.borrow().save();
+                                    eprintln!("[compat] Added: {}", domain);
+                                }
+                                command::Command::CompatDel(domain) => {
+                                    compat_mgr_clone.borrow_mut().remove(&domain);
+                                    let _ = compat_mgr_clone.borrow().save();
+                                    eprintln!("[compat] Removed: {}", domain);
+                                }
+                                command::Command::CompatList => {
+                                    let list = compat_mgr_clone.borrow();
+                                    eprintln!("[compat] Domains: {:?}", list.list());
+                                }
+                                command::Command::OpenExternal(url) => {
+                                    crate::compat::CompatList::open_external(&url);
                                 }
                             }
                         }

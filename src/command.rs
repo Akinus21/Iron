@@ -20,10 +20,14 @@ pub enum Command {
     ClearHistory,
     DeleteHistory(String),
     ReloadTheme,
+    CompatAdd(String),
+    CompatDel(String),
+    CompatList,
+    OpenExternal(String),
 }
 
 /// Commands that accept a URL as their first argument.
-pub const URL_COMMANDS: [&str; 4] = ["open", "o", "new-window-open", "nwo"];
+pub const URL_COMMANDS: [&str; 6] = ["open", "o", "new-window-open", "nwo", "open-external", "oe"];
 
 /// Check whether a command name is one that expects a URL argument.
 pub fn is_url_command(cmd: &str) -> bool {
@@ -103,6 +107,30 @@ impl CommandInput {
             "clear-history" | "ch" => Some(Command::ClearHistory),
             "delete-history" | "dh" => Some(Command::DeleteHistory(rest.to_string())),
             "reload-theme" | "rt" => Some(Command::ReloadTheme),
+            "compat-add" | "ca" => {
+                let after = self.raw.strip_prefix("compat-add").unwrap_or("").trim();
+                if after.is_empty() {
+                    None
+                } else {
+                    Some(Command::CompatAdd(after.to_string()))
+                }
+            }
+            "compat-del" | "cd" => {
+                let after = self.raw.strip_prefix("compat-del").unwrap_or("").trim();
+                if after.is_empty() {
+                    None
+                } else {
+                    Some(Command::CompatDel(after.to_string()))
+                }
+            }
+            "compat-list" | "cl" => Some(Command::CompatList),
+            "open-external" | "oe" => {
+                if rest.is_empty() {
+                    None
+                } else {
+                    Some(Command::OpenExternal(rest.to_string()))
+                }
+            }
             _ => None,
         }
     }
