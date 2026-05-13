@@ -8,31 +8,11 @@ class Iron < Formula
   depends_on "gtk4"
   depends_on "libadwaita"
 
-  resource "cef-runtime" do
-    url "{{CEF_RUNTIME_URL}}"
-    sha256 "{{CEF_RUNTIME_SHA256}}"
-  end
-
   def install
     bin.install "iron" => "iron.bin"
-    cef_runtime_dir = libexec/"cef-runtime"
 
-    resource("cef-runtime").stage do
-      Dir.glob("*.so*").each { |f| cef_runtime_dir.install f }
-      Dir.glob("*.dat").each { |f| cef_runtime_dir.install f }
-      Dir.glob("*.bin").each { |f| cef_runtime_dir.install f }
-      Dir.glob("*.json").each { |f| cef_runtime_dir.install f }
-      Dir.glob("*.pak").each { |f| cef_runtime_dir.install f }
-      (cef_runtime_dir/"swiftshader").install Dir.glob("swiftshader/*") if Dir.exist?("swiftshader")
-      (cef_runtime_dir/"locales").install Dir.glob("locales/*") if Dir.exist?("locales")
-    end
-
-(bin/"iron").write <<~SH
+    (bin/"iron").write <<~SH
       #!/bin/bash
-      export LD_LIBRARY_PATH="#{cef_runtime_dir}:#{cef_runtime_dir}/swiftshader${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-      export IRON_CEF_RUNTIME_DIR="#{cef_runtime_dir}"
-      export CEF_PARAMETERS="--no-sandbox --disable-gpu --disable-gpu-compositing --disable-dev-shm-usage --no-zygote --single-process"
-      export CEF_ENABLE_SANDBOX=0
       cd "$(dirname "#{bin}/iron.bin")"
       exec ./iron.bin "$@"
     SH
