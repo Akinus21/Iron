@@ -167,9 +167,25 @@ fn build_main_args() -> (Vec<CString>, Vec<*mut std::os::raw::c_char>, MainArgs)
 
 pub fn execute_subprocess() -> Option<i32> {
     let args: Vec<String> = std::env::args().collect();
-    eprintln!("[CEF] execute_subprocess called with args: {:?}", args);
 
-    let exit_code = cef::execute_process(None, None, std::ptr::null_mut());
+    if let Some(idx) = args.iter().position(|arg| arg.starts_with("--type=")) {
+        eprintln!("[CEF] Detected --type={}, exiting immediately", args[idx]);
+        std::process::exit(0);
+    }
+
+    let mut owned: Vec<CString> = Vec::with_capacity(args.len());
+    for arg in &args {
+        owned.push(CString::new(arg.as_str()).unwrap_or_else(|_| CString::new("").unwrap()));
+    }
+    let mut c_args: Vec<*mut std::os::raw::c_char> =
+        owned.iter_mut().map(|c| c.as_ptr() as *mut std::os::raw::c_char).collect();
+    c_args.push(std::ptr::null_mut());
+    let mut main_args = MainArgs::default();
+    main_args.argc = owned.len() as i32;
+    main_args.argv = c_args.as_mut_ptr();
+
+    eprintln!("[CEF] execute_subprocess called with args: {:?}", args);
+    let exit_code = cef::execute_process(Some(&main_args), None, std::ptr::null_mut());
     eprintln!("[CEF] execute_process returned: {}", exit_code);
 
     if exit_code >= 0 {
