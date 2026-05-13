@@ -200,6 +200,12 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         return Ok(());
     }
 
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg.starts_with("--type=")) {
+        eprintln!("[CEF] Detected --type= in initialize_cef, exiting immediately");
+        std::process::exit(0);
+    }
+
     let _ = std::fs::create_dir_all(&config.cache_path);
 
     let raw_args: Vec<String> = std::env::args().collect();
@@ -214,6 +220,9 @@ pub fn initialize_cef(config: &CefConfig) -> Result<(), String> {
         "--disable-gpu",
         "--disable-gpu-compositing",
         "--disable-dev-shm-usage",
+        "--no-zygote",
+        "--in-process-gpu",
+        "--renderer-process-limit=1",
     ] {
         if !args.iter().any(|a| a == flag) {
             args.push(flag.to_string());
