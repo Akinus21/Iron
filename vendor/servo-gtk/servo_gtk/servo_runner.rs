@@ -42,15 +42,14 @@ pub struct ServoRunner {
 #[allow(clippy::new_without_default)]
 impl ServoRunner {
     pub fn new() -> Self {
+        let exe_path = std::env::current_exe().expect("Failed to get current exe path");
+        let bin_dir = exe_path.parent().expect("Failed to get exe parent dir");
+        let servo_runner_path = bin_dir.join("servo-runner");
+
         let launcher =
             SubprocessLauncher::new(SubprocessFlags::STDIN_PIPE | SubprocessFlags::STDOUT_PIPE);
         let subprocess = launcher
-            .spawn(&[
-                OsStr::new("cargo"),
-                OsStr::new("run"),
-                OsStr::new("--bin"),
-                OsStr::new("servo-runner"),
-            ])
+            .spawn(&[OsStr::new(&servo_runner_path)])
             .expect("Failed to spawn servo-runner process");
 
         let stdin = subprocess.stdin_pipe().expect("Failed to get stdin");
