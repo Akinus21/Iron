@@ -458,11 +458,12 @@ fn build_window(
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
+                        let compat = compat_mgr_clone.clone();
                         let input = CommandInput::new(&text);
                         if let Some(cmd) = input.parse() {
                             match cmd {
                                 command::Command::Open(url) => {
-                                    if compat_mgr_clone.clone().borrow().matches(&url) {
+                                    if compat.borrow().matches(&url) {
                                         crate::compat::CompatList::open_external(&url);
                                     } else {
                                         wv_for_cmd.load_uri(&url);
