@@ -7,7 +7,7 @@ class Iron < Formula
 
   depends_on "gtk4"
   depends_on "libadwaita"
-  depends_on "webkitgtk6"
+  depends_on "webkitgtk"
 
   def install
     bin.install "iron" => "iron.bin"
