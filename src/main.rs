@@ -462,7 +462,7 @@ fn build_window(
                         if let Some(cmd) = input.parse() {
                             match cmd {
                                 command::Command::Open(url) => {
-                                    if compat_mgr_clone.borrow().matches(&url) {
+                                    if compat_mgr_clone.clone().borrow().matches(&url) {
                                         crate::compat::CompatList::open_external(&url);
                                     } else {
                                         wv_for_cmd.load_uri(&url);

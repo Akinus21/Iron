@@ -68,11 +68,11 @@ impl WebKitBrowserWrapper {
     }
 
     pub fn can_go_back(&self) -> bool {
-        true
+        self.web_view.can_go_back()
     }
 
     pub fn can_go_forward(&self) -> bool {
-        true
+        self.web_view.can_go_forward()
     }
 
     pub fn execute_js(&self, _script: &str) {
