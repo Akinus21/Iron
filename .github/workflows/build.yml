@@ -38,6 +38,7 @@ jobs:
             libgtk-4-dev \
             libadwaita-1-dev \
             libwebkitgtk-6.0-dev \
+            libsoup-2.4-dev \
             cmake \
             ninja-build \
             libglib2.0-dev \
