@@ -1,6 +1,6 @@
 use gtk4::{Align, Box as GtkBox, Button, Entry, Label, Orientation};
 use gtk4::prelude::{WidgetExt, EditableExt, EntryExt, BoxExt, ButtonExt, ListModelExt};
-use crate::cef_browser::CefBrowserWrapper;
+use crate::webkit_browser::WebKitBrowserWrapper;
 
 const MAX_MATCH_COUNT: u32 = 1000;
 
@@ -26,7 +26,7 @@ impl FindOverlay {
     pub fn activate(
         &mut self,
         overlay: &gtk4::Overlay,
-        browser: &CefBrowserWrapper,
+        browser: &WebKitBrowserWrapper,
     ) {
         if self.active {
             if let Some(entry) = &self.entry {

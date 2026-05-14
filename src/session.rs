@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::cef_browser::CefBrowserWrapper;
+use crate::webkit_browser::WebKitBrowserWrapper;
 
 /// Manages the browser's persistent session state for CEF:
 /// - isolated data/cache directory under ~/.local/share/iron/
@@ -51,7 +51,7 @@ impl SessionManager {
 
     /// Clear all site data (cookies, local storage, disk cache, etc.)
     /// This is what `:clear-site-data` / `:csd` invokes.
-    pub fn clear_all_site_data(&self, _browser: &CefBrowserWrapper) {
+    pub fn clear_all_site_data(&self, _browser: &WebKitBrowserWrapper) {
         // TODO: When CEF is fully integrated:
         // - Get CefRequestContext from browser
         // - Call CefRequestContext::close_all_connections()
@@ -73,7 +73,7 @@ impl SessionManager {
     }
 
     /// Clear cookies only (useful for "log out everywhere" feel).
-    pub fn clear_cookies(&self, _browser: &CefBrowserWrapper) {
+    pub fn clear_cookies(&self, _browser: &WebKitBrowserWrapper) {
         // TODO: When CEF is fully integrated:
         // - Get CefCookieManager from CefRequestContext
         // - Call CefCookieManager::delete_cookies()

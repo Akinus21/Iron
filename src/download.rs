@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use gio::{Notification, prelude::*};
 
-use crate::cef_browser::CefBrowserWrapper;
+use crate::webkit_browser::WebKitBrowserWrapper;
 
 pub struct DownloadItem {
     pub filename: String,
@@ -22,7 +22,7 @@ impl DownloadManager {
         DownloadManager { items: Vec::new() }
     }
 
-    pub fn attach(_browser: &CefBrowserWrapper, _mgr: Rc<RefCell<DownloadManager>>) {
+    pub fn attach(_browser: &WebKitBrowserWrapper, _mgr: Rc<RefCell<DownloadManager>>) {
         eprintln!("Download handler attached (placeholder)");
     }
 

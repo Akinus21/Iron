@@ -1,4 +1,4 @@
-use crate::cef_browser::CefBrowserWrapper;
+use crate::webkit_browser::WebKitBrowserWrapper;
 
 /// JavaScript module for hint overlays — injected on activate, self-contained.
 /// Supports:
@@ -180,7 +180,7 @@ impl HintManager {
     }
 
     /// Inject hints into the page and start capture.
-    pub fn activate(&mut self, browser: &CefBrowserWrapper) {
+    pub fn activate(&mut self, browser: &WebKitBrowserWrapper) {
         if self.active {
             self.deactivate(browser);
         }
@@ -192,7 +192,7 @@ impl HintManager {
 
     /// Append `c` to the typed prefix and filter visible hints.
     /// Auto-clicks + deactivates if only one hint matches.
-    pub fn handle_key(&mut self, c: char, browser: &CefBrowserWrapper) {
+    pub fn handle_key(&mut self, c: char, browser: &WebKitBrowserWrapper) {
         self.typed.push(c);
         browser.execute_js(
             &format!("window.__iron_hints_typed = '{}'; __iron_hints_filter('{}');", self.typed, self.typed),
@@ -200,7 +200,7 @@ impl HintManager {
     }
 
     /// Pop the last typed character and re-filter.
-    pub fn handle_backspace(&mut self, browser: &CefBrowserWrapper) {
+    pub fn handle_backspace(&mut self, browser: &WebKitBrowserWrapper) {
         if self.typed.pop().is_some() {
             let js = if self.typed.is_empty() {
                 "window.__iron_hints_typed = ''; __iron_hints_filter('');".to_string()
@@ -212,24 +212,24 @@ impl HintManager {
     }
 
     /// Move selection to the next visible hint.
-    pub fn select_next(&mut self, browser: &CefBrowserWrapper) {
+    pub fn select_next(&mut self, browser: &WebKitBrowserWrapper) {
         browser.execute_js("__iron_hints_select_next();");
     }
 
     /// Move selection to the previous visible hint.
-    pub fn select_prev(&mut self, browser: &CefBrowserWrapper) {
+    pub fn select_prev(&mut self, browser: &WebKitBrowserWrapper) {
         browser.execute_js("__iron_hints_select_prev();");
     }
 
     /// Commit the current selection (click it), or click the single visible hint.
-    pub fn commit(&mut self, browser: &CefBrowserWrapper) {
+    pub fn commit(&mut self, browser: &WebKitBrowserWrapper) {
         self.active = false;
         browser.execute_js("__iron_hints_commit();");
         self.typed.clear();
     }
 
     /// Remove all hint overlays and exit hint mode.
-    pub fn deactivate(&mut self, browser: &CefBrowserWrapper) {
+    pub fn deactivate(&mut self, browser: &WebKitBrowserWrapper) {
         self.active = false;
         self.typed.clear();
         browser.execute_js("__iron_hints_deactivate();");

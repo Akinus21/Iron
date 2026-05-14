@@ -212,7 +212,7 @@ impl ThemeManager {
         }
     }
 
-    pub fn apply_webkit_css(&self, webview: &crate::cef_browser::CefBrowserWrapper) {
+    pub fn apply_webkit_css(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper) {
         if self.webkit_css.is_empty() {
             return;
         }
@@ -227,7 +227,7 @@ impl ThemeManager {
 
     pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
-        webview: &crate::cef_browser::CefBrowserWrapper,
+        webview: &crate::webkit_browser::WebKitBrowserWrapper,
         provider: &gtk4::CssProvider,
     ) {
         let config_dir = match dirs::config_dir() {
