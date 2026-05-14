@@ -91,7 +91,7 @@ jobs:
           else
             echo "ERROR: servo-runner not found at vendor/servo-gtk/target/release/servo-runner"
             echo "=== Last 100 lines of servo-build.log ==="
-            tail -100 servo-build.log 2>/dev/null || echo "No servo-build.log found"
+            tail -100 vendor/servo-gtk/servo-build.log 2>/dev/null || echo "No servo-build.log found"
             exit 1
           fi
 
@@ -113,8 +113,8 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
           JOB_NAME="${{ github.job }}"
           ERRORS=""
-          if [ -f servo-build.log ]; then
-            ERRORS=$(tail -n 200 servo-build.log | jq -Rs .)
+          if [ -f vendor/servo-gtk/servo-build.log ]; then
+            ERRORS=$(tail -n 200 vendor/servo-gtk/servo-build.log | jq -Rs .)
           else
             ERRORS=$(echo "No servo-build.log found. Job: $JOB_NAME, Runner: ${{ runner.os }}")
           fi
