@@ -12,8 +12,8 @@ name = "servo-runner"
 path = "servo_runner/runner.rs"
 
 [dependencies]
-gio = "0.22"
-glib = { version = "0.22", features = ["v2_74", "log_macros"] }
+gio = "0.21"
+glib = { version = "0.21", features = ["v2_72", "log_macros"] }
 gtk = { package="gtk4", version="0.11" }
 servo = { git = "https://github.com/servo/servo.git", rev = "8d153761f9f538c4f8642d20c63fcd677b476e9a" }
 servo-embedder-traits = { git = "https://github.com/servo/servo.git", rev = "8d153761f9f538c4f8642d20c63fcd677b476e9a" }
@@ -33,5 +33,5 @@ prost = "0.13"
 bytes = "1.0"
 
 [build-dependencies]
-glib-build-tools = "0.22"
+glib-build-tools = "0.21"
 prost-build = "0.13"
