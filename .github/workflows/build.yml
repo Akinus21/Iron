@@ -14,7 +14,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-servo-runner:
+  build:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -37,159 +37,12 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libadwaita-1-dev \
+            libwebkitgtk-6.0-dev \
             cmake \
             ninja-build \
             libglib2.0-dev \
-            libnss3-dev \
-            libnspr4-dev \
-            libatk1.0-dev \
-            libatk-bridge2.0-dev \
-            libdrm-dev \
-            libdbus-1-dev \
-            libxkbcommon-dev \
-            libxcomposite-dev \
-            libxdamage-dev \
-            libxfixes-dev \
-            libxrandr-dev \
-            libgbm-dev \
-            libx11-dev \
-            libxext-dev \
-            libegl1-mesa-dev \
             patchelf \
             jq
-
-      - name: Cache Cargo registry and build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-servo-${{ runner.os }}-${{ hashFiles('vendor/servo-gtk/Cargo.lock', 'vendor/servo-gtk/**') }}
-          restore-keys: |
-            cargo-servo-${{ runner.os }}-
-
-      - name: Build servo-runner
-        run: |
-          cargo build --release --bin servo-runner 2>&1 | tee servo-build.log
-        working-directory: vendor/servo-gtk
-
-      - name: Verify servo-runner
-        run: |
-          echo "=== Contents of target/release ==="
-          ls -la vendor/servo-gtk/target/release/ 2>/dev/null || echo "target/release dir not found"
-          echo "=== Looking for servo-runner ==="
-          find vendor/servo-gtk/target -name "servo-runner" -type f 2>/dev/null || echo "servo-runner not found"
-          if [ -f "vendor/servo-gtk/target/release/servo-runner" ]; then
-            SIZE=$(stat -c%s "vendor/servo-gtk/target/release/servo-runner")
-            echo "servo-runner size: $SIZE bytes"
-            if [ "$SIZE" -lt 100000 ]; then
-              echo "ERROR: Binary too small ($SIZE bytes)"
-              exit 1
-            fi
-            echo "servo-runner build successful!"
-          else
-            echo "ERROR: servo-runner not found at vendor/servo-gtk/target/release/servo-runner"
-            echo "=== Last 100 lines of servo-build.log ==="
-            tail -100 vendor/servo-gtk/servo-build.log 2>/dev/null || echo "No servo-build.log found"
-            exit 1
-          fi
-
-      - name: Upload servo-runner artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: servo-runner
-          path: vendor/servo-gtk/target/release/servo-runner
-          if-no-files-found: error
-          retention-days: 5
-
-      - name: Notify webhook on failure
-        if: failure() && github.ref == 'refs/heads/main'
-        env:
-          WEBHOOK_HMAC_SECRET: ${{ secrets.WEBHOOK_SECRET }}
-        run: |
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs/$(echo ${{ github.job }})"
-          SHA="${{ github.sha }}"
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
-          JOB_NAME="${{ github.job }}"
-          ERRORS=""
-          if [ -f vendor/servo-gtk/servo-build.log ]; then
-            ERRORS=$(tail -n 200 vendor/servo-gtk/servo-build.log | jq -Rs .)
-          else
-            ERRORS=$(echo "No servo-build.log found. Job: $JOB_NAME, Runner: ${{ runner.os }}")
-          fi
-
-          PAYLOAD=$(jq -cn \
-            --arg run_url "$RUN_URL" \
-            --arg sha "$SHA" \
-            --arg commit_msg "$COMMIT_MSG" \
-            --arg ref "${{ github.ref_name }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg errors "$ERRORS" \
-            --arg job "$JOB_NAME" \
-            '{run_url:$run_url,sha:$sha,commit_msg:$commit_msg,ref:$ref,actor:$actor,errors:$errors,job:$job}')
-
-          SIG=$(printf '%s' "$PAYLOAD" | \
-            openssl dgst -sha256 -hmac "$WEBHOOK_HMAC_SECRET" | \
-            awk '{print "sha256="$2}')
-
-          curl -fsSL -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-GitHub-Event: build_failure" \
-            -H "X-Hub-Signature-256: $SIG" \
-            -d "$PAYLOAD" \
-            "https://webhook.akinus21.com/webhook/iron-build" || true
-
-  build-iron:
-    runs-on: ubuntu-22.04
-    needs: build-servo-runner
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-tags: true
-          fetch-depth: 0
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: "1.92"
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-4-dev \
-            libadwaita-1-dev \
-            cmake \
-            ninja-build \
-            libglib2.0-dev \
-            libnss3-dev \
-            libnspr4-dev \
-            libatk1.0-dev \
-            libatk-bridge2.0-dev \
-            libdrm-dev \
-            libdbus-1-dev \
-            libxkbcommon-dev \
-            libxcomposite-dev \
-            libxdamage-dev \
-            libxfixes-dev \
-            libxrandr-dev \
-            libgbm-dev \
-            libx11-dev \
-            libxext-dev \
-            libegl1-mesa-dev \
-            patchelf \
-            jq
-
-      - name: Download servo-runner
-        uses: actions/download-artifact@v4
-        with:
-          name: servo-runner
-          path: /tmp/servo-runner
 
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v4
@@ -202,13 +55,8 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      - name: Build iron
+      - name: Build (release)
         run: cargo build --release --no-default-features 2>&1 | tee build.log
-
-      - name: Copy servo-runner to release dir
-        run: |
-          mkdir -p target/release
-          cp /tmp/servo-runner/servo-runner target/release/
 
       - name: Set rpath and verify binary
         run: |
@@ -219,7 +67,6 @@ jobs:
           fi
           patchelf --set-rpath '$ORIGIN:$ORIGIN/../lib:$ORIGIN/lib' "$BINARY" 2>/dev/null || \
             patchelf --set-rpath '\$ORIGIN:\$ORIGIN/../lib:\$ORIGIN/lib' "$BINARY" || true
-          patchelf --set-rpath '$ORIGIN' target/release/servo-runner 2>/dev/null || true
           echo "RPATH in binary:"
           readelf -d "$BINARY" 2>/dev/null | grep -E 'RPATH|RUNPATH' || echo "WARNING: No RPATH/RUNPATH found"
           SIZE=$(stat -c%s "$BINARY")
@@ -228,8 +75,6 @@ jobs:
             echo "ERROR: Binary too small ($SIZE bytes)"
             exit 1
           fi
-          SERVO_SIZE=$(stat -c%s target/release/servo-runner)
-          echo "servo-runner size: $SERVO_SIZE bytes"
           echo "Build successful!"
 
       - name: Upload artifact
@@ -237,9 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: iron-release
-          path: |
-            target/release/iron
-            target/release/servo-runner
+          path: target/release/iron
           if-no-files-found: error
           retention-days: 5
 
@@ -273,23 +116,16 @@ jobs:
 
           NEW_TAG="${{ steps.tag.outputs.new_tag }}"
           BINARY="target/release/iron"
-          SERVO_RUNNER="target/release/servo-runner"
 
           if [ ! -s "$BINARY" ]; then
             echo "ERROR: Binary missing or empty at $BINARY"
             exit 1
           fi
-          if [ ! -s "$SERVO_RUNNER" ]; then
-            echo "ERROR: servo-runner missing or empty"
-            exit 1
-          fi
 
           SHA256=$(sha256sum "$BINARY" | awk '{print $1}')
-          SERVO_SHA256=$(sha256sum "$SERVO_RUNNER" | awk '{print $1}')
           SIZE=$(stat -c%s "$BINARY")
           echo "Binary size: $SIZE bytes"
           echo "SHA256: $SHA256"
-          echo "servo-runner SHA256: $SERVO_SHA256"
 
           if [ "$SIZE" -lt 100000 ]; then
             echo "ERROR: Binary too small"
@@ -302,13 +138,11 @@ jobs:
           gh release create "$NEW_TAG" \
             --title "$NEW_TAG" \
             --notes "" \
-            "$BINARY#iron" \
-            "$SERVO_RUNNER#servo-runner"
+            "$BINARY#iron"
 
           ASSET_COUNT=$(gh release view "$NEW_TAG" --json assets --jq '.assets | length')
           echo "Assets uploaded: $ASSET_COUNT"
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
-          echo "servo_sha256=$SERVO_SHA256" >> $GITHUB_OUTPUT
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
       - name: Update homebrew tap
@@ -321,9 +155,7 @@ jobs:
 
           NEW_TAG="${{ steps.tag.outputs.new_tag }}"
           SHA256="${{ steps.release.outputs.sha256 }}"
-          SERVO_SHA256="${{ steps.release.outputs.servo_sha256 }}"
           BINARY_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/iron"
-          SERVO_URL="https://github.com/Akinus21/Iron/releases/download/${NEW_TAG}/servo-runner"
 
           TAP_REPO="Akinus21/homebrew-tap"
           TAP_DIR="/tmp/homebrew-tap"
@@ -339,8 +171,6 @@ jobs:
           sed -e "s|{{VERSION}}|${IRON_VERSION}|g" \
               -e "s|{{URL}}|${BINARY_URL}|g" \
               -e "s|{{SHA256}}|${SHA256}|g" \
-              -e "s|{{SERVO_URL}}|${SERVO_URL}|g" \
-              -e "s|{{SERVO_SHA256}}|${SERVO_SHA256}|g" \
               "$GITHUB_WORKSPACE/.github/workflows/iron_formula.tpl" > Formula/iron.rb
 
           git add Formula/iron.rb

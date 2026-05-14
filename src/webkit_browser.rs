@@ -1,12 +1,11 @@
 use gtk4::prelude::*;
-use gtk4::{Widget, EventControllerKey, EventControllerMotion, GestureClick, EventControllerScroll};
-use gtk4::EventControllerFocus;
+use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use servo_gtk::WebView;
+use webkit6gtk::WebView;
 
 #[derive(Clone)]
-pub struct ServoBrowserWrapper {
+pub struct WebKitBrowserWrapper {
     pub widget: Widget,
     web_view: WebView,
     url: Rc<RefCell<String>>,
@@ -14,7 +13,7 @@ pub struct ServoBrowserWrapper {
     is_loading: Rc<RefCell<bool>>,
 }
 
-impl ServoBrowserWrapper {
+impl WebKitBrowserWrapper {
     pub fn new(
         _parent_window: Option<&gtk4::gdk::Surface>,
         url: &str,
@@ -41,7 +40,7 @@ impl ServoBrowserWrapper {
     pub fn load_uri(&self, url: &str) {
         *self.url.borrow_mut() = url.to_string();
         *self.title.borrow_mut() = format!("Iron - {}", url);
-        self.web_view.load_url(url);
+        self.web_view.load_uri(url);
     }
 
     pub fn reload(&self) {
@@ -77,19 +76,19 @@ impl ServoBrowserWrapper {
     }
 
     pub fn execute_js(&self, _script: &str) {
-        eprintln!("[Servo] JS execution not yet implemented");
+        eprintln!("[WebKit] JS execution not yet implemented");
     }
 
     pub fn find(&self, _text: &str, _forward: bool, _case_sensitive: bool) {
-        eprintln!("[Servo] Find not yet implemented");
+        eprintln!("[WebKit] Find not yet implemented");
     }
 
     pub fn stop_finding(&self) {
-        eprintln!("[Servo] Stop finding not yet implemented");
+        eprintln!("[WebKit] Stop finding not yet implemented");
     }
 
     pub fn search_next(&self) {
-        eprintln!("[Servo] Search next not yet implemented");
+        eprintln!("[WebKit] Search next not yet implemented");
     }
 
     pub fn grab_focus(&self) {

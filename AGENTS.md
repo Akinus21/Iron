@@ -5,15 +5,16 @@
 
 ## Overview
 
-**Iron** is a lightweight web browser built in Rust that embeds the Servo rendering engine inside a GTK4 UI. It provides:
+**Iron** is a lightweight web browser built in Rust that embeds the WebKit2GTK rendering engine inside a GTK4 UI. It provides:
 
-- Full‑screen and windowed browsing with Servo rendering.
+- Full‑screen and windowed browsing with WebKit2GTK rendering.
 - Smart‑card (CAC) support via PKCS#11.
 - Persistent session handling (cookies, cache, history).
 - Search‑engine registry, fuzzy command palette, hint‑mode navigation, and download manager.
 - Customizable key‑bindings and theming (via `noctalia`).
+- Per-domain compat mode for sites requiring features not supported by WebKit2GTK (hands off to system browser via xdg-open).
 
-All heavy lifting (Servo integration, GTK4 UI) is handled in Rust; the binary is distributed via a Homebrew tap (`Akinus21/homebrew-tap`).
+All heavy lifting (WebKit2GTK integration, GTK4 UI) is handled in Rust; the binary is distributed via a Homebrew tap (`Akinus21/homebrew-tap`).
 
 ---
 
@@ -28,7 +29,7 @@ All heavy lifting (Servo integration, GTK4 UI) is handled in Rust; the binary is
 | **Homebrew tap** | `Akinus21/homebrew-tap` |
 | **CI** | GitHub Actions (no local Rust install required) |
 
-**Important:** Do **not** install Rust locally. Let the CI pipeline compile the binary and report any errors. If you need a quick syntax check, just run `cargo check` locally (it only needs the Rust toolchain, not the full Servo build).
+**Important:** Do **not** install Rust locally. Let the CI pipeline compile the binary and report any errors.
 
 ---
 
@@ -42,18 +43,16 @@ Developer (you) -> GitHub CI (compile/build) -> Homebrew tap (distribution) -> E
 
 **Changes must work for the END USER, not just in the GitHub CI environment.**
 
-Servo runs as a subprocess (`servo-runner`) managed by `servo-gtk`. The subprocess is spawned via `cargo run --bin servo-runner` from within the `servo-gtk` library. Proto IPC communication handles browser state between the main process and the servo subprocess.
-
 ---
 
-## Servo Architecture
+## Architecture
 
-**Servo** does not use Chromium's zygote sandboxing, avoiding the class of crashes that affected CEF.
+**WebKit2GTK** is used as the rendering engine via the `webkit6gtk` crate. It provides:
+- Full WebKit2GTK support on Linux
+- Mature, stable rendering
+- No zygote/sandbox issues like CEF had
 
-The rendering engine runs in a separate process (`servo-runner`) managed by `servo-gtk`:
-- `vendor/servo-gtk/` - vendored Servo-gtk library
-- Proto IPC via `prost` encodes/decodes messages between main process and servo-runner
-- `servo-runner` binary is spawned via `cargo run --bin servo-runner`
+**Compat Mode:** Sites that require features WebKit2GTK doesn't support (Streams API, advanced WebSockets, Service Workers) can be configured to open in the system browser instead via `xdg-open`.
 
 ---
 
@@ -114,7 +113,8 @@ Iron/
 ├── src/
 │   ├── main.rs                # Entry point – wires modules together
 │   ├── cac.rs                 # CAC / smart‑card status helper (PKCS#11)
-│   ├── servo_browser.rs       # GTK4 widget wrapper around servo-gtk WebView
+│   ├── webkit_browser.rs      # GTK4 widget wrapper around webkit2gtk WebView
+│   ├── compat.rs              # Per-domain xdg-open fallback list
 │   ├── command.rs             # `Command` enum – all user‑triggered actions
 │   ├── config.rs              # Serializable config (key bindings, modes, etc.)
 │   ├── download.rs            # Download manager & notification handling
@@ -127,8 +127,6 @@ Iron/
 │   ├── session.rs             # Persistent session (cache, cookies, incognito)
 │   ├── settings.rs            # Settings overlay UI
 │   └── ... (additional modules)
-├── vendor/
-│   └── servo-gtk/              # Vendored servo-gtk library with proto IPC
 └── .github/
     └── workflows/ci.yml       # GitHub Actions CI definition
 ```
@@ -137,9 +135,10 @@ Iron/
 
 | File | Purpose |
 |------|---------|
-| **src/servo_browser.rs** | Provides `ServoBrowser` – a GTK4 `Widget` that wraps the servo-gtk `WebView`, exposing URL, title, and loading state. |
+| **src/webkit_browser.rs** | Provides `WebKitBrowserWrapper` – a GTK4 `Widget` that wraps the webkit2gtk `WebView`, exposing URL, title, and loading state. |
+| **src/compat.rs** | Manages per-domain compat list for sites that need to open in system browser. Persists to `~/.config/iron/compat.toml`. |
 | **src/config.rs** | Defines `Config`, `KeyBinding`, and `Mode`. Serialized to/from `~/.config/iron/config.toml`. |
-| **src/command.rs** | Central enum for all commands the UI can invoke (open URL, navigation, settings, CAC status, search engine management, etc.). |
+| **src/command.rs** | Central enum for all commands the UI can invoke (open URL, navigation, settings, CAC status, search engine management, compat mode, etc.). |
 | **src/search.rs** | `SearchEngine` struct + registry handling; builds final URLs from query strings. |
 | **src/hints.rs** | JavaScript module injected into pages to render hint overlays for keyboard navigation. |
 | **src/fuzzy.rs** | Scoring algorithm used by the command palette and history filter. |
@@ -149,7 +148,6 @@ Iron/
 | **src/settings.rs** | Builds the full‑window settings overlay (key‑binding editor, theme picker, etc.). |
 | **src/find.rs** | UI overlay for "find in page" functionality, with entry widget and match counter. |
 | **src/download.rs** | Simple download manager exposing progress, notifications, and error handling. |
-| **vendor/servo-gtk/** | Vendored servo-gtk library. Contains `lib.rs`, `web_view.rs`, `servo_runner.rs`, proto IPC definitions, and `servo-runner` binary crate. |
 
 ---
 

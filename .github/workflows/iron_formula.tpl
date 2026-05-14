@@ -7,16 +7,10 @@ class Iron < Formula
 
   depends_on "gtk4"
   depends_on "libadwaita"
-
-  resource "servo-runner" do
-    url "{{SERVO_URL}}"
-    sha256 "{{SERVO_SHA256}}"
-  end
+  depends_on "webkitgtk6"
 
   def install
     bin.install "iron" => "iron.bin"
-    libexec.install resource("servo-runner")
-    bin.install_symlink libexec/"servo-runner" => "servo-runner"
 
     (bin/"iron").write <<~SH
       #!/bin/bash

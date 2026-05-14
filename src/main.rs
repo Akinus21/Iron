@@ -10,7 +10,7 @@ mod hints;
 mod history;
 mod noctalia;
 mod search;
-mod servo_browser;
+mod webkit_browser;
 mod session;
 mod settings;
 
@@ -146,13 +146,13 @@ fn build_window(
     let overlay = Overlay::new();
 
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
-    let browser = servo_browser::ServoBrowserWrapper::new(
+    let browser = webkit_browser::WebKitBrowserWrapper::new(
         None,
         &url,
         true,
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create Servo browser: {}", e);
-        servo_browser::ServoBrowserWrapper::new(
+        webkit_browser::WebKitBrowserWrapper::new(
             None,
             "about:blank",
             false,
