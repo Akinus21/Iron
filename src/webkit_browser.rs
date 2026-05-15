@@ -80,8 +80,8 @@ impl WebKitBrowserWrapper {
         true
     }
 
-    pub fn execute_js(&self, _script: &str) {
-        eprintln!("[WebKit] JS execution not yet implemented");
+    pub fn execute_js(&self, script: &str) {
+        let _ = self.web_view.evaluate_javascript(script, None, None, None, |_| {});
     }
 
     pub fn find(&self, _text: &str, _forward: bool, _case_sensitive: bool) {
