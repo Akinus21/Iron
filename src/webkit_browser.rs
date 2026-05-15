@@ -32,10 +32,11 @@ impl WebKitBrowserWrapper {
             widget,
             web_view,
             url: Rc::new(RefCell::new(url_str.clone())),
-            title: Rc::new(RefCell::new(title_str)),
+            title: Rc::new(RefCell::new(title_str.clone())),
             is_loading: Rc::new(RefCell::new(true)),
         };
 
+        wrapper.load_uri(&url_str);
         wrapper.widget.grab_focus();
 
         Ok(wrapper)
