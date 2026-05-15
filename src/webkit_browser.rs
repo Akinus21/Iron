@@ -2,6 +2,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
+use glib::object::Cast;
 use webkit2gtk::WebView;
 use webkit2gtk::WebViewExt;
 

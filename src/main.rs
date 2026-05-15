@@ -593,17 +593,17 @@ fn build_window(
                                     eprintln!("Theme reloaded manually");
                                 }
                                 command::Command::CompatAdd(domain) => {
-                                    compat_mgr_clone.borrow_mut().add(&domain);
-                                    let _ = compat_mgr_clone.borrow().save();
+                                    compat_mgr_cmd.borrow_mut().add(&domain);
+                                    let _ = compat_mgr_cmd.borrow().save();
                                     eprintln!("[compat] Added: {}", domain);
                                 }
                                 command::Command::CompatDel(domain) => {
-                                    compat_mgr_clone.borrow_mut().remove(&domain);
-                                    let _ = compat_mgr_clone.borrow().save();
+                                    compat_mgr_cmd.borrow_mut().remove(&domain);
+                                    let _ = compat_mgr_cmd.borrow().save();
                                     eprintln!("[compat] Removed: {}", domain);
                                 }
                                 command::Command::CompatList => {
-                                    let list = compat_mgr_clone.borrow();
+                                    let list = compat_mgr_cmd.borrow();
                                     eprintln!("[compat] Domains: {:?}", list.list());
                                 }
                                 command::Command::OpenExternal(url) => {
