@@ -1,7 +1,5 @@
-use glib::object::Cast;
-use glib::ObjectExt;
 use gtk4::prelude::*;
-use gtk4::{Widget, EventControllerKey, Cast as GtkCast};
+use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use webkit2gtk::WebView;
@@ -27,7 +25,7 @@ impl WebKitBrowserWrapper {
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
 
-        let widget = web_view.clone().upcast();
+        let widget: Widget = web_view.clone().into();
 
         let wrapper = Self {
             widget,
