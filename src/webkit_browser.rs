@@ -4,7 +4,7 @@ use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use webkit6::WebView;
-use webkit6::WebViewExt;
+use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
 pub struct WebKitBrowserWrapper {
@@ -26,7 +26,7 @@ impl WebKitBrowserWrapper {
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
 
-        let widget = web_view.upcast::<Widget>();
+        let widget = web_view.clone().upcast::<Widget>();
 
         let wrapper = Self {
             widget,

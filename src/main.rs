@@ -41,7 +41,7 @@ fn main() {
 
     app.connect_command_line(|app, _cmdline| {
         app.activate();
-        0
+        glib::ExitCode::SUCCESS
     });
 
     app.connect_activate(move |app| {
