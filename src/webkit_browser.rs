@@ -3,8 +3,8 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit2gtk::WebView;
-use webkit2gtk::WebViewExt;
+use webkit6::WebView;
+use webkit6::WebViewExt;
 
 #[derive(Clone)]
 pub struct WebKitBrowserWrapper {
