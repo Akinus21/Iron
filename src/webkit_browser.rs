@@ -26,7 +26,7 @@ impl WebKitBrowserWrapper {
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
 
-        let widget = web_view.dynamic_cast::<Widget>().expect("WebView should be a Widget");
+        let widget: Widget = unsafe { web_view.clone().cast_unchecked::<Widget>() };
 
         let wrapper = Self {
             widget,
