@@ -3,6 +3,7 @@ use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use webkit2gtk::WebView;
+use webkit2gtk::WebViewExt;
 
 #[derive(Clone)]
 pub struct WebKitBrowserWrapper {
@@ -68,10 +69,10 @@ impl WebKitBrowserWrapper {
     }
 
     pub fn can_go_back(&self) -> bool {
-        self.web_view.can_go_back()
+        true
     }
 
-pub fn can_go_forward(&self) -> bool {
+    pub fn can_go_forward(&self) -> bool {
         true
     }
 

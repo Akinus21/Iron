@@ -458,7 +458,7 @@ fn build_window(
 
                     entry.connect_activate(move |e| {
                         let text = e.text().to_string();
-                        let compat = compat_mgr_clone.clone();
+                        let compat = compat_mgr_cmd.clone();
                         let input = CommandInput::new(&text);
                         if let Some(cmd) = input.parse() {
                             match cmd {
