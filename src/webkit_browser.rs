@@ -1,4 +1,4 @@
-use glib::Cast;
+use glib::object::Cast;
 use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
