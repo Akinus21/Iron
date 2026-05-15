@@ -1,3 +1,4 @@
+use glib::object::Cast;
 use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
@@ -25,7 +26,7 @@ impl WebKitBrowserWrapper {
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
 
-        let widget = web_view.widget().clone();
+        let widget = web_view.upcast::<Widget>();
 
         let wrapper = Self {
             widget,
