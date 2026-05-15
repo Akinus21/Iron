@@ -1,8 +1,9 @@
+use glib::Cast;
+use glib::ObjectExt;
 use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use glib::object::Cast;
 use webkit2gtk::WebView;
 use webkit2gtk::WebViewExt;
 
@@ -27,7 +28,7 @@ impl WebKitBrowserWrapper {
         let title_str = format!("Iron - {}", url_str);
 
         let wrapper = Self {
-            widget: web_view.clone().dynamic_cast::<Widget>(),
+            widget: web_view.clone().upcast(),
             web_view,
             url: Rc::new(RefCell::new(url_str.clone())),
             title: Rc::new(RefCell::new(title_str)),
