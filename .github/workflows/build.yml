@@ -37,7 +37,8 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libadwaita-1-dev \
-            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
             cmake \
             ninja-build \
             libglib2.0-dev \
