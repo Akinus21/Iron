@@ -192,7 +192,7 @@ impl Default for Config {
                 bindings: vec![
                     KeyBinding {
                         key: "f".to_string(),
-                        modifier: vec![],
+                        modifier: vec!["ctrl".to_string()],
                         action: "hint".to_string(),
                     },
                     KeyBinding {

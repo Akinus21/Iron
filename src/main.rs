@@ -181,14 +181,21 @@ fn build_window(
 
     let css_provider = CssProvider::new();
     css_provider.load_from_data(
-        ".command-overlay { padding: 24px; font-size: 13px; }\n\
-         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
+        ".command-overlay { padding: 24px; font-size: 13px; background-color: var(--surface); color: var(--on_surface); }\n\
+         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; color: var(--on_surface_variant); }\n\
          .command-row { padding: 4px 8px; }\n\
          .command-row-small { font-size: 12px; }\n\
-         .command-help { opacity: 0.5; font-size: 12px; }\n\
+         .command-help { opacity: 0.5; font-size: 12px; color: var(--on_surface_variant); }\n\
+         .command-col { background-color: var(--surface_variant); border-radius: 12px; padding: 8px; }\n\
+         .command-col listview, .command-col listbox { background-color: transparent; color: var(--on_surface); }\n\
+         .command-col listbox row { background-color: transparent; padding: 4px 8px; border-radius: 6px; }\n\
+         .command-col listbox row:hover { background-color: var(--surface); }\n\
+         .command-selected { background-color: var(--primary); color: var(--on_primary); border-radius: 6px; }\n\
          .command-overlay, .command-row, .command-selected, .command-col-title {\n\
            transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
-         }",
+         }\n\
+         .command-overlay entry { background-color: var(--surface); color: var(--on_surface); border: 1px solid var(--surface_variant); border-radius: 6px; padding: 8px; }\n\
+         .command-overlay entry:focus { border-color: var(--primary); }",
     );
     gtk4::style_context_add_provider_for_display(
         &gtk4::prelude::RootExt::display(&window),
