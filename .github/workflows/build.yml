@@ -51,12 +51,15 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-v4-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          key: cargo-v5-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
           restore-keys: |
-            cargo-v4-${{ runner.os }}-
+            cargo-v5-${{ runner.os }}-
 
       - name: Build (release)
-        run: cargo build --release --no-default-features 2>&1 | tee build.log
+        run: |
+          # Force rebuild by removing any cached iron binary
+          rm -f target/release/iron
+          cargo build --release --no-default-features 2>&1 | tee build.log
 
       - name: Set rpath and verify binary
         run: |
