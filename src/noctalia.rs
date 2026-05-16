@@ -174,10 +174,10 @@ impl ThemeManager {
              .command-col label {{\n\
              color: {on_surface};\n\
              }}\n\
-             .command-col listbox {{\n\
-             background-color: {surface_variant};\n\
-             color: {on_surface};\n\
-             }}\n\
+              .command-col listbox {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              }}\n\
              .command-col listbox row {{\n\
              background-color: transparent;\n\
              }}\n\

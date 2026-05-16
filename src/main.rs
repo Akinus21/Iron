@@ -181,22 +181,21 @@ fn build_window(
 
     let css_provider = CssProvider::new();
     css_provider.load_from_data(
-        ".command-overlay { padding: 24px; font-size: 13px; color: var(--window-fg-color); }\n\
-         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; color: var(--headerbar-fg-color); }\n\
-         .command-row { padding: 4px 8px; color: var(--window-fg-color); }\n\
-         .command-row-small { font-size: 12px; color: var(--window-fg-color); }\n\
-         .command-help { opacity: 0.5; font-size: 12px; color: var(--headerbar-fg-color); }\n\
-         .command-col { background-color: var(--card-bg-color); border-radius: 12px; padding: 8px; }\n\
-         .command-col listview, .command-col listbox { background-color: transparent; color: var(--window-fg-color); }\n\
-         .command-col listbox row { background-color: transparent; padding: 4px 8px; border-radius: 6px; color: var(--window-fg-color); }\n\
-         .command-col listbox row:hover { background-color: var(--view-bg-color); }\n\
-         .command-selected { background-color: var(--accent-bg-color); color: var(--accent-fg-color); border-radius: 6px; }\n\
+        ".command-overlay { padding: 24px; font-size: 13px; }\n\
+         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
+         .command-row { padding: 4px 8px; }\n\
+         .command-row-small { font-size: 12px; }\n\
+         .command-help { opacity: 0.5; font-size: 12px; }\n\
+         .command-col { border-radius: 12px; padding: 8px; }\n\
+         .command-col listview, .command-col listbox { background-color: transparent; }\n\
+         .command-col listbox row { background-color: transparent; padding: 4px 8px; border-radius: 6px; }\n\
+         .command-selected { border-radius: 6px; }\n\
          .command-overlay, .command-row, .command-selected, .command-col-title {\n\
            transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
          }\n\
-         .command-overlay entry { background-color: var(--view-bg-color); color: var(--view-fg-color); border: 1px solid var(--headerbar-fg-color); border-radius: 6px; padding: 8px; }\n\
-         .command-overlay entry:focus { border-color: var(--accent-color); }\n\
-         .command-overlay entry selection { background-color: var(--accent-bg-color); }",
+         .command-overlay entry { border-radius: 6px; padding: 8px; }\n\
+         .command-overlay entry:focus { }\n\
+         .command-overlay entry selection { }",
     );
     gtk4::style_context_add_provider_for_display(
         &gtk4::prelude::RootExt::display(&window),
