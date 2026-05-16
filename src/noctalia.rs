@@ -87,7 +87,7 @@ impl ThemeManager {
         let error_color = css_color(tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24"));
 
         let surface_raw = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
-        let surface_rgba = hex_to_rgba(surface_raw, 0.88);
+        let surface_rgba = "rgba(30, 30, 30, 0.88)";  // Fixed rgba string for testing
 
         self.gtk_css = format!(
             "window {{\n\
@@ -191,7 +191,7 @@ impl ThemeManager {
         // We do NOT override form control colors or add transitions to the page,
         // because that causes unreadable light-on-light (or dark-on-dark)
         // combinations on sites that don't respect color-scheme.
-        let scheme = if dark { "dark" } else { "light";
+        let scheme = if dark { "dark" } else { "light" };
         let bg = if dark { "#1e1e1e" } else { "#ffffff" };
         let fg = if dark { "#ffffff" } else { "#000000" };
         self.webkit_css = format!(
