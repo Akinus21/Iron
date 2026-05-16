@@ -171,12 +171,10 @@ impl ThemeManager {
               padding: 8px;\n\
               background-color: {surface_rgba};\n\
              }}\n\
-              .command-col label {{\n\
-              color: {on_surface};\n\
-              background-color: {surface_rgba};\n\
-              padding: 4px 8px;\n\
-              border-radius: 6px;\n\
-              }}\n\
+          .command-col label {{\n\
+          color: {on_surface};\n\
+          background-color: transparent;\n\
+          }}\n\
               .command-col listbox {{\n\
               background-color: {surface_rgba};\n\
               color: {on_surface};\n\
