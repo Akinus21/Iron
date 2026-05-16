@@ -36,6 +36,7 @@ impl WebKitBrowserWrapper {
             is_loading: Rc::new(RefCell::new(true)),
         };
 
+        eprintln!("[WebKit] Starting load of: {}", url_str);
         wrapper.load_uri(&url_str);
         wrapper.widget.grab_focus();
 
