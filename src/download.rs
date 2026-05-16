@@ -31,7 +31,7 @@ impl DownloadManager {
     }
 
     fn handle_download(dl: &Download, mgr: Rc<RefCell<DownloadManager>>) {
-        eprintln!("[Download] handle_download called for {}", dl.request().map(|r| r.uri()).unwrap_or_default());
+        eprintln!("[Download] handle_download called for {}", dl.request().and_then(|r| r.uri()).map(|u| u.to_string()).unwrap_or_default());
         dl.set_allow_overwrite(true);
 
         let mgr_decide = mgr.clone();
