@@ -21,7 +21,7 @@ impl WebKitBrowserWrapper {
         url: &str,
         _is_offscreen: bool,
     ) -> Result<Self, String> {
-        let context = WebContext::new();
+        let context = WebContext::default();
         let web_view = WebView::new_with_context(&context);
 
         let url_str = url.to_string();

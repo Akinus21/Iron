@@ -191,10 +191,13 @@ impl ThemeManager {
         // We do NOT override form control colors or add transitions to the page,
         // because that causes unreadable light-on-light (or dark-on-dark)
         // combinations on sites that don't respect color-scheme.
-        let scheme = if dark { "dark" } else { "light" };
+        let scheme = if dark { "dark" } else { "light";
+        let bg = if dark { "#1e1e1e" } else { "#ffffff" };
+        let fg = if dark { "#ffffff" } else { "#000000" };
         self.webkit_css = format!(
-            ":root {{ color-scheme: {}; }}\n",
-            scheme,
+            ":root {{ color-scheme: {}; background-color: {}; color: {}; }}\n\
+             body {{ background-color: {} !important; color: {} !important; }}\n",
+            scheme, bg, fg, bg, fg,
         );
     }
 
