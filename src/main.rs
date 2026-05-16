@@ -166,7 +166,14 @@ fn build_window(
         ).expect("Fallback browser creation failed")
     });
     
-    DownloadManager::attach(&network_session, download_mgr.clone());
+    // Attach download handler to the WebView's actual NetworkSession so
+    // it receives download-started signals from the same session the
+    // WebView is using.
+    let wv_network_session = browser.network_session().unwrap_or_else(|| {
+        eprintln!("[Download] WebView has no network session, falling back to session_mgr");
+        session_mgr.borrow().network_session_clone()
+    });
+    DownloadManager::attach(&wv_network_session, download_mgr.clone());
 
     // Apply Noctalia theme color-scheme (light or dark) to web pages.
     tm.borrow().apply_webkit_css(&browser);
