@@ -158,12 +158,12 @@ impl ThemeManager {
              background-color: {surface_variant};\n\
              }}\n\
              .command-overlay {{\n\
-             background-color: {surface_rgba} !important;\n\
-             color: {on_surface} !important;\n\
+             background-color: {surface_rgba};\n\
+             color: {on_surface};\n\
              }}\n\
              .command-overlay.background {{\n\
-             background-color: {surface_rgba} !important;\n\
-             color: {on_surface} !important;\n\
+             background-color: {surface_rgba};\n\
+             color: {on_surface};\n\
              }}\n\
               .command-col {{\n\
               border: 2px solid {primary};\n\
