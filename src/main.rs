@@ -173,7 +173,7 @@ fn build_window(
         eprintln!("[Download] WebView has no network session, falling back to session_mgr");
         session_mgr.borrow().network_session_clone()
     });
-    DownloadManager::attach(&wv_network_session, download_mgr.clone());
+    DownloadManager::attach(&wv_network_session, download_mgr.clone(), &browser);
 
     // Apply Noctalia theme color-scheme (light or dark) to web pages.
     tm.borrow().apply_webkit_css(&browser);

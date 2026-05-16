@@ -22,9 +22,15 @@ impl DownloadManager {
     }
 
     /// Attach to the `NetworkSession` to receive download-started signals.
-    pub fn attach(session: &NetworkSession, mgr: Rc<RefCell<DownloadManager>>) {
+    pub fn attach(
+        session: &NetworkSession,
+        mgr: Rc<RefCell<DownloadManager>>,
+        browser: &crate::webkit_browser::WebKitBrowserWrapper,
+    ) {
         let mgr_clone = mgr.clone();
+        let browser_clone = browser.clone();
         session.connect_download_started(move |_session, dl| {
+            browser_clone.go_back();
             DownloadManager::handle_download(dl, mgr_clone.clone());
         });
         eprintln!("Download handler attached");
