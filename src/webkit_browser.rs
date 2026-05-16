@@ -85,7 +85,7 @@ impl WebKitBrowserWrapper {
     }
 
     pub fn execute_js(&self, script: &str) {
-        let _ = self.web_view.evaluate_javascript(script, None, None, None, |_| {});
+        let _ = self.web_view.evaluate_javascript(script, None, None, None::<&gio::Cancellable>, |_| {});
     }
 
     pub fn find(&self, _text: &str, _forward: bool, _case_sensitive: bool) {

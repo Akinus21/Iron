@@ -44,16 +44,15 @@ jobs:
             patchelf \
             jq
 
-      - name: Cache Cargo registry and build artifacts
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: cargo-v5-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-v5-${{ runner.os }}-
+            cargo-registry-${{ runner.os }}-
 
       - name: Build (release)
         run: |
