@@ -171,9 +171,12 @@ impl ThemeManager {
               padding: 8px;\n\
               background-color: {surface_rgba};\n\
              }}\n\
-             .command-col label {{\n\
-             color: {on_surface};\n\
-             }}\n\
+              .command-col label {{\n\
+              color: {on_surface};\n\
+              background-color: {surface_rgba};\n\
+              padding: 4px 8px;\n\
+              border-radius: 6px;\n\
+              }}\n\
               .command-col listbox {{\n\
               background-color: {surface_rgba};\n\
               color: {on_surface};\n\
@@ -191,13 +194,17 @@ impl ThemeManager {
              background-color: {primary};\n\
              color: {on_primary};\n\
              }}\n\
-             .command-overlay entry {{\n\
-             background-color: {surface_rgba};\n\
-             color: {on_surface};\n\
-             border: 1px solid {primary};\n\
-             border-radius: 6px;\n\
-             padding: 8px;\n\
-             }}\n\
+              .command-overlay entry {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              border: 1px solid {primary};\n\
+              border-radius: 6px;\n\
+              padding: 8px;\n\
+              }}\n\
+              .command-overlay entry > text {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              }}\n\
              .command-overlay entry:focus {{\n\
              border-color: {primary};\n\
              }}\n\
