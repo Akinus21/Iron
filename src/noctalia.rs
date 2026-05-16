@@ -294,7 +294,7 @@ impl ThemeManager {
                 .unwrap_or(false)
         };
         monitor.connect_changed(move |_monitor, child, other, event_type| {
-            let child_match = is_colors_json(child);
+            let child_match = is_colors_json(Some(child));
             let other_match = other.map(|o| is_colors_json(Some(o))).unwrap_or(false);
             if child_match || other_match {
                 eprintln!("Noctalia: colors.json changed (event={:?})!", event_type);
@@ -341,5 +341,6 @@ pub fn is_dark_preferred() -> bool {
             // libadwaita handles this internally and warns if we touch it.
             style_manager.is_dark()
         }
+        _ => false,
     }
 }
