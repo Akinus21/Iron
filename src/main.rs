@@ -453,6 +453,7 @@ fn build_window(
                     });
 
                     entry.connect_activate(move |e| {
+                        let cmd_overlay_inner = cmd_overlay_clone.clone();
                         let text = e.text().to_string();
                         let compat = compat_mgr_cmd.clone();
                         let input = CommandInput::new(&text);
@@ -482,7 +483,7 @@ fn build_window(
                                 }
                                 command::Command::Settings => {
                                     // Close the command overlay so the settings overlay owns focus.
-                                    if let Some(bar) = cmd_overlay_clone.borrow_mut().take() {
+                                    if let Some(bar) = cmd_overlay_inner.borrow_mut().take() {
                                         bar.unparent();
                                     }
                                     let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
