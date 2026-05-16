@@ -51,9 +51,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-v3-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-v4-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-v3-${{ runner.os }}-
+            cargo-v4-${{ runner.os }}-
 
       - name: Build (release)
         run: cargo build --release --no-default-features 2>&1 | tee build.log
