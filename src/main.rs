@@ -304,6 +304,7 @@ fn build_window(
                     entry.set_margin_top(16);
                     entry.set_margin_start(80);
                     entry.set_margin_end(80);
+                    entry.add_css_class("command-entry");
                     full_overlay.append(&entry);
 
                     let columns = GtkBox::new(Orientation::Horizontal, 12);
