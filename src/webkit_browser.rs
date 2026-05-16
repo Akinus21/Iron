@@ -3,7 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::{WebContext, WebView};
+use webkit6::WebView;
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -21,8 +21,7 @@ impl WebKitBrowserWrapper {
         url: &str,
         _is_offscreen: bool,
     ) -> Result<Self, String> {
-        let context = WebContext::default();
-        let web_view = WebView::new_with_context(&context);
+        let web_view = WebView::new();
 
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);

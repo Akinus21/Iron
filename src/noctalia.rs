@@ -36,7 +36,7 @@ fn css_color(hex: &str) -> String {
     if t.len() == 8 {
         hex_to_rgba(hex, 1.0)
     } else {
-        format!("#{}", t)
+        hex.trim().to_string()
     }
 }
 
@@ -87,7 +87,7 @@ impl ThemeManager {
         let error_color = css_color(tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24"));
 
         let surface_raw = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
-        let surface_rgba = "rgba(30, 30, 30, 0.88)";  // Fixed rgba string for testing
+        let surface_rgba = hex_to_rgba(surface_raw, 0.88);
 
         self.gtk_css = format!(
             "window {{\n\
@@ -149,14 +149,14 @@ impl ThemeManager {
              row:hover, listboxrow:hover {{\n\
              background-color: {surface_variant};\n\
              }}\n\
-              .command-overlay {{\n\
-              background-color: {surface_rgba};\n\
-              color: {on_surface};\n\
-              }}\n\
-              .command-overlay.background {{\n\
-              background-color: {surface_rgba};\n\
-              color: {on_surface};\n\
-              }}\n\
+             .command-overlay {{\n\
+             background-color: {surface_rgba} !important;\n\
+             color: {on_surface} !important;\n\
+             }}\n\
+             .command-overlay.background {{\n\
+             background-color: {surface_rgba} !important;\n\
+             color: {on_surface} !important;\n\
+             }}\n\
              .command-col {{\n\
              border: 2px solid {primary};\n\
              border-radius: 12px;\n\
@@ -192,12 +192,9 @@ impl ThemeManager {
         // because that causes unreadable light-on-light (or dark-on-dark)
         // combinations on sites that don't respect color-scheme.
         let scheme = if dark { "dark" } else { "light" };
-        let bg = if dark { "#1e1e1e" } else { "#ffffff" };
-        let fg = if dark { "#ffffff" } else { "#000000" };
         self.webkit_css = format!(
-            ":root {{ color-scheme: {}; background-color: {}; color: {}; }}\n\
-             body {{ background-color: {} !important; color: {} !important; }}\n",
-            scheme, bg, fg, bg, fg,
+            ":root {{ color-scheme: {}; }}\n",
+            scheme,
         );
     }
 
