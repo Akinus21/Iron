@@ -86,8 +86,6 @@ impl ThemeManager {
         let on_surface_variant = css_color(tokens.get("mOnSurfaceVariant").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#c0c0c0"));
         let error_color = css_color(tokens.get("mError").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#e01b24"));
 
-        eprintln!("DEBUG css_color: primary={} on_primary={} surface={} on_surface={}", primary, on_primary, surface, on_surface);
-
         let surface_raw = tokens.get("mSurface").and_then(|v| v.as_str()).map(|s| s.trim()).unwrap_or("#1e1e1e");
         let surface_rgba = hex_to_rgba(surface_raw, 0.88);
 
@@ -151,14 +149,14 @@ impl ThemeManager {
              row:hover, listboxrow:hover {{\n\
              background-color: {surface_variant};\n\
              }}\n\
-             .command-overlay {{\n\
-             background-color: {surface_rgba} !important;\n\
-             color: {on_surface} !important;\n\
-             }}\n\
-             .command-overlay.background {{\n\
-             background-color: {surface_rgba} !important;\n\
-             color: {on_surface} !important;\n\
-             }}\n\
+              .command-overlay {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              }}\n\
+              .command-overlay.background {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              }}\n\
              .command-col {{\n\
              border: 2px solid {primary};\n\
              border-radius: 12px;\n\
