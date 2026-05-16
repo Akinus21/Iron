@@ -165,13 +165,17 @@ impl ThemeManager {
               padding: 24px;\n\
               font-size: 13px;\n\
               }}\n\
-.command-col {{\n\
-                border: 2px solid {primary};\n\
-                border-radius: 12px;\n\
-                padding: 8px;\n\
-                background-color: {surface_rgba};\n\
-                color: {on_surface};\n\
-               }}\n\
+              .command-overlay.background {{\n\
+              background-color: {surface_rgba};\n\
+              color: {on_surface};\n\
+              }}\n\
+               .command-col {{\n\
+               border: 2px solid {primary};\n\
+               border-radius: 12px;\n\
+               padding: 8px;\n\
+               background-color: {surface_rgba};\n\
+               color: {on_surface};\n\
+              }}\n\
                .command-col-title {{\n\
                font-size: 14px;\n\
                font-weight: 600;\n\
@@ -204,12 +208,12 @@ impl ThemeManager {
                background-color: transparent;\n\
                color: {on_surface};\n\
               }}\n\
-               .command-col listbox row {{\n\
-               background-color: transparent;\n\
-               border-radius: 6px;\n\
-               padding: 4px 8px;\n\
-               color: {on_surface};\n\
-               }}\n\
+              .command-col listbox row {{\n\
+              background-color: transparent;\n\
+              border-radius: 6px;\n\
+              padding: 4px 8px;\n\
+              color: {on_surface};\n\
+              }}\n\
               .command-col listbox row * {{\n\
               background-color: transparent;\n\
               }}\n\
@@ -244,7 +248,7 @@ impl ThemeManager {
               .command-selected,\n\
               .command-col-title {{\n\
               transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
-              }}\n\
+              }}\n",
             primary = primary,
             on_primary = on_primary,
             surface = surface,
