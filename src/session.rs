@@ -41,6 +41,7 @@ impl SessionManager {
             data_dir_str.as_deref(),
             cache_dir_str.as_deref(),
         );
+        network_session.set_persistent_credential_storage_enabled(false);
 
         SessionManager {
             data_dir,
