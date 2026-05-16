@@ -452,8 +452,8 @@ fn build_window(
                         }
                     });
 
+                    let cmd_overlay_inner = cmd_overlay_clone.clone();
                     entry.connect_activate(move |e| {
-                        let cmd_overlay_inner = cmd_overlay_clone.clone();
                         let text = e.text().to_string();
                         let compat = compat_mgr_cmd.clone();
                         let input = CommandInput::new(&text);
