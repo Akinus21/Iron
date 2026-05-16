@@ -165,11 +165,11 @@ impl ThemeManager {
              background-color: {surface_rgba} !important;\n\
              color: {on_surface} !important;\n\
              }}\n\
-             .command-col {{\n\
-             border: 2px solid {primary};\n\
-             border-radius: 12px;\n\
-             padding: 8px;\n\
-             background-color: {surface_variant};\n\
+              .command-col {{\n\
+              border: 2px solid {primary};\n\
+              border-radius: 12px;\n\
+              padding: 8px;\n\
+              background-color: {surface_rgba};\n\
              }}\n\
              .command-col label {{\n\
              color: {on_surface};\n\
