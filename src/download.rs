@@ -2,8 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gio::{Notification, prelude::*};
-
-use crate::webkit_browser::WebKitBrowserWrapper;
+use webkit6::{Download, NetworkSession};
 
 pub struct DownloadItem {
     pub filename: String,
@@ -22,8 +21,71 @@ impl DownloadManager {
         DownloadManager { items: Vec::new() }
     }
 
-    pub fn attach(_browser: &WebKitBrowserWrapper, _mgr: Rc<RefCell<DownloadManager>>) {
-        eprintln!("Download handler attached (placeholder)");
+    /// Attach to the `NetworkSession` to receive download-started signals.
+    pub fn attach(session: &NetworkSession, mgr: Rc<RefCell<DownloadManager>>) {
+        let mgr_clone = mgr.clone();
+        session.connect_download_started(move |_session, dl| {
+            DownloadManager::handle_download(dl, mgr_clone.clone());
+        });
+        eprintln!("Download handler attached");
+    }
+
+    fn handle_download(dl: &Download, mgr: Rc<RefCell<DownloadManager>>) {
+        eprintln!("[Download] handle_download called for {}", dl.request().map(|r| r.uri()).unwrap_or_default());
+        dl.set_allow_overwrite(true);
+
+        let mgr_decide = mgr.clone();
+        dl.connect_decide_destination(move |dl, suggested| {
+            eprintln!("[Download] decide_destination: suggested={}", suggested);
+            let filename = sanitize_filename(suggested);
+            let downloads = dirs::download_dir()
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+            let dest = downloads.join(&filename);
+            let dest = uniquify(&dest);
+            let dest_str = dest.to_string_lossy().to_string();
+            dl.set_destination(&dest_str);
+            eprintln!("[Download] destination set to: {}", dest_str);
+            
+            let item = DownloadItem {
+                filename: filename.clone(),
+                path: dest_str,
+                done: false,
+                failed: false,
+                progress: 0.0,
+            };
+            mgr_decide.borrow_mut().items.push(item);
+            true
+        });
+
+        let mgr_progress = mgr.clone();
+        dl.connect_estimated_progress_notify(move |dl| {
+            let progress = dl.estimated_progress();
+            eprintln!("[Download] progress: {:.2}%", progress * 100.0);
+            if let Some(item) = mgr_progress.borrow_mut().items.last_mut() {
+                item.progress = progress;
+            }
+        });
+
+        let mgr_finished = mgr.clone();
+        dl.connect_finished(move |dl| {
+            eprintln!("[Download] finished");
+            if let Some(item) = mgr_finished.borrow_mut().items.last_mut() {
+                item.done = true;
+                item.progress = 1.0;
+                let path = item.path.clone();
+                let filename = item.filename.clone();
+                notify_download_complete(&filename, &path);
+            }
+            let _ = dl;
+        });
+
+        let mgr_failed = mgr.clone();
+        dl.connect_failed(move |_dl, error| {
+            eprintln!("[Download] failed: {}", error);
+            if let Some(item) = mgr_failed.borrow_mut().items.last_mut() {
+                item.failed = true;
+            }
+        });
     }
 
     pub fn recent(&self, limit: usize) -> Vec<&DownloadItem> {

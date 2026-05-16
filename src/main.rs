@@ -146,18 +146,27 @@ fn build_window(
     let overlay = Overlay::new();
 
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
+    let network_session = session_mgr.borrow().network_session_clone();
+    
+    // Create download_mgr BEFORE browser so we can attach it to the session.
+    let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
+    
     let browser = webkit_browser::WebKitBrowserWrapper::new(
         None,
         &url,
         true,
+        Some(&network_session),
     ).unwrap_or_else(|e| {
-        eprintln!("Failed to create Servo browser: {}", e);
+        eprintln!("Failed to create WebKit browser: {}", e);
         webkit_browser::WebKitBrowserWrapper::new(
             None,
             "about:blank",
             false,
+            Some(&network_session),
         ).expect("Fallback browser creation failed")
     });
+    
+    DownloadManager::attach(&network_session, download_mgr.clone());
 
     // Apply Noctalia theme color-scheme (light or dark) to web pages.
     tm.borrow().apply_webkit_css(&browser);
@@ -166,7 +175,6 @@ fn build_window(
 
     overlay.set_child(Some(&browser.widget));
 
-    let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
     let compat_mgr: Rc<RefCell<compat::CompatList>> = Rc::new(RefCell::new(compat::CompatList::load()));
     window.set_content(Some(&overlay));
 

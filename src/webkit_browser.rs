@@ -3,7 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel};
+use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession};
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -20,8 +20,14 @@ impl WebKitBrowserWrapper {
         _parent_window: Option<&gtk4::gdk::Surface>,
         url: &str,
         _is_offscreen: bool,
+        network_session: Option<&NetworkSession>,
     ) -> Result<Self, String> {
-        let web_view = WebView::new();
+        let web_view = match network_session {
+            Some(ns) => WebView::builder()
+                .network_session(ns)
+                .build(),
+            None => WebView::new(),
+        };
 
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
@@ -43,6 +49,11 @@ impl WebKitBrowserWrapper {
         wrapper.widget.grab_focus();
 
         Ok(wrapper)
+    }
+
+    /// Returns the `NetworkSession` associated with this WebView.
+    pub fn network_session(&self) -> Option<NetworkSession> {
+        self.web_view.network_session()
     }
 
     pub fn load_uri(&self, url: &str) {

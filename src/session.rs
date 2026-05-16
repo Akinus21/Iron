@@ -2,16 +2,17 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::webkit_browser::WebKitBrowserWrapper;
+use webkit6::{NetworkSession, WebsiteDataTypes};
 
-/// Manages the browser's persistent session state for CEF:
+/// Manages the browser's persistent session state for WebKit2GTK:
 /// - isolated data/cache directory under ~/.local/share/iron/
-/// - cookie persistence via CEF's native cookie manager
+/// - cookie persistence via WebKit's native cookie manager
 /// - site-data clearing (:clear-site-data / :csd)
-/// - incognito mode (separate CEF context, no cookies/history)
+/// - incognito mode (ephemeral NetworkSession, no cookies/history)
 pub struct SessionManager {
     data_dir: PathBuf,
     cache_dir: PathBuf,
+    network_session: NetworkSession,
     pub incognito: bool,
 }
 
@@ -30,58 +31,92 @@ impl SessionManager {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
             .join("iron");
 
+        let _ = std::fs::create_dir_all(&data_dir);
+        let _ = std::fs::create_dir_all(&cache_dir);
+
+        let data_dir_str = data_dir.to_str().map(|s| s.to_string());
+        let cache_dir_str = cache_dir.to_str().map(|s| s.to_string());
+
+        let network_session = NetworkSession::new(
+            data_dir_str.as_deref(),
+            cache_dir_str.as_deref(),
+        );
+
         SessionManager {
             data_dir,
             cache_dir,
+            network_session,
             incognito: false,
         }
     }
 
-    /// Switch to incognito mode. Must be called *before* CEF initialization.
+    /// Switch to incognito mode. Must be called *before* WebView creation.
     pub fn set_incognito(&mut self, enabled: bool) {
         self.incognito = enabled;
     }
 
-    /// Ensure session directories exist (called during CEF init)
+    /// Ensure session directories exist.
     pub fn ensure_directories(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.data_dir)?;
         std::fs::create_dir_all(&self.cache_dir)?;
         Ok(())
     }
 
+    /// Access the underlying `NetworkSession` (for WebView creation).
+    pub fn network_session(&self) -> &NetworkSession {
+        &self.network_session
+    }
+
+    /// Clone the underlying `NetworkSession` (cheap GObject ref-count clone).
+    pub fn network_session_clone(&self) -> NetworkSession {
+        self.network_session.clone()
+    }
+
     /// Clear all site data (cookies, local storage, disk cache, etc.)
     /// This is what `:clear-site-data` / `:csd` invokes.
-    pub fn clear_all_site_data(&self, _browser: &WebKitBrowserWrapper) {
-        // TODO: When CEF is fully integrated:
-        // - Get CefRequestContext from browser
-        // - Call CefRequestContext::close_all_connections()
-        // - Clear cache directory manually
-        
-        eprintln!("Clearing all site data...");
-        
-        // For now, clear cache directory manually
-        let cache_path = self.cache_dir.join("cef");
-        if cache_path.exists() {
-            if let Err(e) = std::fs::remove_dir_all(&cache_path) {
-                eprintln!("Failed to clear cache: {}", e);
-            } else {
-                eprintln!("All site data cleared successfully");
-            }
+    pub fn clear_all_site_data(&self, _browser: &crate::webkit_browser::WebKitBrowserWrapper) {
+        let manager = self.network_session.website_data_manager();
+        if let Some(ref manager) = manager {
+            let types = WebsiteDataTypes::ALL;
+            let timespan = glib::TimeSpan::from_seconds(0);
+            manager.clear(
+                types,
+                timespan,
+                None::<&gio::Cancellable>,
+                |result| {
+                    match result {
+                        Ok(()) => eprintln!("All site data cleared successfully"),
+                        Err(e) => eprintln!("Failed to clear site data: {}", e),
+                    }
+                },
+            );
+            eprintln!("Clearing all site data...");
         } else {
-            eprintln!("No site data to clear");
+            eprintln!("No website data manager available");
         }
     }
 
     /// Clear cookies only (useful for "log out everywhere" feel).
-    pub fn clear_cookies(&self, _browser: &WebKitBrowserWrapper) {
-        // TODO: When CEF is fully integrated:
-        // - Get CefCookieManager from CefRequestContext
-        // - Call CefCookieManager::delete_cookies()
-        
-        eprintln!("Clearing cookies...");
-        
-        // For now, just log the action
-        eprintln!("Cookies cleared (placeholder - full implementation pending CEF integration)");
+    pub fn clear_cookies(&self, _browser: &crate::webkit_browser::WebKitBrowserWrapper) {
+        let manager = self.network_session.website_data_manager();
+        if let Some(ref manager) = manager {
+            let types = WebsiteDataTypes::COOKIES;
+            let timespan = glib::TimeSpan::from_seconds(0);
+            manager.clear(
+                types,
+                timespan,
+                None::<&gio::Cancellable>,
+                |result| {
+                    match result {
+                        Ok(()) => eprintln!("Cookies cleared successfully"),
+                        Err(e) => eprintln!("Failed to clear cookies: {}", e),
+                    }
+                },
+            );
+            eprintln!("Clearing cookies...");
+        } else {
+            eprintln!("No website data manager available");
+        }
     }
 }
 
