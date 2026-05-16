@@ -188,7 +188,7 @@ fn build_window(
          .command-help { opacity: 0.5; font-size: 12px; }\n\
          .command-col { border-radius: 12px; padding: 8px; }\n\
          .command-col listview, .command-col listbox { background-color: transparent; }\n\
-         .command-col listbox row { background-color: transparent; padding: 4px 8px; border-radius: 6px; }\n\
+         .command-col listbox row { padding: 4px 8px; border-radius: 6px; }\n\
          .command-selected { border-radius: 6px; }\n\
          .command-overlay, .command-row, .command-selected, .command-col-title {\n\
            transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\

@@ -177,11 +177,31 @@ impl ThemeManager {
               .command-col listbox {{\n\
               background-color: {surface_rgba};\n\
               color: {on_surface};\n\
-              }}\n\
+             }}\n\
              .command-col listbox row {{\n\
-             background-color: transparent;\n\
+             background-color: {surface_rgba};\n\
+             border-radius: 6px;\n\
+             padding: 4px 8px;\n\
+             color: {on_surface};\n\
+             }}\n\
+             .command-col listbox row:hover {{\n\
+             background-color: {surface_variant};\n\
              }}\n\
              .command-selected {{\n\
+             background-color: {primary};\n\
+             color: {on_primary};\n\
+             }}\n\
+             .command-overlay entry {{\n\
+             background-color: {surface_rgba};\n\
+             color: {on_surface};\n\
+             border: 1px solid {primary};\n\
+             border-radius: 6px;\n\
+             padding: 8px;\n\
+             }}\n\
+             .command-overlay entry:focus {{\n\
+             border-color: {primary};\n\
+             }}\n\
+             .command-overlay entry selection {{\n\
              background-color: {primary};\n\
              color: {on_primary};\n\
              }}\n",
@@ -250,27 +270,32 @@ impl ThemeManager {
 
         eprintln!("Noctalia: watching dir={:?} for colors.json", noctalia_dir);
         if !noctalia_dir.exists() {
-            eprintln!("Noctalia: noctalia config dir does not exist");
+            eprintln!("Noctalia: dir {:?} does not exist, skip watch", noctalia_dir);
             return;
         }
 
-        let file = gio::File::for_path(&noctalia_dir);
-        let Ok(monitor) = file.monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) else {
-            eprintln!("Noctalia: failed to create directory monitor");
-            return;
+        let noctalia_file = gio::File::for_path(&noctalia_dir);
+        let monitor = match noctalia_file.monitor_directory(gio::FileMonitorFlags::NONE, None::<&gio::Cancellable>) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("Noctalia: failed to monitor {:?}: {}", noctalia_dir, e);
+                return;
+            }
         };
 
-        let _provider = provider.clone();
         let tm_clone = tm.clone();
         let wv_clone = webview.clone();
-        let is_colors_json = |f: &gio::File| -> bool {
-            f.path().as_ref()
+        let _provider = provider.clone();
+
+        let is_colors_json = |file: Option<&gio::File>| {
+            file
+                .and_then(|f| f.path())
                 .and_then(|p| p.file_name().map(|n| n == "colors.json"))
                 .unwrap_or(false)
         };
         monitor.connect_changed(move |_monitor, child, other, event_type| {
             let child_match = is_colors_json(child);
-            let other_match = other.map(|o| is_colors_json(o)).unwrap_or(false);
+            let other_match = other.map(|o| is_colors_json(Some(o))).unwrap_or(false);
             if child_match || other_match {
                 eprintln!("Noctalia: colors.json changed (event={:?})!", event_type);
                 tm.borrow_mut().load();
@@ -316,6 +341,5 @@ pub fn is_dark_preferred() -> bool {
             // libadwaita handles this internally and warns if we touch it.
             style_manager.is_dark()
         }
-        _ => false,
     }
 }
