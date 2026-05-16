@@ -186,7 +186,7 @@ fn build_window(
          .command-row { padding: 4px 8px; color: #ffffff; }\n\
          .command-row-small { font-size: 12px; color: #ffffff; }\n\
          .command-help { opacity: 0.5; font-size: 12px; color: #c0c0c0; }\n\
-         .command-col { background-color: rgba(42, 42, 42, 0.9); border-radius: 12px; padding: 8px; }\n\
+         .command-col { background-color: var(--card-bg-color); border-radius: 12px; padding: 8px; }\n\
          .command-col listview, .command-col listbox { background-color: transparent; color: #ffffff; }\n\
          .command-col listbox row { background-color: transparent; padding: 4px 8px; border-radius: 6px; color: #ffffff; }\n\
          .command-col listbox row:hover { background-color: rgba(30, 30, 30, 0.8); }\n\
