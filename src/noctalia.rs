@@ -8,25 +8,33 @@ use gtk4::prelude::{FileMonitorExt, FileExt};
 /// Convert a hex colour to a GTK-compatible rgba() or 6-char hex string.
 /// Handles 6-char ("#RRGGBB"), 8-char QML ("#AARRGGBB"), and 8-char CSS ("#RRGGBBAA") formats.
 /// QML stores colors as #AARRGGBB (alpha-first), so 8-char hex is always treated as QML format.
+/// Returns 8-digit CSS hex (#RRGGBBAA) for GTK CSS compatibility.
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
     let t = hex.trim().trim_start_matches('#');
-    if t.len() == 6 {
+    let (r, g, b) = if t.len() == 6 {
         if let (Ok(r), Ok(g), Ok(b)) = (u8::from_str_radix(&t[0..2], 16), u8::from_str_radix(&t[2..4], 16), u8::from_str_radix(&t[4..6], 16)) {
-            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, alpha);
+            (r, g, b)
+        } else {
+            return hex.to_string();
         }
     } else if t.len() == 8 {
         // QML color format: #AARRGGBB (alpha comes first)
-        if let (Ok(a), Ok(r), Ok(g), Ok(b)) = (
+        if let (Ok(_a), Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&t[0..2], 16),
             u8::from_str_radix(&t[2..4], 16),
             u8::from_str_radix(&t[4..6], 16),
             u8::from_str_radix(&t[6..8], 16),
         ) {
-            let final_alpha = (a as f64 / 255.0) * alpha;
-            return format!("rgba({}, {}, {}, {:0.2})", r, g, b, final_alpha);
+            (r, g, b)
+        } else {
+            return hex.to_string();
         }
-    }
-    hex.to_string()
+    } else {
+        return hex.to_string();
+    };
+    
+    let a = (alpha * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}{:02x}", r, g, b, a)
 }
 
 /// Sanitize a hex color from Noctalia for GTK CSS.
