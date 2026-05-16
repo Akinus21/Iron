@@ -27,6 +27,9 @@ impl WebKitBrowserWrapper {
         let title_str = format!("Iron - {}", url_str);
 
         let widget = web_view.clone().upcast::<Widget>();
+        widget.set_hexpand(true);
+        widget.set_vexpand(true);
+        widget.set_size_request(640, 480);
 
         let wrapper = Self {
             widget,
