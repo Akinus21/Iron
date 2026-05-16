@@ -175,6 +175,18 @@ impl ThemeManager {
           color: {on_surface};\n\
           background-color: transparent;\n\
           }}\n\
+           .command-row {{\n\
+           color: {on_surface};\n\
+           background-color: transparent;\n\
+           }}\n\
+           .command-row-small {{\n\
+           color: {on_surface};\n\
+           background-color: transparent;\n\
+           }}\n\
+           .command-help {{\n\
+           color: {on_surface_variant};\n\
+           background-color: transparent;\n\
+           }}\n\
               .command-col listbox {{\n\
               background-color: {surface_rgba};\n\
               color: {on_surface};\n\
