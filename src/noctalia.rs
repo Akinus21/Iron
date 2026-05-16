@@ -36,7 +36,7 @@ fn css_color(hex: &str) -> String {
     if t.len() == 8 {
         hex_to_rgba(hex, 1.0)
     } else {
-        hex.trim().to_string()
+        format!("#{}", t)
     }
 }
 
