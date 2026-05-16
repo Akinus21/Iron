@@ -3,7 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::WebView;
+use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel};
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -22,6 +22,12 @@ impl WebKitBrowserWrapper {
         _is_offscreen: bool,
     ) -> Result<Self, String> {
         let web_view = WebView::new();
+        // Ensure the WebView has a UserContentManager so we can inject
+        // persistent CSS stylesheets (e.g. color-scheme) later.
+        if web_view.user_content_manager().is_none() {
+            let ucm = UserContentManager::new();
+            web_view.set_user_content_manager(&ucm);
+        }
 
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);
@@ -81,6 +87,30 @@ impl WebKitBrowserWrapper {
 
     pub fn can_go_forward(&self) -> bool {
         true
+    }
+
+    /// Set the preferred color scheme for web pages (light or dark).
+    /// This is done by injecting a persistent UserStyleSheet that sets
+    /// `color-scheme` on `:root`, which makes `prefers-color-scheme` media queries
+    /// and `light-dark()` colors respond correctly.
+    pub fn set_color_scheme(&self, scheme: &str) {
+        let scheme = match scheme {
+            "dark" => "dark",
+            _ => "light",
+        };
+        let css = format!(":root {{ color-scheme: {}; }}", scheme);
+
+        if let Some(ucm) = self.web_view.user_content_manager() {
+            ucm.remove_all_style_sheets();
+            let stylesheet = UserStyleSheet::new(
+                &css,
+                UserContentInjectedFrames::AllFrames,
+                UserStyleLevel::User,
+                &[], // allow_list
+                &[], // block_list
+            );
+            ucm.add_style_sheet(&stylesheet);
+        }
     }
 
     pub fn execute_js(&self, script: &str) {

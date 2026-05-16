@@ -159,6 +159,9 @@ fn build_window(
         ).expect("Fallback browser creation failed")
     });
 
+    // Apply Noctalia theme color-scheme (light or dark) to web pages.
+    tm.borrow().apply_webkit_css(&browser);
+
     history_mgr.borrow_mut().add(&url, Some("Loading..."));
 
     overlay.set_child(Some(&browser.widget));
@@ -179,29 +182,8 @@ fn build_window(
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    let css_provider = CssProvider::new();
-    css_provider.load_from_data(
-        ".command-overlay { padding: 24px; font-size: 13px; }\n\
-         .command-col-title { font-size: 14px; font-weight: 600; opacity: 0.7; margin-bottom: 8px; }\n\
-         .command-row { padding: 4px 8px; }\n\
-         .command-row-small { font-size: 12px; }\n\
-         .command-help { opacity: 0.5; font-size: 12px; }\n\
-         .command-col { border-radius: 12px; padding: 8px; }\n\
-         .command-col listview, .command-col listbox { background-color: transparent; }\n\
-         .command-col listbox row { padding: 4px 8px; border-radius: 6px; }\n\
-         .command-selected { border-radius: 6px; }\n\
-         .command-overlay, .command-row, .command-selected, .command-col-title {\n\
-           transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
-         }\n\
-         .command-overlay entry { border-radius: 6px; padding: 8px; }\n\
-         .command-overlay entry:focus { }\n\
-         .command-overlay entry selection { }",
-    );
-    gtk4::style_context_add_provider_for_display(
-        &gtk4::prelude::RootExt::display(&window),
-        &css_provider,
-        STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
+    // All command overlay theming is now in Noctalia's ThemeManager CSS
+    // to avoid provider-priority conflicts at STYLE_PROVIDER_PRIORITY_APPLICATION.
 
     let hints_clone = hints.clone();
     let cmd_overlay_clone = cmd_overlay.clone();
@@ -317,6 +299,8 @@ fn build_window(
                     let left_col = GtkBox::new(Orientation::Vertical, 4);
                     left_col.add_css_class("command-col");
                     left_col.set_size_request(280, -1);
+                    left_col.set_vexpand(true);
+                    left_col.set_valign(Align::Fill);
                     let cmd_title_lbl = Label::new(Some("Commands"));
                     cmd_title_lbl.add_css_class("command-col-title");
                     cmd_title_lbl.set_halign(Align::Start);
@@ -330,6 +314,8 @@ fn build_window(
                     let center_col = GtkBox::new(Orientation::Vertical, 4);
                     center_col.add_css_class("command-col");
                     center_col.set_size_request(280, -1);
+                    center_col.set_vexpand(true);
+                    center_col.set_valign(Align::Fill);
                     let hist_title_lbl = Label::new(Some("History"));
                     hist_title_lbl.add_css_class("command-col-title");
                     hist_title_lbl.set_halign(Align::Start);
@@ -343,6 +329,8 @@ fn build_window(
                     let right_col = GtkBox::new(Orientation::Vertical, 4);
                     right_col.add_css_class("command-col");
                     right_col.set_size_request(280, -1);
+                    right_col.set_vexpand(true);
+                    right_col.set_valign(Align::Fill);
                     let kb_title_lbl = Label::new(Some("Keybindings"));
                     kb_title_lbl.add_css_class("command-col-title");
                     kb_title_lbl.set_halign(Align::Start);
@@ -493,8 +481,11 @@ fn build_window(
                                     }
                                 }
                                 command::Command::Settings => {
+                                    // Close the command overlay so the settings overlay owns focus.
+                                    if let Some(bar) = cmd_overlay_clone.borrow_mut().take() {
+                                        bar.unparent();
+                                    }
                                     let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
-                                    settings_box.grab_focus();
                                     let settings_key_ctl = EventControllerKey::new();
                                     let settings_box_esc = settings_box.clone();
                                     settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
@@ -505,6 +496,7 @@ fn build_window(
                                         glib::Propagation::Proceed
                                     });
                                     settings_box.add_controller(settings_key_ctl);
+                                    settings_box.grab_focus();
                                 }
                                 command::Command::NewWindowOpen(url) => {
                                     let _ = build_window(&app_for_cmd, cfg_cmd.clone(), session_mgr_cmd.clone(), history_mgr_cmd.clone(), Some(&url));

@@ -5,14 +5,17 @@ use std::rc::Rc;
 use gtk4::{self};
 use gtk4::prelude::{FileMonitorExt, FileExt};
 
-/// Convert a hex colour to a GTK-compatible rgba() or 6-char hex string.
-/// Handles 6-char ("#RRGGBB"), 8-char QML ("#AARRGGBB"), and 8-char CSS ("#RRGGBBAA") formats.
-/// QML stores colors as #AARRGGBB (alpha-first), so 8-char hex is always treated as QML format.
-/// Returns 8-digit CSS hex (#RRGGBBAA) for GTK CSS compatibility.
+/// Convert a hex colour to a GTK-compatible `rgba(R, G, B, A)` string.
+/// Handles 6-char ("#RRGGBB") and 8-char QML ("#AARRGGBB") formats.
+/// GTK CSS does not support 8-digit #RRGGBBAA, so we always emit rgba().
 fn hex_to_rgba(hex: &str, alpha: f64) -> String {
     let t = hex.trim().trim_start_matches('#');
     let (r, g, b) = if t.len() == 6 {
-        if let (Ok(r), Ok(g), Ok(b)) = (u8::from_str_radix(&t[0..2], 16), u8::from_str_radix(&t[2..4], 16), u8::from_str_radix(&t[4..6], 16)) {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&t[0..2], 16),
+            u8::from_str_radix(&t[2..4], 16),
+            u8::from_str_radix(&t[4..6], 16),
+        ) {
             (r, g, b)
         } else {
             return hex.to_string();
@@ -32,9 +35,8 @@ fn hex_to_rgba(hex: &str, alpha: f64) -> String {
     } else {
         return hex.to_string();
     };
-    
-    let a = (alpha * 255.0).round() as u8;
-    format!("#{:02x}{:02x}{:02x}{:02x}", r, g, b, a)
+
+    format!("rgba({}, {}, {}, {:.2})", r, g, b, alpha)
 }
 
 /// Sanitize a hex color from Noctalia for GTK CSS.
@@ -157,74 +159,92 @@ impl ThemeManager {
              row:hover, listboxrow:hover {{\n\
              background-color: {surface_variant};\n\
              }}\n\
-             .command-overlay {{\n\
-             background-color: {surface_rgba};\n\
-             color: {on_surface};\n\
-             }}\n\
-             .command-overlay.background {{\n\
-             background-color: {surface_rgba};\n\
-             color: {on_surface};\n\
-             }}\n\
-              .command-col {{\n\
-              border: 2px solid {primary};\n\
-              border-radius: 12px;\n\
-              padding: 8px;\n\
+              .command-overlay {{\n\
               background-color: {surface_rgba};\n\
-             }}\n\
-          .command-col label {{\n\
-          color: {on_surface};\n\
-          background-color: transparent;\n\
-          }}\n\
-           .command-row {{\n\
+              color: {on_surface};\n\
+              padding: 24px;\n\
+              font-size: 13px;\n\
+              }}\n\
+.command-col {{\n\
+                border: 2px solid {primary};\n\
+                border-radius: 12px;\n\
+                padding: 8px;\n\
+                background-color: {surface_rgba};\n\
+                color: {on_surface};\n\
+               }}\n\
+               .command-col-title {{\n\
+               font-size: 14px;\n\
+               font-weight: 600;\n\
+               opacity: 0.7;\n\
+               margin-bottom: 8px;\n\
+               color: {on_surface};\n\
+               background-color: transparent;\n\
+              }}\n\
+           .command-col label {{\n\
            color: {on_surface};\n\
            background-color: transparent;\n\
            }}\n\
-           .command-row-small {{\n\
-           color: {on_surface};\n\
-           background-color: transparent;\n\
-           }}\n\
-           .command-help {{\n\
-           color: {on_surface_variant};\n\
-           background-color: transparent;\n\
-           }}\n\
-              .command-col listbox {{\n\
-              background-color: {surface_rgba};\n\
-              color: {on_surface};\n\
-             }}\n\
-             .command-col listbox row {{\n\
-             background-color: {surface_rgba};\n\
-             border-radius: 6px;\n\
-             padding: 4px 8px;\n\
-             color: {on_surface};\n\
-             }}\n\
-             .command-col listbox row * {{\n\
-             background-color: transparent;\n\
-             }}\n\
-             .command-col listbox row:hover {{\n\
-             background-color: {surface_variant};\n\
-             }}\n\
-             .command-selected {{\n\
-             background-color: {primary};\n\
-             color: {on_primary};\n\
-             }}\n\
-              .command-overlay entry {{\n\
-              background-color: {surface_rgba};\n\
-              color: {on_surface};\n\
-              border: 1px solid {primary};\n\
+            .command-row {{\n\
+            color: {on_surface};\n\
+            background-color: transparent;\n\
+            padding: 4px 8px;\n\
+            }}\n\
+            .command-row-small {{\n\
+            color: {on_surface};\n\
+            background-color: transparent;\n\
+            font-size: 12px;\n\
+            }}\n\
+            .command-help {{\n\
+            color: {on_surface_variant};\n\
+            background-color: transparent;\n\
+            opacity: 0.5;\n\
+            font-size: 12px;\n\
+            }}\n\
+               .command-col listbox {{\n\
+               background-color: transparent;\n\
+               color: {on_surface};\n\
+              }}\n\
+               .command-col listbox row {{\n\
+               background-color: transparent;\n\
+               border-radius: 6px;\n\
+               padding: 4px 8px;\n\
+               color: {on_surface};\n\
+               }}\n\
+              .command-col listbox row * {{\n\
+              background-color: transparent;\n\
+              }}\n\
+              .command-col listbox row:hover {{\n\
+              background-color: {surface_variant};\n\
+              }}\n\
+              .command-selected {{\n\
+              background-color: {primary};\n\
+              color: {on_primary};\n\
               border-radius: 6px;\n\
-              padding: 8px;\n\
               }}\n\
-              .command-overlay entry > text {{\n\
-              background-color: {surface_rgba};\n\
-              color: {on_surface};\n\
+               .command-overlay entry {{\n\
+               background-color: {surface_rgba};\n\
+               color: {on_surface};\n\
+               border: 1px solid {primary};\n\
+               border-radius: 6px;\n\
+               padding: 8px;\n\
+               }}\n\
+               .command-overlay entry > text {{\n\
+               background-color: {surface_rgba};\n\
+               color: {on_surface};\n\
+               }}\n\
+              .command-overlay entry:focus {{\n\
+              border-color: {primary};\n\
               }}\n\
-             .command-overlay entry:focus {{\n\
-             border-color: {primary};\n\
-             }}\n\
-             .command-overlay entry selection {{\n\
-             background-color: {primary};\n\
-             color: {on_primary};\n\
-             }}\n",
+              .command-overlay entry selection {{\n\
+              background-color: {primary};\n\
+              color: {on_primary};\n\
+              }}\n\
+              .command-overlay,\n\
+              .command-row,\n\
+              .command-selected,\n\
+              .command-col-title {{\n\
+              transition: background-color 300ms ease-in-out, color 300ms ease-in-out;\n\
+              }}\n\
             primary = primary,
             on_primary = on_primary,
             surface = surface,
@@ -261,16 +281,7 @@ impl ThemeManager {
     }
 
     pub fn apply_webkit_css(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper) {
-        if self.webkit_css.is_empty() {
-            return;
-        }
-        let css = &self.webkit_css;
-        let escaped = css.replace('\\', "\\\\").replace('`', "\\`").replace('$', "\\$");
-        let js = format!(
-            "(function(){{ var s = document.createElement('style'); s.textContent = `{}`; document.head.appendChild(s); }})()",
-            escaped
-        );
-        webview.execute_js(&js);
+        webview.set_color_scheme(if is_dark_preferred() { "dark" } else { "light" });
     }
 
     pub fn start_watch(
