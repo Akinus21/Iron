@@ -22,12 +22,6 @@ impl WebKitBrowserWrapper {
         _is_offscreen: bool,
     ) -> Result<Self, String> {
         let web_view = WebView::new();
-        // Ensure the WebView has a UserContentManager so we can inject
-        // persistent CSS stylesheets (e.g. color-scheme) later.
-        if web_view.user_content_manager().is_none() {
-            let ucm = UserContentManager::new();
-            web_view.set_user_content_manager(&ucm);
-        }
 
         let url_str = url.to_string();
         let title_str = format!("Iron - {}", url_str);

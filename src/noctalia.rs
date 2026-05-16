@@ -260,10 +260,7 @@ impl ThemeManager {
         // because that causes unreadable light-on-light (or dark-on-dark)
         // combinations on sites that don't respect color-scheme.
         let scheme = if dark { "dark" } else { "light" };
-        self.webkit_css = format!(
-            ":root {{ color-scheme: {}; }}\n",
-            scheme,
-        );
+        self.webkit_css = format!(":root {{ color-scheme: {}; }}\n", scheme);
     }
 
     pub fn gtk_css(&self) -> &str {
