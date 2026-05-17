@@ -3,7 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession};
+use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings};
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -101,92 +101,69 @@ impl WebKitBrowserWrapper {
         true
     }
 
-    /// Set the preferred color scheme for web pages (light or dark).
-    ///
-    /// Injects a **User-level** UserStyleSheet that is higher priority than
-    /// author (site) styles.  The stylesheet:
-    ///
-    /// 1. Declares `color-scheme: dark|light` on `:root` so
-    ///    `prefers-color-scheme` media queries fire for well-behaved sites.
-    /// 2. Explicitly forces a global foreground/background colour via `*`
-    ///    so stubborn sites (Google, GitHub, etc.) cannot override it with
-    ///    class-specific selectors.
-    /// 3. Restores sensible link, heading, and form-control colours so the
-    ///    page is still readable and not a uniform grey blob.
-    /// 4. Preserves images, video and iframes from colour inversion.
     pub fn set_color_scheme(&self, scheme: &str) {
         let scheme_str = match scheme {
             "dark" => "dark",
             _ => "light",
         };
 
+        // 1. Native signal – set the preferred-color-scheme GObject property
+        //    on WebKitSettings so pages see prefers-color-scheme correctly.
+        //    We do this via GObject property access because webkit6 0.6 does
+        //    not expose a Rust wrapper for it yet.
+        if let Some(settings) = self.web_view.settings() {
+            // The property takes a WebKitColorScheme enum (0 = no-preference,
+            // 1 = light, 2 = dark).  We try the integer first; if the type
+            // mismatches we fall back silently.
+            let val = glib::Value::from(if scheme_str == "dark" { 2i32 } else { 1i32 });
+            let _ = std::panic::catch_unwind(|| {
+                settings.set_property("preferred-color-scheme", &val);
+            });
+        }
+
+        // 2. CSS signal – inject :root { color-scheme } at User level so
+        //    prefers-color-scheme media queries evaluate to the chosen
+        //    scheme even if the native property above is unavailable.
+        let signal_css = format!(":root {{ color-scheme: {}; }}\n", scheme_str);
+
+        // 3. Gentle CSS fallback – injected at *Author* level (same cascade
+        //    priority as the page’s own CSS).  This means responsive sites
+        //    with more-specific selectors naturally override our fallback.
+        //    Non-responsive sites that never set explicit body colours get
+        //    a dark background + light text from these base rules.
         let (bg, fg) = if scheme_str == "dark" {
             ("#1a1a1a", "#e6e6e6")
         } else {
             ("#ffffff", "#1a1a1a")
         };
-
-        // These colours are only used when the site has NO dark mode support
-        // and the global override fires.
-        let link = if scheme_str == "dark" { "#80bfff" } else { "#0000ee" };
-        let vlink = if scheme_str == "dark" { "#c58af9" } else { "#551a8b" };
-        let h_fg = if scheme_str == "dark" { "#ffffff" } else { "#000000" };
-        let ctl_bg = if scheme_str == "dark" { "#2a2a2a" } else { "#f0f0f0" };
-        let ctl_border = if scheme_str == "dark" { "#555555" } else { "#cccccc" };
-
-        let css = format!(
-            "/* === Iron forced colour scheme === */\n\
-            :root {{ color-scheme: {}; }}\n\
-            \n\
-            /* Tell prefers-color-scheme-aware pages which mode we want */\n\
-            @media (prefers-color-scheme: {}) {{\n\
-                :root {{ color-scheme: {}; }}\n\
-            }}\n\
-            \n\
-            /* === Global override ===\n\
-               User-style !important beats author-style !important.\n\
-               We use explicit colours (not inherit) so even inline styles\n\
-               and highly-specific site rules are overridden. */\n\
-            html, body {{\n\
-                background-color: {bg} !important;\n\
-            }}\n\
-            body, body * {{\n\
-                color: {fg} !important;\n\
-                background-color: {bg} !important;\n\
-                border-color: {ctl_border} !important;\n\
-            }}\n\
-            \n\
-            /* Restore visual hierarchy */\n\
-            a, a:link {{ color: {link} !important; }}\n\
-            a:visited {{ color: {vlink} !important; }}\n\
-            a:hover, a:active {{ color: {link} !important; text-decoration: underline !important; }}\n\
-            h1, h2, h3, h4, h5, h6 {{ color: {h_fg} !important; }}\n\
-            \n\
-            /* Form controls need slightly different backgrounds */\n\
-            input, textarea, select, button {{\n\
-                background-color: {ctl_bg} !important;\n\
-                color: {fg} !important;\n\
-                border-color: {ctl_border} !important;\n\
-            }}\n\
-            \n\
-            /* Keep images / video / iframes from being tinted */\n\
-            img, picture, video, svg, iframe, canvas, embed, object {{\n\
-                filter: none !important;\n\
-                opacity: 1 !important;\n\
-            }}\n",
-            scheme_str, scheme_str, scheme_str
+        let fallback_css = format!(
+            "html {{ background-color: {}; }}\n\
+            body {{ color: {}; }}\n",
+            bg, fg
         );
 
         if let Some(ucm) = self.web_view.user_content_manager() {
             ucm.remove_all_style_sheets();
-            let stylesheet = UserStyleSheet::new(
-                &css,
+
+            // Signal sheet (highest priority, cannot be overridden).
+            let signal_sheet = UserStyleSheet::new(
+                &signal_css,
                 UserContentInjectedFrames::AllFrames,
                 UserStyleLevel::User,
-                &[], // allow_list
-                &[], // block_list
+                &[],
+                &[],
             );
-            ucm.add_style_sheet(&stylesheet);
+            ucm.add_style_sheet(&signal_sheet);
+
+            // Fallback sheet (author priority, responsive sites override us).
+            let fallback_sheet = UserStyleSheet::new(
+                &fallback_css,
+                UserContentInjectedFrames::AllFrames,
+                UserStyleLevel::Author,
+                &[],
+                &[],
+            );
+            ucm.add_style_sheet(&fallback_sheet);
         }
     }
 
