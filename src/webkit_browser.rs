@@ -102,59 +102,79 @@ impl WebKitBrowserWrapper {
     }
 
     /// Set the preferred color scheme for web pages (light or dark).
-    /// Injects a comprehensive UserStyleSheet that:
-    /// 1. Sets `color-scheme` on `:root` so `prefers-color-scheme` media
-    ///    queries evaluate correctly (e.g. GitHub, Google, DuckDuckGo).
-    /// 2. Forces a fallback background/text colour on `<html>` and `<body>`
-    ///    for pages that do not implement dark mode at all.
-    /// 3. Inherits the forced colours down to common block-level elements
-    ///    so the fallback is not broken by element-specific overrides.
-    /// 4. Preserves images, videos and iframes from colour inversion.
+    ///
+    /// Injects a **User-level** UserStyleSheet that is higher priority than
+    /// author (site) styles.  The stylesheet:
+    ///
+    /// 1. Declares `color-scheme: dark|light` on `:root` so
+    ///    `prefers-color-scheme` media queries fire for well-behaved sites.
+    /// 2. Explicitly forces a global foreground/background colour via `*`
+    ///    so stubborn sites (Google, GitHub, etc.) cannot override it with
+    ///    class-specific selectors.
+    /// 3. Restores sensible link, heading, and form-control colours so the
+    ///    page is still readable and not a uniform grey blob.
+    /// 4. Preserves images, video and iframes from colour inversion.
     pub fn set_color_scheme(&self, scheme: &str) {
         let scheme_str = match scheme {
             "dark" => "dark",
             _ => "light",
         };
+
         let (bg, fg) = if scheme_str == "dark" {
             ("#1a1a1a", "#e6e6e6")
         } else {
-            ("#ffffff", "#000000")
+            ("#ffffff", "#1a1a1a")
         };
+
+        // These colours are only used when the site has NO dark mode support
+        // and the global override fires.
         let link = if scheme_str == "dark" { "#80bfff" } else { "#0000ee" };
         let vlink = if scheme_str == "dark" { "#c58af9" } else { "#551a8b" };
+        let h_fg = if scheme_str == "dark" { "#ffffff" } else { "#000000" };
+        let ctl_bg = if scheme_str == "dark" { "#2a2a2a" } else { "#f0f0f0" };
+        let ctl_border = if scheme_str == "dark" { "#555555" } else { "#cccccc" };
 
         let css = format!(
             "/* === Iron forced colour scheme === */\n\
-            :root {{\n\
-                color-scheme: {};\n\
-            }}\n\n\
-            /* Inform pages that prefer dark/light via media query */\n\
+            :root {{ color-scheme: {}; }}\n\
+            \n\
+            /* Tell prefers-color-scheme-aware pages which mode we want */\n\
             @media (prefers-color-scheme: {}) {{\n\
-                :root {{\n\
-                    color-scheme: {};\n\
-                }}\n\
-            }}\n\n\
-            /* Fallback for pages without proper dark-mode support */\n\
+                :root {{ color-scheme: {}; }}\n\
+            }}\n\
+            \n\
+            /* === Global override ===\n\
+               User-style !important beats author-style !important.\n\
+               We use explicit colours (not inherit) so even inline styles\n\
+               and highly-specific site rules are overridden. */\n\
             html, body {{\n\
-                background-color: {} !important;\n\
-                color: {} !important;\n\
+                background-color: {bg} !important;\n\
             }}\n\
-            /* Ensure common text containers inherit the fallback */\n\
-            div, span, p, li, td, th, label, h1, h2, h3, h4, h5, h6,\n\
-            article, section, aside, header, footer, main, nav,\n\
-            blockquote, pre, code, figure, figcaption {{\n\
-                background-color: transparent !important;\n\
-                color: inherit !important;\n\
+            body, body * {{\n\
+                color: {fg} !important;\n\
+                background-color: {bg} !important;\n\
+                border-color: {ctl_border} !important;\n\
             }}\n\
-            /* Preserve link colours */\n\
-            a:link {{ color: {link} !important; }}\n\
+            \n\
+            /* Restore visual hierarchy */\n\
+            a, a:link {{ color: {link} !important; }}\n\
             a:visited {{ color: {vlink} !important; }}\n\
-            a:active {{ color: {link} !important; }}\n\
-            /* Do NOT invert images, video or iframes */\n\
+            a:hover, a:active {{ color: {link} !important; text-decoration: underline !important; }}\n\
+            h1, h2, h3, h4, h5, h6 {{ color: {h_fg} !important; }}\n\
+            \n\
+            /* Form controls need slightly different backgrounds */\n\
+            input, textarea, select, button {{\n\
+                background-color: {ctl_bg} !important;\n\
+                color: {fg} !important;\n\
+                border-color: {ctl_border} !important;\n\
+            }}\n\
+            \n\
+            /* Keep images / video / iframes from being tinted */\n\
             img, picture, video, svg, iframe, canvas, embed, object {{\n\
                 filter: none !important;\n\
+                opacity: 1 !important;\n\
             }}\n",
-            scheme_str, scheme_str, scheme_str, bg, fg
+            scheme_str, scheme_str, scheme_str
         );
 
         if let Some(ucm) = self.web_view.user_content_manager() {
