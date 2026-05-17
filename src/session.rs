@@ -41,7 +41,9 @@ impl SessionManager {
             data_dir_str.as_deref(),
             cache_dir_str.as_deref(),
         );
-        network_session.set_persistent_credential_storage_enabled(false);
+        // Note: persistent credential storage requires a running secret service
+        // (e.g. gnome-keyring). If unavailable, WebKit logs a harmless warning.
+        // We leave it enabled so HTTP auth and form passwords are remembered.
 
         SessionManager {
             data_dir,
