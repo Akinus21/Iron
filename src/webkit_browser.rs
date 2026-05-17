@@ -111,13 +111,13 @@ impl WebKitBrowserWrapper {
         //    on WebKitSettings so pages see prefers-color-scheme correctly.
         //    We do this via GObject property access because webkit6 0.6 does
         //    not expose a Rust wrapper for it yet.
-        if let Some(settings) = self.web_view.settings() {
+        if let Some(settings) = WebViewExt::settings(&self.web_view) {
             // The property takes a WebKitColorScheme enum (0 = no-preference,
             // 1 = light, 2 = dark).  We try the integer first; if the type
             // mismatches we fall back silently.
-            let val = glib::Value::from(if scheme_str == "dark" { 2i32 } else { 1i32 });
+            let val: glib::Value = glib::Value::from(if scheme_str == "dark" { 2i32 } else { 1i32 });
             let _ = std::panic::catch_unwind(|| {
-                settings.set_property("preferred-color-scheme", &val);
+                let _ = settings.set_property("preferred-color-scheme", &val);
             });
         }
 
