@@ -15,6 +15,7 @@ const PROTECTED_ACTIONS: [&str; 2] = ["hint", "command"];
 pub fn show_settings_overlay(
     overlay: &gtk4::Overlay,
     config: Rc<RefCell<Config>>,
+    browser: &crate::webkit_browser::WebKitBrowserWrapper,
 ) -> GtkBox {
     let full = GtkBox::new(Orientation::Vertical, 0);
     full.add_css_class("command-overlay");
@@ -96,6 +97,59 @@ pub fn show_settings_overlay(
     });
     
     content.append(&sleep_switch);
+    
+    // Section: Color Scheme
+    let color_scheme_title = Label::new(Some("Color Scheme"));
+    color_scheme_title.add_css_class("title-2");
+    color_scheme_title.set_halign(Align::Start);
+    content.append(&color_scheme_title);
+    
+    let color_scheme_desc = Label::new(Some("Choose how web pages should appear (Light, Dark, or match the system theme)"));
+    color_scheme_desc.add_css_class("caption");
+    color_scheme_desc.set_halign(Align::Start);
+    content.append(&color_scheme_desc);
+    
+    let color_scheme_row = GtkBox::new(Orientation::Horizontal, 8);
+    color_scheme_row.set_margin_top(8);
+    
+    let color_scheme_list = gtk4::StringList::new(&["Match System", "Light", "Dark"]
+    );
+    let color_scheme_combo = gtk4::DropDown::new(Some(color_scheme_list.clone()), None::<&gtk4::Expression>);
+    color_scheme_combo.set_hexpand(true);
+    // Set initial selection from config
+    let initial_idx = match config.borrow().color_scheme_mode {
+        crate::config::ColorSchemeMode::MatchSystem => 0,
+        crate::config::ColorSchemeMode::Light => 1,
+        crate::config::ColorSchemeMode::Dark => 2,
+    };
+    color_scheme_combo.set_selected(initial_idx);
+    
+    let config_color = config.clone();
+    let browser_color = browser.clone();
+    color_scheme_combo.connect_selected_item_notify(move |combo| {
+        let mode = match combo.selected() {
+            1 => crate::config::ColorSchemeMode::Light,
+            2 => crate::config::ColorSchemeMode::Dark,
+            _ => crate::config::ColorSchemeMode::MatchSystem,
+        };
+        {
+            let mut cfg = config_color.borrow_mut();
+            cfg.color_scheme_mode = mode.clone();
+            let _ = cfg.save();
+        }
+        // Apply immediately to the current browser
+        let scheme = match mode {
+            crate::config::ColorSchemeMode::MatchSystem => {
+                if crate::noctalia::is_dark_preferred() { "dark" } else { "light" }
+            }
+            crate::config::ColorSchemeMode::Dark => "dark",
+            crate::config::ColorSchemeMode::Light => "light",
+        };
+        browser_color.set_color_scheme(scheme);
+    });
+    
+    color_scheme_row.append(&color_scheme_combo);
+    content.append(&color_scheme_row);
     
     // Section: Home page
     let home_title = Label::new(Some("Home Page"));

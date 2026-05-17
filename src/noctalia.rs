@@ -281,14 +281,22 @@ impl ThemeManager {
         }
     }
 
-    pub fn apply_webkit_css(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper) {
-        webview.set_color_scheme(if is_dark_preferred() { "dark" } else { "light" });
+    pub fn apply_webkit_css(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper, mode: &crate::config::ColorSchemeMode) {
+        let scheme = match mode {
+            crate::config::ColorSchemeMode::MatchSystem => {
+                if is_dark_preferred() { "dark" } else { "light" }
+            }
+            crate::config::ColorSchemeMode::Dark => "dark",
+            crate::config::ColorSchemeMode::Light => "light",
+        };
+        webview.set_color_scheme(scheme);
     }
 
     pub fn start_watch(
         tm: Rc<RefCell<ThemeManager>>,
         webview: &crate::webkit_browser::WebKitBrowserWrapper,
         provider: &gtk4::CssProvider,
+        config: Rc<RefCell<crate::config::Config>>,
     ) {
         let config_dir = match dirs::config_dir() {
             Some(d) => d,
@@ -332,7 +340,8 @@ impl ThemeManager {
                 eprintln!("Noctalia: colors.json changed (event={:?})!", event_type);
                 tm.borrow_mut().load();
                 tm.borrow().apply_gtk_css(&_provider);
-                tm.borrow().apply_webkit_css(&wv_clone);
+                let color_mode = config.borrow().color_scheme_mode.clone();
+                tm.borrow().apply_webkit_css(&wv_clone, &color_mode);
             }
         });
 

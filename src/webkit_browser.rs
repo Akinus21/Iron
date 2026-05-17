@@ -21,6 +21,7 @@ impl WebKitBrowserWrapper {
         url: &str,
         _is_offscreen: bool,
         network_session: Option<&NetworkSession>,
+        color_scheme: Option<&str>,
     ) -> Result<Self, String> {
         let web_view = match network_session {
             Some(ns) => WebView::builder()
@@ -44,6 +45,12 @@ impl WebKitBrowserWrapper {
             title: Rc::new(RefCell::new(title_str.clone())),
             is_loading: Rc::new(RefCell::new(true)),
         };
+
+        // Apply colour scheme *before* loading the URL so the first
+        // page render already sees the right scheme.
+        if let Some(scheme) = color_scheme {
+            wrapper.set_color_scheme(scheme);
+        }
 
         wrapper.load_uri(&url_str);
         wrapper.widget.grab_focus();
@@ -95,15 +102,60 @@ impl WebKitBrowserWrapper {
     }
 
     /// Set the preferred color scheme for web pages (light or dark).
-    /// This is done by injecting a persistent UserStyleSheet that sets
-    /// `color-scheme` on `:root`, which makes `prefers-color-scheme` media queries
-    /// and `light-dark()` colors respond correctly.
+    /// Injects a comprehensive UserStyleSheet that:
+    /// 1. Sets `color-scheme` on `:root` so `prefers-color-scheme` media
+    ///    queries evaluate correctly (e.g. GitHub, Google, DuckDuckGo).
+    /// 2. Forces a fallback background/text colour on `<html>` and `<body>`
+    ///    for pages that do not implement dark mode at all.
+    /// 3. Inherits the forced colours down to common block-level elements
+    ///    so the fallback is not broken by element-specific overrides.
+    /// 4. Preserves images, videos and iframes from colour inversion.
     pub fn set_color_scheme(&self, scheme: &str) {
-        let scheme = match scheme {
+        let scheme_str = match scheme {
             "dark" => "dark",
             _ => "light",
         };
-        let css = format!(":root {{ color-scheme: {}; }}", scheme);
+        let (bg, fg) = if scheme_str == "dark" {
+            ("#1a1a1a", "#e6e6e6")
+        } else {
+            ("#ffffff", "#000000")
+        };
+        let link = if scheme_str == "dark" { "#80bfff" } else { "#0000ee" };
+        let vlink = if scheme_str == "dark" { "#c58af9" } else { "#551a8b" };
+
+        let css = format!(
+            "/* === Iron forced colour scheme === */\n\
+            :root {{\n\
+                color-scheme: {};\n\
+            }}\n\n\
+            /* Inform pages that prefer dark/light via media query */\n\
+            @media (prefers-color-scheme: {}) {{\n\
+                :root {{\n\
+                    color-scheme: {};\n\
+                }}\n\
+            }}\n\n\
+            /* Fallback for pages without proper dark-mode support */\n\
+            html, body {{\n\
+                background-color: {} !important;\n\
+                color: {} !important;\n\
+            }}\n\
+            /* Ensure common text containers inherit the fallback */\n\
+            div, span, p, li, td, th, label, h1, h2, h3, h4, h5, h6,\n\
+            article, section, aside, header, footer, main, nav,\n\
+            blockquote, pre, code, figure, figcaption {{\n\
+                background-color: transparent !important;\n\
+                color: inherit !important;\n\
+            }}\n\
+            /* Preserve link colours */\n\
+            a:link {{ color: {link} !important; }}\n\
+            a:visited {{ color: {vlink} !important; }}\n\
+            a:active {{ color: {link} !important; }}\n\
+            /* Do NOT invert images, video or iframes */\n\
+            img, picture, video, svg, iframe, canvas, embed, object {{\n\
+                filter: none !important;\n\
+            }}\n",
+            scheme_str, scheme_str, scheme_str, bg, fg
+        );
 
         if let Some(ucm) = self.web_view.user_content_manager() {
             ucm.remove_all_style_sheets();

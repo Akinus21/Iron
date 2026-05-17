@@ -148,6 +148,16 @@ fn build_window(
     let url = initial_url.map(|s| s.to_string()).unwrap_or_else(|| cfg.borrow().home_page.clone());
     let network_session = session_mgr.borrow().network_session_clone();
     
+    // Resolve the effective colour scheme string *before* creating the WebView
+    // so it can be applied atomically on construction.
+    let effective_scheme = match cfg.borrow().color_scheme_mode {
+        crate::config::ColorSchemeMode::MatchSystem => {
+            if crate::noctalia::is_dark_preferred() { "dark" } else { "light" }
+        }
+        crate::config::ColorSchemeMode::Dark => "dark",
+        crate::config::ColorSchemeMode::Light => "light",
+    };
+    
     // Create download_mgr BEFORE browser so we can attach it to the session.
     let download_mgr: Rc<RefCell<DownloadManager>> = Rc::new(RefCell::new(DownloadManager::new()));
     
@@ -156,6 +166,7 @@ fn build_window(
         &url,
         true,
         Some(&network_session),
+        Some(&effective_scheme),
     ).unwrap_or_else(|e| {
         eprintln!("Failed to create WebKit browser: {}", e);
         webkit_browser::WebKitBrowserWrapper::new(
@@ -163,6 +174,7 @@ fn build_window(
             "about:blank",
             false,
             Some(&network_session),
+            Some(&effective_scheme),
         ).expect("Fallback browser creation failed")
     });
     
@@ -174,9 +186,6 @@ fn build_window(
         session_mgr.borrow().network_session_clone()
     });
     DownloadManager::attach(&wv_network_session, download_mgr.clone(), &browser);
-
-    // Apply Noctalia theme color-scheme (light or dark) to web pages.
-    tm.borrow().apply_webkit_css(&browser);
 
     history_mgr.borrow_mut().add(&url, Some("Loading..."));
 
@@ -214,6 +223,7 @@ fn build_window(
 
     let tm_watch = tm.clone();
     let noctalia_provider_watch = noctalia_provider.clone();
+    let cfg_watch = cfg.clone();
 
     let browser_watch = browser.clone();
     let key_ctl = EventControllerKey::new();
@@ -409,6 +419,7 @@ fn build_window(
                     rebuild_hist_list(&hist_list_widget, &recent, -1);
 
                     let wv_for_cmd = browser_ref.clone();
+                    let browser_cmd = browser_ref.clone();
                     let cmd_overlay_c = cmd_overlay_clone.clone();
                     let cfg_cmd = cfg_clone.clone();
                     let app_for_cmd = app_clone.clone();
@@ -501,7 +512,7 @@ fn build_window(
                                     if let Some(bar) = cmd_overlay_inner.borrow_mut().take() {
                                         bar.unparent();
                                     }
-                                    let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone());
+                                    let settings_box = settings::show_settings_overlay(&overlay_cmd, cfg_cmd.clone(), &browser_cmd);
                                     let settings_key_ctl = EventControllerKey::new();
                                     let settings_box_esc = settings_box.clone();
                                     settings_key_ctl.connect_key_pressed(move |_, k, _, _| {
@@ -839,7 +850,7 @@ fn build_window(
     window.add_controller(key_ctl);
 
     window.present();
-    ThemeManager::start_watch(tm_watch, &browser_watch, &noctalia_provider_watch);
+    ThemeManager::start_watch(tm_watch, &browser_watch, &noctalia_provider_watch, cfg_watch);
     window
 }
 

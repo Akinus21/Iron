@@ -23,6 +23,24 @@ pub enum CefTrack {
     Nightly,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Default, PartialEq)]
+pub enum ColorSchemeMode {
+    #[default]
+    MatchSystem,
+    Light,
+    Dark,
+}
+
+impl std::fmt::Display for ColorSchemeMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorSchemeMode::MatchSystem => write!(f, "match-system"),
+            ColorSchemeMode::Light => write!(f, "light"),
+            ColorSchemeMode::Dark => write!(f, "dark"),
+        }
+    }
+}
+
 impl std::fmt::Display for CefTrack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -44,6 +62,8 @@ pub struct Config {
     pub cef_track: CefTrack,
     #[serde(default = "default_true")]
     pub enable_window_sleep: bool,
+    #[serde(default)]
+    pub color_scheme_mode: ColorSchemeMode,
 }
 
 fn default_true() -> bool {
@@ -231,6 +251,7 @@ impl Default for Config {
             home_page: default_home_page(),
             cef_track: CefTrack::default(),
             enable_window_sleep: true,
+            color_scheme_mode: ColorSchemeMode::default(),
         }
     }
 }
