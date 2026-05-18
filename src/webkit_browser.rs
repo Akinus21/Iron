@@ -3,7 +3,8 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings, UserScript, UserScriptInjectionTime, WebViewExt};
+use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings, UserScript, UserScriptInjectionTime};
+use webkit6::prelude::WebViewExt;
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -182,7 +183,7 @@ impl WebKitBrowserWrapper {
             let user_script = UserScript::new(
                 script,
                 UserContentInjectedFrames::AllFrames,
-                UserScriptInjectionTime::AtDocumentEnd,
+                UserScriptInjectionTime::End,
                 &[], // allow_list
                 &[], // block_list
             );

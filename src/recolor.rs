@@ -109,7 +109,7 @@ impl Hsl {
                 else if k < 4.0 { q + a * (4.0 - k) } 
                 else { q }
             };
-            ((t(x) * 255.0).round() as u8)
+                (t(x) * 255.0).round() as u8
         };
         
         let r = c(0.0);
