@@ -281,6 +281,14 @@ impl ThemeManager {
         }
     }
 
+    pub fn apply_recolor_script(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper) {
+        // Only generate + inject if we actually have a palette loaded
+        if let Some(palette) = crate::recolor::NoctaliaPalette::load() {
+            let script = crate::recolor::generate_recolor_script(&palette);
+            webview.apply_recolor(&script);
+        }
+    }
+
     pub fn apply_webkit_css(&self, webview: &crate::webkit_browser::WebKitBrowserWrapper, mode: &crate::config::ColorSchemeMode) {
         let scheme = match mode {
             crate::config::ColorSchemeMode::MatchSystem => {
@@ -342,6 +350,7 @@ impl ThemeManager {
                 tm.borrow().apply_gtk_css(&_provider);
                 let color_mode = config.borrow().color_scheme_mode.clone();
                 tm.borrow().apply_webkit_css(&wv_clone, &color_mode);
+                tm.borrow().apply_recolor_script(&wv_clone);
             }
         });
 

@@ -20,6 +20,8 @@ pub enum Command {
     ClearHistory,
     DeleteHistory(String),
     ReloadTheme,
+    Recolor,
+    RecolorReload,
     CompatAdd(String),
     CompatDel(String),
     CompatList,

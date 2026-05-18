@@ -206,6 +206,9 @@ fn build_window(
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
+    // Apply AkSprayPaint-style full-page recoloring from Noctalia palette
+    tm.borrow().apply_recolor_script(&browser);
+
     // All command overlay theming is now in Noctalia's ThemeManager CSS
     // to avoid provider-priority conflicts at STYLE_PROVIDER_PRIORITY_APPLICATION.
 

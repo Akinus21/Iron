@@ -3,7 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Widget, EventControllerKey};
 use std::cell::RefCell;
 use std::rc::Rc;
-use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings};
+use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings, UserScript, UserScriptInjectionTime};
 use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
@@ -107,23 +107,8 @@ impl WebKitBrowserWrapper {
             _ => "light",
         };
 
-        // 1. Native signal – set the preferred-color-scheme GObject property
-        //    on WebKitSettings so pages see prefers-color-scheme correctly.
-        //    We do this via GObject property access because webkit6 0.6 does
-        //    not expose a Rust wrapper for it yet.
-        if let Some(settings) = WebViewExt::settings(&self.web_view) {
-            // The property takes a WebKitColorScheme enum (0 = no-preference,
-            // 1 = light, 2 = dark).  We try the integer first; if the type
-            // mismatches we fall back silently.
-            let val: glib::Value = glib::Value::from(if scheme_str == "dark" { 2i32 } else { 1i32 });
-            let _ = std::panic::catch_unwind(|| {
-                let _ = settings.set_property("preferred-color-scheme", &val);
-            });
-        }
-
-        // 2. CSS signal – inject :root { color-scheme } at User level so
-        //    prefers-color-scheme media queries evaluate to the chosen
-        //    scheme even if the native property above is unavailable.
+        // CSS signal – inject :root { color-scheme } at User level so
+        // prefers-color-scheme media queries evaluate to the chosen scheme.
         let signal_css = format!(":root {{ color-scheme: {}; }}\n", scheme_str);
 
         // 3. Gentle CSS fallback – injected at *Author* level (same cascade
@@ -185,5 +170,32 @@ impl WebKitBrowserWrapper {
 
     pub fn grab_focus(&self) {
         self.widget.grab_focus();
+    }
+
+    /// Inject the AkSprayPaint-style recoloring JS via UserContentManager.
+    /// The script runs at document end so it sees the full DOM.
+    pub fn apply_recolor(&self, script: &str) {
+        if let Some(ucm) = self.web_view.user_content_manager() {
+            // Remove previous recolor scripts to avoid stacking
+            ucm.remove_all_scripts();
+
+            let user_script = UserScript::new(
+                script,
+                UserContentInjectedFrames::AllFrames,
+                UserScriptInjectionTime::DocumentEnd,
+                &[], // allow_list
+                &[], // block_list
+            );
+            ucm.add_script(&user_script);
+        }
+    }
+
+    /// Disable recoloring by removing all injected scripts and calling
+    /// the JS deactivation hook.
+    pub fn disable_recolor(&self) {
+        if let Some(ucm) = self.web_view.user_content_manager() {
+            ucm.remove_all_scripts();
+        }
+        self.execute_js("if(window.__iron_recolor_deactivate) window.__iron_recolor_deactivate();");
     }
 }
