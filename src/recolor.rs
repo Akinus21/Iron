@@ -181,28 +181,16 @@ fn build_achromatic_map(palette: &NoctaliaPalette) -> (String, String, String, S
 /// Serialize the palette mapping to JSON for the JS engine
 fn palette_to_json(palette: &NoctaliaPalette) -> String {
     let buckets = build_buckets(palette);
-    let (surf, on_surf, surf_var, on_surf_var) = build_achromatic_map(palette);
-    
-    let mut json = String::new();
-    json.push_str("{\n");
-    json.push_str("  \"buckets\": {\n");
-    
-    let mut first = true;
-    for (name, bucket) in &buckets {
-        if !first { json.push_str(",\n"); }
-        first = false;
-        json.push_str(&format!(
-            "    \"{}\": {{ \"hue\": {:.1}, \"chroma\": {:.3} }}",
-            name, bucket.center_hue, bucket.chroma
-        ));
-    }
-    json.push_str("\n  },\n");
-    json.push_str(&format!(
-        "  \"achromatic\": {{\n    \"surface\": \"{}\",\n    \"onSurface\": \"{}\",\n    \"surfaceVariant\": \"{}\",\n    \"onSurfaceVariant\": \"{}\"\n  }}\n",
-        surf, on_surf, surf_var, on_surf_var
-    ));
-    json.push_str("}");
-    json
+
+    let primary = buckets.get("primary").map(|b| b.center_hue).unwrap_or(211.0);
+    let secondary = buckets.get("secondary").map(|b| b.center_hue).unwrap_or(171.0);
+    let tertiary = buckets.get("tertiary").map(|b| b.center_hue).unwrap_or(291.0);
+    let error = buckets.get("error").map(|b| b.center_hue).unwrap_or(25.0);
+
+    format!(
+        r#"{{ "slots": {{ "primary": {:.1}, "secondary": {:.1}, "tertiary": {:.1}, "error": {:.1} }}}}"#,
+        primary, secondary, tertiary, error
+    )
 }
 
 /// The JavaScript recoloring engine
@@ -314,32 +302,41 @@ const RECOLOR_JS: &str = r#"
   
   // Map a single HSL color through the palette
   function remapColor(h, s, l) {
-    const ACHROMA_THRESHOLD = 0.08;
+    // Don't touch achromatic colors (grays)
+    if (s < 0.05) return null;
 
-    // Achromatic: map lightness only using surface tokens
-    if (s < ACHROMA_THRESHOLD) {
-      return null; // don't touch grays at all
-    }
+    // Find which theme slot this color belongs to
+    const slot = findThemeSlot(h, s, l);
+    if (!slot) return null;
 
-    // Chromatic: find nearest bucket and shift
-    const bucketName = getBucketName(h);
-    if (!bucketName) return null;
+    // Hue rotation: compute offset from source Material Design center, apply to target center
+    const hueDelta = h - slot.sourceHue;
+    const newHue = (slot.targetHue + hueDelta + 360) % 360;
 
-    const bucket = PALETTE.buckets[bucketName];
-    if (!bucket) return null;
-
-    // Source hue centers that represent the original "Material Design" hues
-    const sourceCenters = { primary: 211, secondary: 171, tertiary: 291, error: 25 };
-    const sourceCenter = sourceCenters[bucketName] || bucket.hue;
-
-    // Rotate hue so source hue maps to bucket hue, preserving offset
-    const hueDelta = h - sourceCenter;
-    const newHue = (bucket.hue + hueDelta + 360) % 360;
-
-    const newSat = Math.min(1.0, s * (bucket.chroma / 0.5));
+    // Lightness preserved, slight saturation boost
+    const newSat = Math.min(1.0, s * 1.1);
     const newLight = l;
 
     return hslToHex(newHue, newSat, newLight);
+  }
+
+  // Find which Material Design hue slot this color belongs to (chromatic only)
+  function findThemeSlot(h, s, l) {
+    const SLOTS = [
+      { name: 'error',    sourceHue: 25,  targetHue: PALETTE.slots.error },
+      { name: 'primary', sourceHue: 211, targetHue: PALETTE.slots.primary },
+      { name: 'secondary',sourceHue: 171, targetHue: PALETTE.slots.secondary },
+      { name: 'tertiary', sourceHue: 291, targetHue: PALETTE.slots.tertiary },
+    ];
+
+    // Find nearest slot by hue distance
+    let best = null, minDist = Infinity;
+    for (const slot of SLOTS) {
+      let d = Math.abs(h - slot.sourceHue);
+      if (d > 180) d = 360 - d;
+      if (d < minDist) { minDist = d; best = slot; }
+    }
+    return best;
   }
   
   function remapValue(val) {
