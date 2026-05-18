@@ -315,48 +315,30 @@ const RECOLOR_JS: &str = r#"
   // Map a single HSL color through the palette
   function remapColor(h, s, l) {
     const ACHROMA_THRESHOLD = 0.08;
-    
+
     // Achromatic: map lightness only using surface tokens
     if (s < ACHROMA_THRESHOLD) {
-      const ac = PALETTE.achromatic;
-      // Map lightness to surface scale
-      // 0.0 -> surface (darkest), 1.0 -> onSurface (lightest)
-      const surfL = rgbToLum(ac.surface);
-      const onSurfL = rgbToLum(ac.onSurface);
-      const surfVarL = rgbToLum(ac.surfaceVariant);
-      const onSurfVarL = rgbToLum(ac.onSurfaceVariant);
-      
-      // Use a curve: very dark -> surface, very light -> onSurface, middle -> surfaceVariant/onSurfaceVariant
-      let targetHex;
-      if (l < 0.15) targetHex = ac.surface;
-      else if (l < 0.35) targetHex = ac.surfaceVariant;
-      else if (l < 0.65) targetHex = ac.onSurfaceVariant;
-      else targetHex = ac.onSurface;
-      
-      return targetHex;
+      return null; // don't touch grays at all
     }
-    
+
     // Chromatic: find nearest bucket and shift
     const bucketName = getBucketName(h);
-    if (!bucketName) return hslToHex(h, s, l);
-    
+    if (!bucketName) return null;
+
     const bucket = PALETTE.buckets[bucketName];
-    
-    // Compute relative hue shift
-    // If input is 20 deg from bucket center, output is 20 deg from theme center
-    const sourceCenters = {
-      primary: 210, secondary: 180, tertiary: 300, error: 0
-    };
+    if (!bucket) return null;
+
+    // Source hue centers that represent the original "Material Design" hues
+    const sourceCenters = { primary: 211, secondary: 171, tertiary: 291, error: 25 };
     const sourceCenter = sourceCenters[bucketName] || bucket.hue;
+
+    // Rotate hue so source hue maps to bucket hue, preserving offset
     const hueDelta = h - sourceCenter;
     const newHue = (bucket.hue + hueDelta + 360) % 360;
-    
-    // Scale chroma: preserve relative saturation
-    const newSat = Math.min(1.0, s * (bucket.chroma / 0.5)); // normalize against assumed source chroma
-    
-    // Preserve lightness with slight curve adjustment for theme contrast
+
+    const newSat = Math.min(1.0, s * (bucket.chroma / 0.5));
     const newLight = l;
-    
+
     return hslToHex(newHue, newSat, newLight);
   }
   
@@ -457,25 +439,26 @@ const RECOLOR_JS: &str = r#"
   }
   
   function processComputedStyles() {
-    // For elements without inline styles, force color via inline to override computed
-    // This is aggressive but ensures everything gets recolored
+    // Only recolor elements that have EXPLICIT color values set in stylesheets
+    // Do NOT recolor elements that only have cascade-computed user-agent colors
     const allEls = document.querySelectorAll('body, body *');
     for (const el of allEls) {
       if (shouldSkipElement(el)) continue;
-      const computed = getComputedStyle(el);
-      const color = computed.color;
-      const bg = computed.backgroundColor;
-      
-      if (color && color !== 'rgba(0, 0, 0, 0)') {
-        const remapped = remapValue(color);
-        if (remapped !== color) {
-          el.style.setProperty('color', remapped, 'important');
+      const style = el.style;
+      const hasColor = style.getPropertyValue('color');
+      const hasBg = style.getPropertyValue('background-color');
+
+      // Only process if element has inline explicit color set
+      if (hasColor) {
+        const remapped = remapValue(hasColor);
+        if (remapped !== hasColor) {
+          try { style.setProperty('color', remapped, 'important'); } catch(e) {}
         }
       }
-      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-        const remapped = remapValue(bg);
-        if (remapped !== bg) {
-          el.style.setProperty('background-color', remapped, 'important');
+      if (hasBg) {
+        const remapped = remapValue(hasBg);
+        if (remapped !== hasBg) {
+          try { style.setProperty('background-color', remapped, 'important'); } catch(e) {}
         }
       }
     }
