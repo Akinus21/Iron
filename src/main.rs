@@ -9,6 +9,7 @@ mod fuzzy;
 mod hints;
 mod history;
 mod noctalia;
+mod recolor;
 mod search;
 mod webkit_browser;
 mod session;
@@ -621,6 +622,24 @@ fn build_window(
                                     tm_cmd.borrow_mut().load();
                                     tm_cmd.borrow().apply_gtk_css(&noctalia_provider_cmd);
                                     eprintln!("Theme reloaded manually");
+                                }
+                                command::Command::Recolor => {
+                                    if let Some(palette) = crate::recolor::NoctaliaPalette::load() {
+                                        let script = crate::recolor::generate_recolor_script(&palette);
+                                        wv_for_cmd.apply_recolor(&script);
+                                        eprintln!("[recolor] Applied");
+                                    } else {
+                                        eprintln!("[recolor] No palette file found");
+                                    }
+                                }
+                                command::Command::RecolorReload => {
+                                    if let Some(palette) = crate::recolor::NoctaliaPalette::load() {
+                                        let script = crate::recolor::generate_recolor_script(&palette);
+                                        wv_for_cmd.apply_recolor(&script);
+                                        eprintln!("[recolor] Reloaded");
+                                    } else {
+                                        eprintln!("[recolor] No palette file found");
+                                    }
                                 }
                                 command::Command::CompatAdd(domain) => {
                                     compat_mgr_cmd.borrow_mut().add(&domain);
