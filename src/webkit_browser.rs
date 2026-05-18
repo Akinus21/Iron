@@ -5,7 +5,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use webkit6::{WebView, UserContentManager, UserStyleSheet, UserContentInjectedFrames, UserStyleLevel, NetworkSession, Settings, UserScript, UserScriptInjectionTime};
 use webkit6::prelude::WebViewExt;
-use webkit6::prelude::WebViewExt;
 
 #[derive(Clone)]
 pub struct WebKitBrowserWrapper {
